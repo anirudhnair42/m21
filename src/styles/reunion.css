@@ -1,0 +1,2998 @@
+/* ============================================================
+   The Reunion — Class of 2021
+   macOS High Sierra (2017) chrome + Minerva content
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Inter", sans-serif;
+  font-size: 13px;
+  color: #1d1d1f;
+  background: #000;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------- Reusable type tokens ---------- */
+:root {
+  /* Minerva web font tokens. Chronicle Deck / Acumin Pro need an Adobe Fonts
+     kit loaded for the actual faces to resolve; otherwise the chain falls
+     back to system serif / sans-serif. */
+  --serif-font-family: "Chronicle Deck A", "Chronicle Deck B", "Chronicle SSm A", "Chronicle SSm B", serif;
+  --sans-font-family: "acumin-pro", sans-serif;
+  --font-weight-normal: 400;
+  --font-weight-bold: 600;
+
+  /* Aliases used throughout the existing stylesheet — point them at the new
+     tokens so every component picks up Chronicle / Acumin in one move. */
+  --font-sys: var(--sans-font-family);
+  --font-sys-display: var(--sans-font-family);
+  --font-serif: var(--serif-font-family);
+  --font-mono: "SF Mono", "Menlo", "Consolas", monospace;
+
+  /* Minerva ALF blue palette (light reference) */
+  --minerva-blue: #1463b0;
+  --minerva-blue-dark: #0d4a85;
+  --minerva-blue-light: #4d92d6;
+  --minerva-paper: #fbfaf7;
+  --minerva-ink: #1a2530;
+  --minerva-rule: #d8d4c8;
+
+  /* macOS UI */
+  --mac-window-bg: rgba(246, 246, 246, 0.92);
+  --mac-window-border: rgba(0, 0, 0, 0.18);
+  --mac-titlebar: linear-gradient(180deg, #e8e8e8 0%, #d3d3d3 100%);
+  --mac-titlebar-inactive: linear-gradient(180deg, #f0f0f0 0%, #e2e2e2 100%);
+  --mac-shadow:
+    0 0 0 0.5px rgba(0,0,0,0.25),
+    0 22px 70px rgba(0,0,0,0.42),
+    0 12px 30px rgba(0,0,0,0.28);
+
+  --tl-red: #ff5f57;
+  --tl-yellow: #ffbd2e;
+  --tl-green: #28c940;
+}
+
+/* ============================================================
+   STAGE MANAGER — full-bleed transitions
+   ============================================================ */
+.stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.fade-enter { opacity: 0; }
+.fade-enter-active { opacity: 1; transition: opacity 700ms cubic-bezier(.4,0,.2,1); }
+.fade-exit { opacity: 1; }
+.fade-exit-active { opacity: 0; transition: opacity 500ms cubic-bezier(.4,0,.2,1); }
+
+/* ============================================================
+   HIGH SIERRA WALLPAPER — CSS recreation of the mountain dusk
+   ============================================================ */
+.wallpaper {
+  position: absolute;
+  inset: 0;
+  background: #1a2530 url("/assets/wallpaper.png") center / cover no-repeat;
+  overflow: hidden;
+}
+
+/* ============================================================
+   MENU BAR (macOS High Sierra)
+   ============================================================ */
+.menubar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 24px;
+  background: rgba(40, 40, 50, 0.42);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  z-index: 100;
+  color: rgba(255,255,255,0.95);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.menubar-left,
+.menubar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.menubar-left { flex: 0 0 auto; }
+.menubar-right { margin-left: auto; }
+
+.menubar-apple {
+  font-size: 15px;
+  line-height: 1;
+  margin-right: 4px;
+  margin-top: -2px;
+}
+
+.menubar-app { font-weight: 600; }
+.menubar-item {
+  cursor: default;
+  padding: 1px 6px;
+  border-radius: 3px;
+  transition: background 120ms;
+}
+.menubar-item:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+.menubar-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.12);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+.menubar-counter-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #28c940;
+  box-shadow: 0 0 4px #28c940;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ============================================================
+   DOCK (macOS High Sierra)
+   ============================================================ */
+.dock-wrap {
+  position: absolute;
+  bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  pointer-events: none;
+}
+.dock {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 7px 10px;
+  background: rgba(220, 220, 230, 0.32);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.35);
+  border-top-color: rgba(255,255,255,0.55);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.4) inset,
+    0 0 0 0.5px rgba(0,0,0,0.5),
+    0 14px 40px rgba(0,0,0,0.35);
+  pointer-events: auto;
+}
+.dock-icon {
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 220ms cubic-bezier(.4,0,.2,1);
+}
+.dock-icon:hover {
+  transform: translateY(-10px) scale(1.18);
+}
+.dock-icon.has-window::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+.dock-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255,255,255,0.25);
+  margin: 0 2px;
+}
+.dock-trash {
+  background: linear-gradient(145deg, #fafbfd 0%, #c8cbd2 100%);
+}
+
+/* Tooltip above dock icons */
+.dock-tooltip {
+  position: absolute;
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  background: rgba(40,40,50,0.92);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms;
+}
+.dock-icon:hover .dock-tooltip { opacity: 1; }
+
+/* Red unread badge in the top-right corner of a dock icon (macOS style). */
+.dock-badge {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  background: linear-gradient(180deg, #ff5a4f 0%, #e53935 100%);
+  color: #fff;
+  font-family: var(--font-sys);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transform-origin: 70% 30%;
+  animation: dock-badge-pop 380ms cubic-bezier(.34, 1.7, .5, 1);
+}
+@keyframes dock-badge-pop {
+  0%   { transform: scale(0);    opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ============================================================
+   DESKTOP ICONS
+   ============================================================ */
+.desktop-icons {
+  position: absolute;
+  /* Sit well below the notification drop zone (notifs anchor at top-right,
+     bottom ~110px). Keeps the Applications folder from peeking through. */
+  top: 130px; right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  z-index: 5;
+}
+.desktop-icon {
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+.desktop-icon:hover { background: rgba(120, 160, 220, 0.18); }
+.desktop-icon.selected { background: rgba(120, 160, 220, 0.30); }
+.desktop-icon-img {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 38px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));
+}
+.desktop-icon-label {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+  line-height: 1.2;
+  max-width: 84px;
+  word-wrap: break-word;
+}
+
+/* Folder icon shape */
+.icon-folder {
+  width: 56px; height: 44px;
+  background: linear-gradient(180deg, #8ec0ee 0%, #5a98d3 100%);
+  border-radius: 4px;
+  position: relative;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));
+}
+.icon-folder::before {
+  content: "";
+  position: absolute;
+  top: -6px; left: 0;
+  width: 24px; height: 9px;
+  background: linear-gradient(180deg, #7eb1de 0%, #5a98d3 100%);
+  border-radius: 3px 3px 0 0;
+}
+.icon-folder::after {
+  content: "";
+  position: absolute;
+  top: 1px; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, #c8def0 0%, #a0c4e2 100%);
+  border-radius: 3px;
+  border-top: 2px solid #7eb1de;
+}
+
+/* App-style rounded icon */
+.icon-app {
+  width: 56px; height: 56px;
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+/* ============================================================
+   WINDOW CHROME (macOS High Sierra)
+   ============================================================ */
+.window {
+  position: absolute;
+  background: var(--mac-window-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 7px;
+  box-shadow: var(--mac-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 320px;
+  min-height: 200px;
+}
+.window.inactive { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.18), 0 14px 40px rgba(0,0,0,0.25); }
+
+.window-titlebar {
+  height: 22px;
+  background: var(--mac-titlebar);
+  border-bottom: 1px solid rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  flex-shrink: 0;
+  position: relative;
+  cursor: default;
+  user-select: none;
+}
+.window.inactive .window-titlebar { background: var(--mac-titlebar-inactive); }
+
+.traffic-lights {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.traffic-light {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(0,0,0,0.25);
+  cursor: pointer;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px;
+  color: rgba(0,0,0,0);
+  font-weight: 900;
+  line-height: 1;
+}
+.traffic-light.close { background: var(--tl-red); }
+.traffic-light.minimize { background: var(--tl-yellow); }
+.traffic-light.maximize { background: var(--tl-green); }
+.window.inactive .traffic-light {
+  background: #c8c8c8;
+}
+.traffic-lights:hover .traffic-light { color: rgba(0,0,0,0.55); }
+
+.window-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 600;
+  color: #3a3a3a;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.window.inactive .window-title { color: #8a8a8a; }
+
+.window-body {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+  position: relative;
+}
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+.resize-handle.r-e  { top: 6px; right: 0; bottom: 6px; width: 6px; cursor: ew-resize; }
+.resize-handle.r-w  { top: 6px; left: 0; bottom: 6px; width: 6px; cursor: ew-resize; }
+.resize-handle.r-s  { left: 6px; right: 6px; bottom: 0; height: 6px; cursor: ns-resize; }
+.resize-handle.r-n  { left: 6px; right: 6px; top: 0; height: 6px; cursor: ns-resize; }
+.resize-handle.r-se { right: 0; bottom: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.resize-handle.r-sw { left: 0; bottom: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.resize-handle.r-ne { right: 0; top: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.resize-handle.r-nw { left: 0; top: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+
+/* Window — appear immediately. Drag/resize feel is the chrome's job. */
+.window { opacity: 1; transform: none; }
+
+/* ============================================================
+   INBOX (2017 Apple Mail)
+   ============================================================ */
+.inbox-stage {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+    radial-gradient(ellipse at center, #2a2a3a 0%, #0a0a18 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+}
+
+.mail-window {
+  width: min(1100px, 92vw);
+  height: min(720px, 86vh);
+  background: #fff;
+  border-radius: 7px;
+  box-shadow: var(--mac-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.mail-titlebar {
+  height: 38px;
+  background: var(--mac-titlebar);
+  border-bottom: 1px solid rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+.mail-titlebar-center {
+  position: absolute;
+  left: 50%; top: 0;
+  height: 38px;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3a3a3a;
+}
+
+/* ============================================================
+   MAIL APP (renders inside a generic Window)
+   ============================================================ */
+.mail-app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  overflow: hidden;
+  font-family: var(--font-sys);
+}
+
+.mail-toolbar {
+  height: 50px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #d8d8d8;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.mail-tool-btn {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 10px;
+  color: #555;
+  gap: 1px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.mail-tool-btn-icon {
+  font-size: 18px;
+  color: #6e7886;
+}
+.mail-tool-sep { width: 1px; height: 30px; background: #d8d8d8; }
+
+.mail-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+.mail-sidebar {
+  width: 200px;
+  background: #ececec;
+  border-right: 1px solid #d4d4d4;
+  padding: 12px 4px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+.mail-sidebar-section {
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 700;
+  color: #888;
+  padding: 8px 12px 4px;
+  letter-spacing: 0.04em;
+}
+.mail-sidebar-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  color: #2a2a2a;
+  cursor: default;
+  margin: 0 4px;
+}
+.mail-sidebar-item.active {
+  background: linear-gradient(180deg, #6da4e0 0%, #4080cf 100%);
+  color: #fff;
+  font-weight: 500;
+}
+.mail-sidebar-item-icon {
+  font-size: 13px;
+  color: #6890c8;
+  width: 16px;
+  text-align: center;
+}
+.mail-sidebar-item.active .mail-sidebar-item-icon { color: #fff; }
+.mail-sidebar-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+.mail-sidebar-item.active .mail-sidebar-count { color: rgba(255,255,255,0.85); }
+
+.mail-list {
+  width: 340px;
+  background: #fafafa;
+  border-right: 1px solid #d4d4d4;
+  overflow-y: auto;
+}
+.mail-list-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 11px;
+  color: #888;
+  display: flex;
+  justify-content: space-between;
+  background: #f0f0f0;
+}
+.mail-row {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e6e6e6;
+  cursor: pointer;
+  position: relative;
+  transition: background 100ms;
+}
+.mail-row:hover { background: #f0f4fa; }
+.mail-row.unread::before {
+  content: "";
+  position: absolute;
+  left: 4px; top: 50%;
+  transform: translateY(-50%);
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #2080e8;
+}
+.mail-row.unread { padding-left: 22px; }
+.mail-row-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 2px;
+}
+.mail-row-from {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.mail-row.unread .mail-row-from { color: #0050a0; }
+.mail-row-time {
+  font-size: 11px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+.mail-row-subject {
+  font-size: 13px;
+  color: #2a2a2a;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+.mail-row.unread .mail-row-subject { font-weight: 600; }
+.mail-row-preview {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mail-pane {
+  flex: 1;
+  background: #fff;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.mail-pane-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 14px;
+}
+
+.mail-pane-header {
+  padding: 24px 40px 16px;
+  border-bottom: 1px solid #e6e6e6;
+}
+.mail-pane-subject {
+  font-size: 19px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.mail-pane-meta {
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 12px;
+}
+.mail-pane-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--minerva-blue) 0%, var(--minerva-blue-dark) 100%);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.mail-pane-from {
+  font-weight: 600; color: #1a1a1a; font-size: 13px;
+}
+.mail-pane-from-email {
+  color: #888; font-weight: 400;
+}
+.mail-pane-to {
+  color: #555;
+  margin-top: 2px;
+}
+.mail-pane-date {
+  margin-left: auto;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.mail-pane-body {
+  padding: 28px 40px 32px;
+  font-family: var(--font-sys);
+  font-size: 14px;
+  line-height: 1.55;
+  color: #2a2a2a;
+  max-width: 680px;
+}
+.mail-pane-body p { margin-bottom: 14px; }
+.mail-pane-body .signoff { margin-top: 22px; font-style: italic; color: #555; }
+.mail-pane-body .signature {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid #e6e6e6;
+  font-size: 12px;
+  color: #777;
+  line-height: 1.5;
+}
+.mail-pane-body .signature strong { color: var(--minerva-blue-dark); }
+.mail-pane-body .cta-row {
+  margin-top: 24px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f6faff 0%, #eaf2fb 100%);
+  border: 1px solid #c5dbef;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.mail-pane-body .cta-row-text {
+  font-size: 13px;
+  color: var(--minerva-blue-dark);
+}
+.mail-cta-btn {
+  background: linear-gradient(180deg, var(--minerva-blue) 0%, var(--minerva-blue-dark) 100%);
+  color: #fff;
+  border: 1px solid var(--minerva-blue-dark);
+  padding: 7px 16px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 1px 2px rgba(0,0,0,0.15);
+  font-family: var(--font-sys);
+  transition: filter 120ms, transform 80ms;
+}
+.mail-cta-btn:hover { filter: brightness(1.08); }
+.mail-cta-btn:active { transform: translateY(1px); }
+
+/* ============================================================
+   MAIL NOTIFICATION BANNER (slides in top-right after intro)
+   ============================================================ */
+.mail-notif {
+  position: fixed;
+  top: 36px;
+  right: 18px;
+  width: 360px;
+  /* Fully opaque — notifications shouldn't let whatever's beneath them
+     read through. We keep the saturation/blur for the subtle macOS feel,
+     but the base color carries the weight. */
+  background: rgba(246, 246, 246, 1);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.55) inset,
+    0 14px 36px rgba(0,0,0,0.38),
+    0 2px 6px rgba(0,0,0,0.22);
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  z-index: 800;
+  cursor: pointer;
+  font-family: var(--font-sys);
+  animation: mn-in 520ms cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes mn-in {
+  from { transform: translateX(28px) scale(0.96); opacity: 0; }
+  to   { transform: translateX(0)    scale(1);    opacity: 1; }
+}
+.mail-notif:hover { background: rgba(252, 252, 252, 1); }
+
+/* macOS-style slide-off: glide right + slight scale-down + fade. Duration must
+   match NOTIF_SLIDE_MS in Desktop.tsx. */
+.mail-notif.mail-notif-out {
+  animation: mn-out 420ms cubic-bezier(.45, 0, .55, 1) forwards;
+  pointer-events: none;
+}
+@keyframes mn-out {
+  from { transform: translateX(0)    scale(1);    opacity: 1; }
+  to   { transform: translateX(120%) scale(0.94); opacity: 0; }
+}
+
+.mail-notif-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.mail-notif-body {
+  flex: 1;
+  min-width: 0;
+}
+.mail-notif-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.mail-notif-app {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.mail-notif-time {
+  font-size: 11px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+.mail-notif-from {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mail-notif-subj {
+  font-size: 12.5px;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mail-notif-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 18px; height: 18px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.mail-notif:hover .mail-notif-close { opacity: 1; }
+.mail-notif-close:hover { background: rgba(0,0,0,0.06); color: #1a1a1a; }
+
+/* App icons */
+.icon-mail {
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(0,0,0,0.10);
+}
+.icon-safari {
+  background: radial-gradient(circle at 50% 38%, #f1f4f7 0%, #b6c2cf 100%);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.30);
+}
+
+/* ============================================================
+   SAFARI BROWSER APP (renders inside a Window)
+   ============================================================ */
+.sb-app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f0f0f0;
+  overflow: hidden;
+  font-family: var(--font-sys);
+}
+
+.sb-toolbar {
+  flex: 0 0 auto;
+  height: 44px;
+  background: linear-gradient(180deg, #f3f3f3 0%, #e2e2e2 100%);
+  border-bottom: 1px solid #c8c8c8;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 10px;
+}
+
+.sb-toolbar-group { display: flex; align-items: center; gap: 2px; }
+.sb-toolbar-group--right { gap: 4px; }
+
+.sb-tb-btn {
+  width: 28px;
+  height: 24px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4a4a4a;
+  transition: background 120ms;
+}
+.sb-tb-btn:hover { background: rgba(0,0,0,0.06); }
+.sb-tb-btn--disabled { color: #b8b8b8; cursor: default; }
+.sb-tb-btn--disabled:hover { background: transparent; }
+
+.sb-url-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 6px;
+}
+.sb-url {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 12px;
+  background: #fcfcfc;
+  border: 1px solid #c0c0c0;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: #1a1a1a;
+  font-family: var(--font-sys);
+  width: 100%;
+  max-width: 560px;
+  position: relative;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+  overflow: hidden;
+}
+.sb-url-lock { color: #2a8c4a; display: flex; align-items: center; }
+.sb-url-text {
+  font-variant-numeric: tabular-nums;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.sb-url-loader {
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 2px;
+  width: 30%;
+  background: linear-gradient(90deg, transparent 0%, #3b9cff 50%, transparent 100%);
+  animation: sb-loader 1.6s linear infinite;
+}
+@keyframes sb-loader {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(360%); }
+}
+
+.sb-body {
+  flex: 1;
+  position: relative;
+  background: #050505;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ----- Globe stage: zoomed globe + headline + letter ----- */
+.sb-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 56% at 50% 78%, rgba(40,40,52,0.55) 0%, transparent 70%),
+    #040508;
+  transition: opacity 750ms cubic-bezier(.4,0,.2,1),
+              filter   750ms cubic-bezier(.4,0,.2,1);
+}
+.sb-stage.sb-stage-fade {
+  opacity: 0;
+  filter: blur(6px);
+}
+
+/* "Satellite" view: globe is way bigger than the stage so we feel close to
+   the surface, and pushed down so its center sits at the body bottom. That
+   means only the top hemisphere is visible — the arc traces appear to slide
+   across a curving horizon. The wrap sits ABOVE the headline in z-order so
+   text rises out from behind the sphere. */
+.sb-globe-canvas-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: -210%;          /* push the sphere far below — only a top slice peeks in */
+  height: 260%;           /* keep it massive */
+  aspect-ratio: 1 / 1;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 2;
+}
+.sb-globe-canvas { width: 100%; height: 100%; display: block; background: transparent; }
+
+/* SVG overlay sits on top of the cobe canvas, sized identically, and renders
+   the arc + city dots driven by per-frame projection. */
+.sb-globe-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.sb-arc {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.45));
+}
+.sb-arc-done   { stroke-width: 0.45; opacity: 0.90; }
+.sb-arc-active { stroke-width: 0.55; opacity: 1; }
+.sb-city-dot  { fill: #ffffff; }
+.sb-city-halo { fill: rgba(255,255,255,0.22); }
+
+/* ----- Headline rises from BEHIND the globe ----- */
+/* z-index 1 sits below the globe canvas (z-index 2) so when the text is at
+   its starting position (down inside the sphere region), the opaque sphere
+   pixels hide it. As it slides up and clears the top of the globe, it
+   appears in the top half — like rising from behind the horizon. */
+.sb-headline-wrap {
+  position: absolute;
+  left: 0; right: 0;
+  top: 8%;
+  text-align: center;
+  color: #fff;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transform: translateY(360px) scale(0.96);
+  filter: blur(10px);
+  transition:
+    opacity   1100ms cubic-bezier(.18,.7,.2,1),
+    transform 1200ms cubic-bezier(.18, 1.35, .35, 1),
+    filter    900ms cubic-bezier(.4,0,.2,1);
+}
+.sb-headline-wrap.in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+.sb-headline {
+  font-family: var(--font-serif);
+  font-style: normal;
+  font-weight: 400;
+  font-size: clamp(40px, 7vw, 92px);
+  letter-spacing: 0.02em;
+  line-height: 0.98;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 0%, #d6dbe6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 6px 26px rgba(0,0,0,0.5);
+}
+.sb-subtitle {
+  margin-top: 28px;
+  font-family: var(--font-sys);
+  font-weight: 400;
+  font-size: clamp(13px, 1.25vw, 17px);
+  line-height: 1.55;
+  color: rgba(255,255,255,0.78);
+  letter-spacing: 0.01em;
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity   720ms cubic-bezier(.18,.7,.2,1),
+    transform 820ms cubic-bezier(.18, 1.35, .35, 1);
+}
+.sb-subtitle.in { opacity: 1; transform: translateY(0); }
+
+/* ----- Letter stage: marker-drawn handwritten text + orange CTA ----- */
+@property --sb-marker-draw {
+  syntax: "<percentage>";
+  initial-value: 0%;
+  inherits: false;
+}
+
+.sb-letter {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 72% 60% at 50% 50%, rgba(36,32,28,0.42) 0%, transparent 70%),
+    #06070a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6% 8%;
+  animation: sb-letter-roll 720ms cubic-bezier(.2, .85, .25, 1) both;
+}
+@keyframes sb-letter-roll {
+  from { opacity: 0; transform: translateY(38px); filter: blur(8px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+.sb-letter-inner {
+  max-width: 880px;
+  width: 100%;
+  text-align: left;
+  color: #f4f1ea;
+}
+.sb-marker-line {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(28px, 3.6vw, 52px);
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  margin: 0 0 10px;
+  overflow: visible;
+}
+.sb-marker-fill {
+  display: inline;
+  color: #f4f1ea;
+  /* the marker reveal: a soft-edged mask sweeps left → right */
+  -webkit-mask: linear-gradient(
+    90deg,
+    #000 calc(var(--sb-marker-draw) - 18%),
+    transparent var(--sb-marker-draw)
+  );
+          mask: linear-gradient(
+    90deg,
+    #000 calc(var(--sb-marker-draw) - 18%),
+    transparent var(--sb-marker-draw)
+  );
+  --sb-marker-draw: 0%;
+  animation: sb-marker-draw-anim 1400ms cubic-bezier(.55, 0, .35, 1) both;
+}
+@keyframes sb-marker-draw-anim {
+  to { --sb-marker-draw: 118%; }
+}
+.sb-marker-line-1 .sb-marker-fill { animation-delay: 220ms; }
+.sb-marker-line-2 .sb-marker-fill { animation-delay: 1500ms; }
+.sb-marker-line-3 .sb-marker-fill {
+  animation-delay: 2800ms;
+  color: #ffb15a;
+}
+
+.sb-letter-cta-wrap {
+  margin-top: 44px;
+  opacity: 0;
+  animation: sb-letter-cta-in 700ms cubic-bezier(.2,.9,.25,1) 4200ms both;
+}
+@keyframes sb-letter-cta-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sb-letter-cta {
+  font-family: var(--font-sys);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: #F15923;
+  border: 0;
+  border-radius: 8px;
+  padding: 14px 26px;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.18) inset,
+    0 10px 24px rgba(241,89,35,0.32),
+    0 1px 2px rgba(0,0,0,0.3);
+  transition:
+    transform 140ms cubic-bezier(.2,.9,.25,1),
+    filter 140ms ease,
+    box-shadow 140ms ease;
+}
+.sb-letter-cta:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.20) inset,
+    0 14px 30px rgba(241,89,35,0.40),
+    0 2px 4px rgba(0,0,0,0.35);
+}
+.sb-letter-cta:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+
+/* ============================================================
+   CALENDAR APP — native macOS High Sierra style
+   ============================================================ */
+.cal-app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f7f7f7 0%, #ececec 100%);
+  font-family: var(--font-sys);
+  color: #1a1a1a;
+  overflow: hidden;
+}
+
+/* ----- inner toolbar (Day/Week/Month/Year + title + Today) ----- */
+.cal-toolbar {
+  flex: 0 0 auto;
+  height: 44px;
+  background: linear-gradient(180deg, #f4f4f4 0%, #e2e2e2 100%);
+  border-bottom: 1px solid #c8c8c8;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 14px;
+}
+.cal-toolbar-segment {
+  display: inline-flex;
+  background: linear-gradient(180deg, #fdfdfd 0%, #e9e9e9 100%);
+  border: 1px solid #b8b8b8;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 1px rgba(0,0,0,0.04);
+}
+.cal-tb-seg {
+  border: 0;
+  background: transparent;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #2a2a2a;
+  cursor: default;
+  border-right: 1px solid #b8b8b8;
+}
+.cal-tb-seg:last-child { border-right: 0; }
+.cal-tb-seg-on {
+  background: linear-gradient(180deg, #c4c4c4 0%, #aeaeae 100%);
+  color: #1a1a1a;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.05) inset;
+}
+.cal-toolbar-title {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2a2a2a;
+  letter-spacing: -0.005em;
+}
+.cal-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cal-tb-btn {
+  background: linear-gradient(180deg, #fdfdfd 0%, #e9e9e9 100%);
+  border: 1px solid #b8b8b8;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #2a2a2a;
+  cursor: default;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 1px rgba(0,0,0,0.04);
+}
+.cal-tb-today { font-weight: 600; }
+
+/* ----- body ----- */
+.cal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ----- hero (left): big date + clock ----- */
+.cal-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 30px;
+  background: #ffffff;
+  border-right: 1px solid #e2e2e2;
+  text-align: center;
+  min-width: 0;
+}
+.cal-hero-eyebrow {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  color: #6e6e6e;
+  margin-bottom: 10px;
+  letter-spacing: 0;
+}
+.cal-hero-date {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 18px;
+  line-height: 1;
+}
+.cal-hero-month {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #c8362c;       /* Calendar.app red accent */
+  text-transform: uppercase;
+}
+.cal-hero-day {
+  font-family: var(--font-serif);
+  font-size: 116px;
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.92;
+}
+.cal-hero-year {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 400;
+  color: #888;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.cal-hero-time {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font-sys);
+  font-size: 22px;
+  font-weight: 300;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.cal-hero-colon {
+  display: inline-block;
+  animation: cal-blink 2s ease-in-out infinite;
+}
+@keyframes cal-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.32; }
+}
+.cal-hero-ampm {
+  font-size: 12px;
+  color: #888;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-left: 6px;
+  align-self: baseline;
+  text-transform: uppercase;
+}
+.cal-hero-caption {
+  margin-top: 18px;
+  min-height: 1.4em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14px;
+  color: #888;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+  transition: color 500ms ease, opacity 500ms ease;
+}
+.cal-hero-caption.settled {
+  color: #c8362c;
+  opacity: 1;
+}
+
+/* ----- flip animation on the date units ----- */
+.cal-flip {
+  display: inline-block;
+  animation: cal-flip 220ms cubic-bezier(.34, 1.5, .64, 1);
+  will-change: transform, filter;
+  transform-origin: 50% 60%;
+}
+@keyframes cal-flip {
+  0%   { transform: translateY(-12%) scaleY(0.84); filter: blur(1.2px); opacity: 0.5; }
+  55%  { transform: translateY(3%)   scaleY(1.06); filter: blur(0);     opacity: 1; }
+  100% { transform: translateY(0)    scaleY(1);    filter: blur(0);     opacity: 1; }
+}
+
+/* On settle, the date hero gets a noticeably springy "land" — the big day
+   number kicks up with overshoot, then rests slightly above its baseline. */
+.cal-hero-date.settled .cal-hero-day {
+  animation: cal-day-settle 900ms cubic-bezier(.34, 1.7, .5, 1) 100ms both;
+}
+@keyframes cal-day-settle {
+  0%   { transform: scale(1);    text-shadow: 0 0 0 rgba(200,54,44,0); }
+  45%  { transform: scale(1.085); text-shadow: 0 10px 28px rgba(200,54,44,0.22); }
+  72%  { transform: scale(1.00);  text-shadow: 0 6px 20px rgba(200,54,44,0.14); }
+  100% { transform: scale(1.03);  text-shadow: 0 4px 16px rgba(200,54,44,0.10); }
+}
+
+/* ----- mini month grid (right side) ----- */
+.cal-side {
+  background: linear-gradient(180deg, #fafafa 0%, #f1f1f1 100%);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.cal-grid {
+  width: 100%;
+  font-family: var(--font-sys);
+}
+.cal-grid-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 4px;
+}
+.cal-grid-h { padding: 2px 0; }
+.cal-grid-cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 12px;
+  color: #2a2a2a;
+  gap: 1px;
+}
+.cal-grid-c {
+  padding: 5px 0;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-variant-numeric: tabular-nums;
+  transition: background 160ms;
+}
+.cal-grid-c.empty { color: transparent; }
+.cal-grid-c.today {
+  background: #c8362c;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ----- macOS-style analog clock (rewinds with the calendar) -----
+   All three hands are positioned via inline `transform: rotate()`. The parent
+   component feeds in a *cumulative* angle that only ever decreases, so the
+   browser's transform interpolation always sweeps counter-clockwise — no
+   forward snaps through 0°. Per-phase transitions below tune how that sweep
+   feels. */
+.cal-clock {
+  width: 128px;
+  height: 128px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0 12px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.10));
+}
+
+.cal-clock-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.cal-clock-bezel { fill: #d2d2d2; }
+.cal-clock-face  { fill: #fcfcfc; }
+
+.cal-clock-tick   { stroke: #c2c2c2; stroke-width: 0.5; stroke-linecap: round; }
+.cal-clock-tick-h { stroke: #1f1f1f; stroke-width: 1.4; stroke-linecap: round; }
+
+.cal-clock-hand {
+  /* SVG default transform-box is view-box, so 50,50 = clock center. */
+  transform-origin: 50px 50px;
+  will-change: transform;
+}
+.cal-clock-hand line { stroke-linecap: round; }
+.cal-clock-hour   line { stroke: #1a1a1a; stroke-width: 3.4; }
+.cal-clock-minute line { stroke: #1a1a1a; stroke-width: 2.2; }
+.cal-clock-second line { stroke: #c8362c; stroke-width: 1.0; }
+
+.cal-clock-pin { fill: #1a1a1a; }
+
+/* Default transition: the gentle, eased version used in `hold`. */
+.cal-clock-hand { transition: transform 600ms cubic-bezier(.22,.61,.36,1); }
+
+/* While rewinding, ticks land roughly every 60–230ms (ease-in schedule), so
+   the hand transition should be just long enough to smear them into a sweep,
+   and linear so consecutive ticks chain without a wobble. */
+.cal-clock-spin .cal-clock-hour   { transition: transform 240ms linear; }
+.cal-clock-spin .cal-clock-minute { transition: transform 220ms linear; }
+.cal-clock-spin .cal-clock-second { transition: transform 200ms linear; }
+
+/* The final settle gets a springy, longer transition so the hands arrive on
+   the target time with a clear overshoot before resting. */
+.cal-clock-settled .cal-clock-hand {
+  transition: transform 1500ms cubic-bezier(.34, 1.6, .5, 1);
+}
+
+/* ----- dock icon (Calendar.app: red top strip, white face) ----- */
+.icon-cal-app {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 0 0 0.5px rgba(0,0,0,0.18);
+}
+.icon-cal-strip {
+  background: #c8362c;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 2px 0;
+}
+.icon-cal-num {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sys);
+  font-size: 24px;
+  font-weight: 300;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   MINERVA "ADMISSIONS DECISION" EMAIL CARD
+   (the brown card rendered inside the Apple Mail body pane)
+   ============================================================ */
+.minerva-email {
+  /* The actual email — dark brown ground, white ink, generous letting. */
+  --minerva-brown: #3b342f;
+  --minerva-rule-line: #6c655e;
+  background: var(--minerva-brown);
+  color: #fff;
+  font-family: "Helvetica Neue", "Helvetica", Arial, sans-serif;
+  max-width: 600px;
+  margin: 32px auto;
+  padding: 72px 80px 64px;
+  font-size: 17px;
+  line-height: 1.55;
+  letter-spacing: 0.005em;
+}
+.minerva-email-logo {
+  margin-bottom: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.minerva-email-logo img {
+  margin-bottom: 10px;
+}
+.minerva-email-tagline {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  font-weight: 400;
+  color: rgba(255,255,255,0.95);
+  margin-top: 4px;
+}
+.minerva-email-rule {
+  height: 1px;
+  background: var(--minerva-rule-line);
+  margin: 44px 0 48px;
+}
+.minerva-email-rule.small {
+  margin: 36px 0;
+}
+.minerva-email-greeting {
+  font-weight: 700;
+  font-size: 20px;
+  margin-bottom: 36px;
+  letter-spacing: 0;
+}
+.minerva-email-lede {
+  font-size: 22px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  margin-bottom: 56px;
+  max-width: 440px;
+}
+.minerva-email-cta-wrap {
+  margin: 48px 0 36px;
+}
+.minerva-email-cta-btn {
+  background: #F15923;
+  color: #fff;
+  border: 0;
+  padding: 16px 36px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border-radius: 0;
+  text-transform: none;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.18);
+  transition: filter 140ms, transform 90ms;
+}
+.minerva-email-cta-btn:hover { filter: brightness(1.06); }
+.minerva-email-cta-btn:active { transform: translateY(1px); }
+.minerva-email-note {
+  font-size: 13px;
+  color: rgba(255,255,255,0.78);
+  margin-top: 40px;
+  margin-bottom: 12px;
+}
+.minerva-email-footer {
+  font-size: 12px;
+  color: rgba(255,255,255,0.62);
+  letter-spacing: 0.02em;
+  margin: 20px 0;
+}
+
+/* The Apple Mail body pane wraps the brown card on its own background.
+   Override the .mail-pane-body inherited padding for this case. */
+.mail-pane-body:has(.minerva-email) {
+  padding: 0;
+  max-width: none;
+  background: #fff;
+}
+
+/* ============================================================
+   INTRO ANIMATION (COBE globe + type)
+   ============================================================ */
+.intro-stage {
+  position: absolute; inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.intro-globe-wrap {
+  position: relative;
+  width: min(700px, 70vmin);
+  height: min(700px, 70vmin);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.intro-globe-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.intro-city {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+  font-family: var(--font-sys-display);
+  letter-spacing: 0.32em;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.intro-city-name {
+  display: block;
+  font-size: 14px;
+  color: #fff;
+  letter-spacing: 0.28em;
+  margin-top: 4px;
+}
+
+.intro-copy {
+  position: absolute;
+  bottom: 11%;
+  left: 0; right: 0;
+  text-align: center;
+  color: #fff;
+  pointer-events: none;
+}
+.intro-copy-line1 {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(28px, 4.4vw, 56px);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 900ms ease, transform 900ms ease;
+}
+.intro-copy-line2 {
+  font-family: var(--font-sys-display);
+  font-weight: 500;
+  font-size: clamp(13px, 1.4vw, 18px);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  margin-top: 22px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 900ms ease 200ms, transform 900ms ease 200ms;
+}
+.intro-copy.visible .intro-copy-line1,
+.intro-copy.visible .intro-copy-line2 {
+  opacity: 1; transform: none;
+}
+
+.intro-skip {
+  position: absolute;
+  bottom: 28px;
+  right: 36px;
+  color: rgba(255,255,255,0.5);
+  font-family: var(--font-sys);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 160ms, border-color 160ms, background 160ms;
+}
+.intro-skip:hover { color: #fff; border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.06); }
+
+/* ============================================================
+   WELCOME LETTER (Minerva flavored)
+   ============================================================ */
+.letter {
+  font-family: var(--font-serif);
+  background: var(--minerva-paper);
+  color: var(--minerva-ink);
+  padding: 44px 56px 48px;
+  line-height: 1.6;
+  font-size: 16px;
+  min-height: 100%;
+  position: relative;
+}
+.letter-eyebrow {
+  font-family: var(--font-sys-display);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--minerva-blue);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.letter-title {
+  font-family: var(--font-serif);
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+  color: var(--minerva-ink);
+  margin-bottom: 8px;
+}
+.letter-subtitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 18px;
+  color: #4a5560;
+  margin-bottom: 28px;
+}
+.letter hr {
+  border: none;
+  border-top: 1px solid var(--minerva-rule);
+  margin: 26px 0;
+}
+.letter p { margin-bottom: 14px; }
+.letter .signoff {
+  font-style: italic;
+  color: #4a5560;
+  margin-top: 22px;
+}
+.letter-cta {
+  margin-top: 28px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #c5dbef;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: var(--font-sys);
+}
+.letter-cta-text {
+  font-size: 13px;
+  color: var(--minerva-blue-dark);
+  line-height: 1.4;
+}
+.letter-cta-text strong { color: var(--minerva-ink); display: block; font-size: 14px; margin-bottom: 2px; }
+.letter-cta-btn {
+  background: linear-gradient(180deg, var(--minerva-blue) 0%, var(--minerva-blue-dark) 100%);
+  color: #fff;
+  border: 1px solid var(--minerva-blue-dark);
+  padding: 9px 18px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sys);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   ALF — Active Learning Forum (graded-assignment view)
+   The welcome letter rendered as a peer-reviewed project.
+   ============================================================ */
+.alf {
+  --alf-bg: #ffffff;
+  --alf-ink: #1a1a1a;
+  --alf-rail: #2c3138;           /* dark left sidebar */
+  --alf-rail-ink: #ffffff;
+  --alf-rail-mute: rgba(255,255,255,0.62);
+  --alf-rail-rule: rgba(255,255,255,0.12);
+  --alf-top: #000000;
+  --alf-paper: #ffffff;
+  --alf-right-rail: #ffffff;
+  --alf-right-head: #f4f4f4;
+  --alf-link: #1c70c6;
+  --alf-tag: #1c70c6;
+  --alf-rule: #e4e4e4;
+
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--alf-bg);
+  color: var(--alf-ink);
+  font-family: var(--font-sys);
+  font-size: 14px;
+  overflow: hidden;
+}
+
+/* ----- topbar ----- */
+.alf-topbar {
+  flex: 0 0 auto;
+  height: 44px;
+  background: var(--alf-top);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px 0 16px;
+}
+.alf-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.alf-topbar-logo {
+  display: flex;
+  align-items: center;
+}
+.alf-topbar-title {
+  font-family: var(--font-sys);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+.alf-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.alf-topbar-user {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+}
+.alf-topbar-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d97a4a 0%, #8a4326 100%);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-sys);
+}
+.alf-topbar-cog {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+}
+.alf-topbar-cog:hover { background: rgba(255,255,255,0.18); }
+
+/* ----- body grid ----- */
+.alf-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr) 312px;
+  overflow: hidden;
+  min-height: 0;
+}
+@media (max-width: 1000px) {
+  .alf-body { grid-template-columns: 180px minmax(0, 1fr) 280px; }
+}
+
+/* ----- left sidebar (dark) ----- */
+.alf-sidebar-left {
+  background: var(--alf-rail);
+  color: var(--alf-rail-ink);
+  padding: 24px 18px 18px;
+  overflow-y: auto;
+  font-family: var(--font-sys);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.alf-sidebar-section {
+  margin-bottom: 22px;
+}
+.alf-sidebar-heading {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  margin-bottom: 6px;
+  letter-spacing: 0;
+}
+.alf-sidebar-date {
+  color: var(--alf-rail-mute);
+  font-size: 13px;
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.18);
+  text-underline-offset: 3px;
+}
+.alf-resource-group { margin-bottom: 10px; }
+.alf-resource-label {
+  font-size: 12px;
+  color: var(--alf-rail-mute);
+  margin-top: 6px;
+  margin-bottom: 1px;
+}
+.alf-resource-link {
+  display: block;
+  color: #6db4ff;
+  text-decoration: underline;
+  text-underline-offset: 2.5px;
+  font-size: 13px;
+  padding: 1px 0;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.alf-resource-link:hover { color: #9bcaff; }
+
+.alf-radio {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  padding: 3px 0;
+  cursor: pointer;
+  color: #fff;
+  user-select: none;
+}
+.alf-radio input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border: 1.5px solid rgba(255,255,255,0.55);
+  border-radius: 50%;
+  margin: 0;
+  cursor: pointer;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+}
+.alf-radio input[type="radio"]:checked {
+  border-color: #ff7e3d;
+  background: radial-gradient(circle, #ff7e3d 0%, #ff7e3d 38%, transparent 40%);
+}
+.alf-radio-cta span em {
+  font-style: italic;
+  color: #ff9e6d;
+  font-size: 12px;
+  font-weight: 500;
+}
+.alf-radio-pill {
+  margin-left: 6px;
+  padding: 1px 6px 1px 6px;
+  background: #F15923;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.alf-sidebar-foot {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--alf-rail-rule);
+}
+.alf-sidebar-counter {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--alf-rail-mute);
+}
+.alf-sidebar-counter-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 4px #4ade80;
+  align-self: center;
+}
+.alf-sidebar-counter-n {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.alf-sidebar-counter-label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ----- main document ----- */
+.alf-doc {
+  background: var(--alf-paper);
+  overflow-y: auto;
+  padding: 0 0 52px;
+  color: var(--alf-ink);
+  font-family: var(--font-sys);
+  font-size: 15px;
+  line-height: 1.6;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab strip pinned at the top of the document column */
+.alf-doc-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  padding: 14px 24px 0;
+  border-bottom: 1px solid #e2e0db;
+  background: var(--alf-paper);
+}
+.alf-doc-tab {
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #6b6660;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+.alf-doc-tab:hover { color: #2a2a2a; }
+.alf-doc-tab-on {
+  color: #1a1a1a;
+  border-bottom-color: #F15923;
+}
+
+/* Letter pane keeps its old padding so the typography stays put */
+.alf-doc > .alf-letter { padding: 44px 56px 0; }
+
+/* Forum: full-height iframe inside the doc column */
+.alf-forum {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.alf-forum-iframe {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 0;
+  background: #fff;
+  min-height: 380px;
+}
+.alf-forum-foot {
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  font-size: 12px;
+  color: #6b6660;
+  background: #f6f4ef;
+  border-top: 1px solid #e2e0db;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.alf-forum-foot-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #F15923;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.alf-forum-foot-link:hover { text-decoration: underline; }
+
+/* The warm letter format, rendered inside the ALF doc.
+   Sans serif chrome around, serif body inside. */
+.alf-letter {
+  max-width: 580px;
+  font-family: var(--font-serif);
+  color: #1a1a1a;
+  font-size: 17px;
+  line-height: 1.65;
+  letter-spacing: 0.005em;
+}
+.alf-letter-eyebrow {
+  font-family: var(--font-sys);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #F15923;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.alf-letter-title {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.05;
+  color: #111;
+  margin-bottom: 10px;
+}
+.alf-letter-subtitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 19px;
+  color: #5a5a5a;
+  margin-bottom: 26px;
+  letter-spacing: 0;
+}
+.alf-letter-rule {
+  border: none;
+  border-top: 1px solid #d8d4c8;
+  margin: 26px 0 24px;
+}
+.alf-letter p {
+  margin-bottom: 16px;
+  color: #1f1f1f;
+  text-wrap: pretty;
+}
+.alf-letter-signoff {
+  font-style: italic;
+  color: #5a5a5a;
+  margin-top: 24px;
+  margin-bottom: 4px;
+}
+.alf-letter-signature {
+  font-size: 16px;
+  color: #5a5a5a;
+}
+
+/* Old academic-style headings — kept harmless for compatibility */
+.alf-doc-title,
+.alf-doc-course,
+.alf-doc-author,
+.alf-doc-h3 { display: none; }
+
+.alf-doc p {
+  margin-bottom: 14px;
+  color: #1a1a1a;
+}
+.alf-doc-cta {
+  margin: 32px 0 16px;
+  padding: 18px 20px;
+  border: 1.5px solid #1a1a1a;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-radius: 0;
+  font-family: var(--font-sys);
+}
+.alf-doc-cta-text strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+}
+.alf-doc-cta-text span {
+  font-size: 13px;
+  color: #555;
+}
+.alf-doc-cta-btn {
+  background: #F15923;
+  color: #fff;
+  border: 0;
+  padding: 12px 22px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.15);
+  transition: filter 140ms, transform 90ms;
+}
+.alf-doc-cta-btn:hover { filter: brightness(1.06); }
+.alf-doc-cta-btn:active { transform: translateY(1px); }
+.alf-doc-signoff {
+  margin-top: 26px;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+}
+
+/* ----- right sidebar (comments) ----- */
+.alf-sidebar-right {
+  background: var(--alf-right-rail);
+  border-left: 1px solid var(--alf-rule);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.alf-sidebar-right-head {
+  padding: 20px 20px 16px;
+  background: var(--alf-right-head);
+  border-bottom: 1px solid var(--alf-rule);
+}
+.alf-comments-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--alf-ink);
+  letter-spacing: -0.005em;
+  margin-bottom: 14px;
+  line-height: 1.2;
+}
+.alf-distribution {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.alf-distribution-label {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+.alf-distribution-bars {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  align-items: end;
+  max-width: 150px;
+  height: 18px;
+}
+.alf-distribution-bar-wrap {
+  background: #e0e0e0;
+  height: 12px;
+  position: relative;
+  border-radius: 1px;
+  overflow: hidden;
+}
+.alf-distribution-bar {
+  position: absolute;
+  left: 0; bottom: 0; top: 0;
+}
+.alf-bar-1 { background: #d6d6d6; }
+.alf-bar-2 { background: #d6d6d6; }
+.alf-bar-3 { background: #d6d6d6; }
+.alf-bar-4 { background: #2168c9; }
+/* The "you are here" bar (4) is highlighted; others stay gray.
+   This mirrors the screenshot where the rightmost bar is the only colored one. */
+
+.alf-comments-list {
+  flex: 1;
+  padding: 4px 0 16px;
+}
+.alf-comment {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--alf-rule);
+  font-family: var(--font-sys);
+}
+.alf-comment:last-child { border-bottom: 0; }
+.alf-comment-body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--alf-ink);
+  margin-bottom: 8px;
+}
+.alf-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.alf-comment-tag {
+  color: var(--alf-tag);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.alf-comment-by {
+  margin-left: auto;
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+}
+
+.alf-badge {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--font-sys);
+  line-height: 1;
+}
+.alf-badge-1 { background: #e74c3c; }
+.alf-badge-2 { background: #f39c12; }
+.alf-badge-3 { background: #2ecc71; }
+.alf-badge-4 { background: #2168c9; }
+
+/* ============================================================
+   ALF — Minerva Forum scaffolding (new home/course/session views).
+   The syllabus grader view re-uses the older .alf-topbar / .alf-body /
+   .alf-sidebar-* / .alf-letter / .alf-comments styles further down.
+   ============================================================ */
+
+/* Root layout when in the new Forum design: a full-width banner across the
+   top (with the SF photo background + the Minerva wordmark overlay), and a
+   row below split between the dark sidebar and the main content. */
+.alf-forum {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f1ede4;
+  font-family: var(--sans-font-family);
+  color: #1a1a1a;
+}
+.alf-forum-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ----- left nav (full height, dark) ----- */
+.alf-fs {
+  background: #1a1a1a;
+  color: #c4c0b8;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--sans-font-family);
+  font-size: 12.5px;
+  overflow-y: auto;
+}
+/* (Old .alf-fs-brand removed — the wordmark now lives in the banner.) */
+.alf-fs-nav { padding: 12px 0; display: flex; flex-direction: column; gap: 0; }
+.alf-fs-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 22px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  border-left: 3px solid transparent;
+  transition: background 120ms ease, color 120ms ease;
+}
+.alf-fs-item:hover { background: rgba(255,255,255,0.04); color: #fff; }
+.alf-fs-item-on {
+  color: #fff;
+  border-left-color: #fff;
+  font-weight: 600;
+  background: rgba(255,255,255,0.04);
+}
+.alf-fs-icon {
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+.alf-fs-label { flex: 1; }
+.alf-fs-sub {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 8px;
+}
+.alf-fs-sub-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: #8a8680;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 22px 5px 52px;
+  cursor: pointer;
+}
+.alf-fs-sub-item:hover { color: #fff; }
+.alf-fs-sub-item-on { color: #fff; font-weight: 500; }
+
+/* ----- banner: full-width across the top with the SF photo + logo overlay - */
+.alf-fb {
+  position: relative;
+  background: #1a1a1a url("/assets/alf-banner.png") center center / cover no-repeat;
+  color: #fff;
+  height: 96px;
+  flex: 0 0 auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 200px 1fr auto;
+  align-items: center;
+  overflow: hidden;
+}
+.alf-fb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 38%, rgba(0,0,0,0.30) 100%);
+  pointer-events: none;
+}
+
+/* Logo lives in the leftmost column, sitting directly above the sidebar. */
+.alf-fb-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  height: 100%;
+}
+.alf-fb-brand-img {
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.alf-fb-inner {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding: 0 28px;
+}
+.alf-fb-title {
+  font-family: var(--serif-font-family);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 30px;
+  letter-spacing: -0.005em;
+  margin: 0 0 4px;
+  line-height: 1.05;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.6);
+}
+.alf-fb-sub {
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.88);
+  margin: 0;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.55);
+}
+.alf-fb-user {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  font-size: 12.5px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.alf-fb-username { font-weight: 500; }
+.alf-fb-avatar {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c8a17a 0%, #8a6b4a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  color: #fff;
+}
+.alf-fb-help {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* ----- main content area ----- */
+.alf-forum-main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+  background: #f1ede4;
+  padding: 22px 28px 28px;
+}
+
+/* ----- card primitive used across home/course/session ----- */
+.alf-card {
+  background: #fff;
+  border-radius: 3px;
+  border: 1px solid #e6e1d5;
+  padding: 22px 28px 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.alf-card-h {
+  font-family: var(--serif-font-family);
+  font-weight: 400;
+  font-size: 20px;
+  letter-spacing: -0.005em;
+  margin: 0 0 14px;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+.alf-card-side .alf-card-h { font-size: 17px; margin-bottom: 8px; }
+.alf-card-side { padding: 18px 20px 16px; }
+.alf-card-empty {
+  font-size: 13px;
+  color: #6b6660;
+  margin: 0 0 8px;
+}
+.alf-card-para {
+  font-size: 13.5px;
+  color: #2a2a2a;
+  margin: 0 0 12px;
+  line-height: 1.55;
+}
+.alf-card-body { font-size: 13.5px; color: #2a2a2a; line-height: 1.6; }
+.alf-card-body p { margin: 0 0 10px; }
+.alf-card-body p:last-child { margin-bottom: 0; }
+
+.alf-link {
+  color: #1f7ad6;
+  cursor: pointer;
+  text-decoration: none;
+}
+.alf-link:hover { text-decoration: underline; }
+.alf-link-muted { color: #9a958a; cursor: default; }
+.alf-link-muted:hover { text-decoration: none; }
+.alf-link-strong { font-weight: 600; font-size: 16px; }
+
+/* ----- HOME page layout ----- */
+.alf-fm-home {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 18px;
+  align-items: start;
+}
+.alf-fm-home-main { min-width: 0; }
+.alf-fm-home-side { display: flex; flex-direction: column; gap: 14px; }
+
+/* ----- Recently-graded / generic forum tables ----- */
+.alf-graded-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.alf-graded-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11px;
+  color: #8a8680;
+  letter-spacing: 0.04em;
+  padding: 6px 8px;
+  text-transform: capitalize;
+  border-bottom: 1px solid #e6e1d5;
+}
+.alf-graded-table th.alf-graded-type { width: 22px; }
+.alf-graded-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #efeadf;
+  vertical-align: middle;
+  color: #2a2a2a;
+}
+.alf-graded-row { cursor: default; }
+.alf-graded-row:hover { background: #f9f6ec; }
+.alf-graded-iconcell { width: 22px; padding-left: 2px; }
+.alf-graded-title { color: #1f7ad6; }
+.alf-graded-result { color: #6b6660; font-size: 12.5px; }
+.alf-graded-dismiss {
+  width: 18px;
+  color: #b8b3a8;
+  cursor: pointer;
+  text-align: right;
+}
+.alf-graded-dismiss:hover { color: #1a1a1a; }
+.alf-graded-pager {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.alf-office-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 13px;
+}
+.alf-office-item {
+  padding: 6px 0;
+  border-bottom: 1px solid #efeadf;
+}
+.alf-office-item:last-child { border-bottom: 0; }
+.alf-office-meta {
+  font-size: 11.5px;
+  color: #8a8680;
+  margin-top: 2px;
+}
+
+.alf-fm-cta {
+  background: #F15923;
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: filter 140ms;
+}
+.alf-fm-cta:hover { filter: brightness(1.06); }
+
+/* Course detail: two columns (main + side) */
+.alf-fm-cd {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 0;
+  align-items: start;
+}
+.alf-fm-cd-main { padding-bottom: 28px; }
+.alf-fm-cd-side {
+  padding: 22px 22px 22px 0;
+  border-left: 1px solid #eeece6;
+  margin-left: 0;
+  background: #fbfbfa;
+}
+.alf-fm-syllabus-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #d8d4cb;
+  border-radius: 3px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1a1a1a;
+  cursor: pointer;
+  margin: 0 14px 18px;
+  width: auto;
+}
+.alf-fm-syllabus-btn:hover { background: #f5f2eb; }
+.alf-fm-cd-side-h {
+  font-family: var(--serif-font-family);
+  font-weight: 400;
+  font-size: 18px;
+  margin: 4px 0 10px;
+  padding: 0 14px;
+}
+.alf-fm-participants {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+.alf-fm-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+}
+.alf-fm-participant-avatar {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c8a17a 0%, #8a6b4a 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.alf-fm-participant-name { color: #1f7ad6; cursor: pointer; }
+.alf-fm-participant-role { color: #6b6660; font-size: 11.5px; }
+
+/* Session page: two columns */
+.alf-fm-session {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  align-items: start;
+}
+.alf-fm-session-main { padding: 8px 36px 32px; }
+.alf-fm-session-side {
+  padding: 22px 22px 22px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.alf-fm-session-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0 18px;
+  border-bottom: 1px solid #eeece6;
+}
+.alf-fm-session-meta {
+  font-size: 12.5px;
+  color: #6b6660;
+  margin: 6px 0 14px;
+}
+.alf-fm-dot { margin: 0 8px; }
+.alf-fm-enter {
+  background: #1f7ad6;
+  color: #fff;
+  border: 0;
+  border-radius: 3px;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.alf-fm-datechip {
+  border: 1px solid #d8d4cb;
+  border-radius: 4px;
+  padding: 8px 14px;
+  text-align: center;
+  min-width: 58px;
+}
+.alf-fm-datechip-day {
+  font-family: var(--serif-font-family);
+  font-size: 26px;
+  line-height: 1;
+}
+.alf-fm-datechip-mon {
+  font-size: 11px;
+  color: #6b6660;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.alf-fm-card {
+  background: #fff;
+  border: 1px solid #eeece6;
+  border-radius: 4px;
+  padding: 18px 22px;
+  margin-top: 16px;
+}
+.alf-fm-card-h {
+  font-family: var(--serif-font-family);
+  font-weight: 400;
+  font-size: 19px;
+  margin: 0 0 10px;
+}
+.alf-fm-card-body { font-size: 14px; color: #2a2a2a; line-height: 1.55; }
+.alf-fm-card-body p { margin: 0 0 10px; }
+.alf-fm-card-body p:last-child { margin-bottom: 0; }
+
+.alf-fm-resources {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.alf-fm-resource {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px dashed #eeece6;
+  font-size: 13.5px;
+}
+.alf-fm-resource:first-child { border-top: 0; }
+.alf-fm-resource-note { color: #9c968b; font-size: 12px; }
+
+.alf-fm-side-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #d8d4cb;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1a1a1a;
+  cursor: pointer;
+  text-align: left;
+}
+.alf-fm-side-btn:hover { background: #f5f2eb; }
+.alf-fm-side-btn-primary {
+  background: #1f7ad6;
+  color: #fff;
+  border-color: #1f7ad6;
+}
+.alf-fm-side-btn-primary:hover { filter: brightness(1.06); background: #1f7ad6; }
+
+/* ----- syllabus (course description) ----- */
+.alf-fm-page-syllabus { background: #fafaf8; padding-bottom: 60px; }
+.alf-syl {
+  max-width: 720px;
+  margin: 24px auto 0;
+  background: #fff;
+  border: 1px solid #ece9e0;
+  border-radius: 2px;
+  padding: 56px 64px;
+  font-family: var(--sans-font-family);
+  color: #1a1a1a;
+}
+.alf-syl-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+}
+.alf-syl-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  color: #4a4a4a;
+  margin-bottom: 8px;
+}
+.alf-syl-title {
+  font-family: var(--serif-font-family);
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.alf-syl-meta {
+  display: flex;
+  gap: 36px;
+  flex-shrink: 0;
+  padding-top: 10px;
+}
+.alf-syl-meta-k {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  color: #6b6660;
+  margin-bottom: 4px;
+}
+.alf-syl-meta-v {
+  font-family: var(--serif-font-family);
+  font-size: 18px;
+}
+.alf-syl-section {
+  margin-top: 28px;
+  border-top: 1px solid #ece9e0;
+  padding-top: 22px;
+}
+.alf-syl-h {
+  font-family: var(--serif-font-family);
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0 0 12px;
+  letter-spacing: -0.005em;
+}
+.alf-syl-body {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: #2a2a2a;
+}
+.alf-syl-body p { margin: 0 0 12px; }
+.alf-syl-body ul { padding-left: 22px; margin: 8px 0; }
+.alf-syl-body li { margin-bottom: 8px; }
+
+/* ----- the ALF icon (black square with white Minerva ring) ----- */
+.icon-alf {
+  background: #000 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.10);
+}
+.icon-alf img { display: block; }
+.stub {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  background: var(--minerva-paper);
+  color: var(--minerva-ink);
+  font-family: var(--font-sys);
+}
+.stub-icon {
+  font-size: 64px;
+  margin-bottom: 18px;
+  opacity: 0.7;
+}
+.stub-title {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.stub-tag {
+  font-family: var(--font-sys-display);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--minerva-blue);
+  font-weight: 600;
+  margin-bottom: 22px;
+}
+.stub-desc {
+  font-size: 14px;
+  max-width: 480px;
+  color: #555;
+  line-height: 1.55;
+}
+.stub-tbd {
+  margin-top: 24px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #888;
+  padding: 6px 12px;
+  background: #eee;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   TWEAKS PANEL
+   ============================================================ */
+.tweaks-panel {
+  position: fixed;
+  top: 70px; right: 20px;
+  width: 280px;
+  background: rgba(40, 40, 50, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  padding: 16px;
+  color: #fff;
+  font-family: var(--font-sys);
+  font-size: 13px;
+  z-index: 1000;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.tweaks-panel-title {
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex; justify-content: space-between;
+}
+.tweaks-panel-close { cursor: pointer; opacity: 0.7; }
+.tweaks-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  transition: background 120ms;
+}
+.tweaks-btn:hover { background: rgba(255,255,255,0.18); }
