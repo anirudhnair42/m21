@@ -5,6 +5,12 @@ import createGlobe from "cobe";
 
 const DECISION_URL = "secure.minerva.kgi.edu/decisions/welcome-back";
 
+/** The original 2017 admit-reveal video (golden ensō → seal). This is the
+ * centerpiece of the decision page; the COBE globe tour below is kept and
+ * can be swapped back in by flipping this to true. */
+const USE_GLOBE_TOUR = false;
+const ADMIT_VIDEO_SRC = "/assets/admit-video.mp4";
+
 type City = { name: string; lat: number; lng: number };
 
 /** Three-stop tour: Seoul → Hyderabad → Berlin. The white arc connects them
@@ -367,6 +373,76 @@ function GlobeStage({ onGlobeReady, showHeadline, showSubtitle, fading }: GlobeS
   );
 }
 
+// --- admit video stage -------------------------------------------------------
+
+function VideoStage({
+  onLoaded,
+  onDone,
+}: {
+  onLoaded: () => void;
+  onDone: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [fading, setFading] = useState(false);
+  const [needsUnmute, setNeedsUnmute] = useState(false);
+  const doneRef = useRef(false);
+
+  const finish = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    setFading(true);
+    setTimeout(onDone, 700);
+  };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    // Try with sound first — the user just clicked into the decision, so many
+    // browsers allow it. If autoplay-with-audio is blocked, fall back to a
+    // muted start and surface an unmute chip.
+    video.play().catch(() => {
+      video.muted = true;
+      video
+        .play()
+        .then(() => setNeedsUnmute(true))
+        .catch(() => {
+          // Autoplay fully blocked — skip straight to the letter.
+          finish();
+        });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const unmute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    setNeedsUnmute(false);
+  };
+
+  return (
+    <div className={`sb-stage sb-video-stage ${fading ? "sb-stage-fade" : ""}`}>
+      <video
+        ref={videoRef}
+        className="sb-video"
+        src={ADMIT_VIDEO_SRC}
+        playsInline
+        preload="auto"
+        onCanPlay={onLoaded}
+        onEnded={finish}
+      />
+      {needsUnmute && (
+        <button className="sb-video-chip sb-video-unmute" onClick={unmute}>
+          Turn sound on
+        </button>
+      )}
+      <button className="sb-video-chip sb-video-skip" onClick={finish}>
+        Skip →
+      </button>
+    </div>
+  );
+}
+
 // --- letter stage ----------------------------------------------------------
 
 function LetterStage({ onProceed }: { onProceed: () => void }) {
@@ -375,16 +451,16 @@ function LetterStage({ onProceed }: { onProceed: () => void }) {
       <div className="sb-letter-inner">
         <div className="sb-marker-line sb-marker-line-1">
           <span className="sb-marker-fill">
-            It&apos;s been five years since you graduated
+            Nine years ago, you opened an email like this.
           </span>
         </div>
         <div className="sb-marker-line sb-marker-line-2">
           <span className="sb-marker-fill">
-            from this decision you made nine years ago.
+            Five years since we scattered across the world.
           </span>
         </div>
         <div className="sb-marker-line sb-marker-line-3">
-          <span className="sb-marker-fill">It&apos;s time for us to come back.</span>
+          <span className="sb-marker-fill">It&apos;s time to come back.</span>
         </div>
         <div className="sb-letter-cta-wrap">
           <button className="sb-letter-cta" onClick={onProceed}>
@@ -398,7 +474,7 @@ function LetterStage({ onProceed }: { onProceed: () => void }) {
 
 // --- root ------------------------------------------------------------------
 
-type Phase = "tour" | "letter";
+type Phase = "video" | "tour" | "letter";
 
 type BrowserAppProps = {
   onArrive?: () => void;
@@ -407,7 +483,7 @@ type BrowserAppProps = {
 
 export function BrowserApp({ onArrive, onProceed }: BrowserAppProps) {
   const [loading, setLoading] = useState(true);
-  const [phase, setPhase] = useState<Phase>("tour");
+  const [phase, setPhase] = useState<Phase>(USE_GLOBE_TOUR ? "tour" : "video");
   const [showHeadline, setShowHeadline] = useState(false);
   const [showSubtitle, setShowSubtitle] = useState(false);
   const [fading, setFading] = useState(false);
@@ -427,10 +503,21 @@ export function BrowserApp({ onArrive, onProceed }: BrowserAppProps) {
     );
   };
 
+  const handleVideoLoaded = () => {
+    setLoading(false);
+    onArrive?.();
+  };
+
   return (
     <div className="sb-app">
       <BrowserToolbar url={DECISION_URL} loading={loading} />
       <div className="sb-body">
+        {phase === "video" && (
+          <VideoStage
+            onLoaded={handleVideoLoaded}
+            onDone={() => setPhase("letter")}
+          />
+        )}
         {phase === "tour" && (
           <GlobeStage
             onGlobeReady={handleGlobeReady}

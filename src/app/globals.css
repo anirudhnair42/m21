@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/reunion.css";
+@import "../styles/ios.css";
 
 /* Chronicle Display — self-hosted from /public/fonts. */
 @font-face {

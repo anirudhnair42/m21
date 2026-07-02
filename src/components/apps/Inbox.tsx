@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MinervaLogo, MinervaWordmark } from "@/components/MinervaLogo";
+import { useIsNarrow } from "@/lib/useIsNarrow";
 
 type EmailRow = {
   from: string;
@@ -84,23 +85,23 @@ function MailSidebar() {
         <span>Inbox</span>
         <span className="mail-sidebar-count">1</span>
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">✦</span>
         <span>VIPs</span>
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">🚩</span>
         <span>Flagged</span>
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">📝</span>
         <span>Drafts</span>
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">📤</span>
         <span>Sent</span>
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">🗑</span>
         <span>Trash</span>
       </div>
@@ -108,11 +109,11 @@ function MailSidebar() {
       <div className="mail-sidebar-section" style={{ marginTop: 14 }}>
         On My Mac
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">📁</span>
         <span>Archive</span>
       </div>
-      <div className="mail-sidebar-item">
+      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">📁</span>
         <span>College Apps</span>
       </div>
@@ -147,7 +148,12 @@ function MailRow({
           {isAcceptance ? "8:06 PM" : email.time}
         </div>
       </div>
-      <div className="mail-row-subject">{email.subject}</div>
+      <div className="mail-row-subject">
+        {email.subject}
+        {isAcceptance && isUnread && (
+          <span className="guide-chip">Start here</span>
+        )}
+      </div>
       <div className="mail-row-preview">{email.preview}</div>
     </div>
   );
@@ -229,42 +235,49 @@ type InboxProps = {
 };
 
 export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
+  const isNarrow = useIsNarrow();
   const [selected, setSelected] = useState<"acceptance" | null>(
     defaultSelected ? "acceptance" : null,
   );
   const [unread, setUnread] = useState(!defaultSelected);
+  // On phones Mail is a navigation stack: list first, then the message detail.
+  const [mobileDetail, setMobileDetail] = useState(false);
 
   const handleSelectAcceptance = () => {
     setSelected("acceptance");
     setUnread(false);
+    setMobileDetail(true);
   };
+
+  const showList = !isNarrow || !mobileDetail;
+  const showPane = !isNarrow || mobileDetail;
 
   return (
     <div className="mail-app">
       <div className="mail-toolbar">
-        <div className="mail-tool-btn">
+        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
           <span className="mail-tool-btn-icon">📨</span>
           <span>Get Mail</span>
         </div>
         <div className="mail-tool-sep" />
-        <div className="mail-tool-btn">
+        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
           <span className="mail-tool-btn-icon">✉️</span>
           <span>New</span>
         </div>
-        <div className="mail-tool-btn">
+        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
           <span className="mail-tool-btn-icon">📎</span>
           <span>Archive</span>
         </div>
-        <div className="mail-tool-btn">
+        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
           <span className="mail-tool-btn-icon">🗑</span>
           <span>Trash</span>
         </div>
         <div className="mail-tool-sep" />
-        <div className="mail-tool-btn">
+        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
           <span className="mail-tool-btn-icon">↩</span>
           <span>Reply</span>
         </div>
-        <div className="mail-tool-btn">
+        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
           <span className="mail-tool-btn-icon">↪</span>
           <span>Forward</span>
         </div>
@@ -286,37 +299,49 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
         </div>
       </div>
 
-      <div className="mail-body">
-        <MailSidebar />
-        <div className="mail-list">
-          <div className="mail-list-header">
-            <span>Sort by Date ▾</span>
-            <span>7 messages</span>
-          </div>
-          <MailRow
-            email={ACCEPTANCE_EMAIL}
-            isUnread={unread}
-            isSelected={selected === "acceptance"}
-            isAcceptance
-            onClick={handleSelectAcceptance}
-          />
-          {OTHER_EMAILS.map((e, i) => (
+      <div className={`mail-body ${isNarrow ? "mail-body-mobile" : ""}`}>
+        {!isNarrow && <MailSidebar />}
+        {showList && (
+          <div className="mail-list">
+            <div className="mail-list-header">
+              <span>Sort by Date ▾</span>
+              <span>7 messages</span>
+            </div>
             <MailRow
-              key={i}
-              email={e}
-              isUnread={false}
-              isSelected={false}
-              onClick={() => {}}
+              email={ACCEPTANCE_EMAIL}
+              isUnread={unread}
+              isSelected={selected === "acceptance"}
+              isAcceptance
+              onClick={handleSelectAcceptance}
             />
-          ))}
-        </div>
-        <div className="mail-pane">
-          {selected === "acceptance" ? (
-            <MailPaneAcceptance onOpenDecision={onOpenDecision} />
-          ) : (
-            <MailPaneEmpty />
-          )}
-        </div>
+            {OTHER_EMAILS.map((e, i) => (
+              <MailRow
+                key={i}
+                email={e}
+                isUnread={false}
+                isSelected={false}
+                onClick={() => {}}
+              />
+            ))}
+          </div>
+        )}
+        {showPane && (
+          <div className="mail-pane">
+            {isNarrow && mobileDetail && (
+              <button
+                className="mail-back"
+                onClick={() => setMobileDetail(false)}
+              >
+                ‹ Inbox
+              </button>
+            )}
+            {selected === "acceptance" ? (
+              <MailPaneAcceptance onOpenDecision={onOpenDecision} />
+            ) : (
+              <MailPaneEmpty />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

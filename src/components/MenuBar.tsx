@@ -1,6 +1,7 @@
 type Props = {
   appName?: string;
-  rsvpCount: number;
+  /** Live count from the DB; null (loading / unconfigured) hides the pill. */
+  rsvpCount: number | null;
   currentTime: Date;
 };
 
@@ -29,10 +30,12 @@ export function MenuBar({ appName = "Finder", rsvpCount, currentTime }: Props) {
         ))}
       </div>
       <div className="menubar-right">
-        <span className="menubar-counter" title="Live RSVP counter">
-          <span className="menubar-counter-dot" />
-          <span>{rsvpCount} RSVP&apos;d</span>
-        </span>
+        {rsvpCount != null && rsvpCount > 0 && (
+          <span className="menubar-counter" title="Live RSVP counter">
+            <span className="menubar-counter-dot" />
+            <span>{rsvpCount} RSVP&apos;d</span>
+          </span>
+        )}
         <span
           className="menubar-item"
           style={{ fontSize: 12, opacity: 0.85 }}

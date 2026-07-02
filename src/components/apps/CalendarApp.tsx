@@ -3,7 +3,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 const CAL_TARGET = new Date(2017, 4, 17, 20, 6, 0);
-const CAL_TODAY = new Date(2026, 4, 22, 9, 41, 0);
 
 const CAL_TIMINGS = {
   hold: 1600,
@@ -218,12 +217,22 @@ const linear = (t: number) => t;
 
 export function CalendarApp({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState<Phase>("hold");
-  const [now, setNow] = useState<Date>(CAL_TODAY);
+  // "Today" is the real now, captured once at mount — the rewind always
+  // starts from the visitor's actual date.
+  const [calToday] = useState<Date>(() => new Date());
+  const [now, setNow] = useState<Date>(calToday);
   const completedRef = useRef(false);
+  // Keep the latest callback in a ref so parent re-renders (the shells
+  // recreate onComplete whenever the RSVP counter ticks) can't retrigger the
+  // schedule effect and restart the rewind mid-flight.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   // Pre-compute the spin schedule once.
   const schedule = useMemo(() => {
-    const todayMs = CAL_TODAY.getTime();
+    const todayMs = calToday.getTime();
     const targetMs = CAL_TARGET.getTime();
     const span = todayMs - targetMs;
     const out: { at: number; date: Date; isLast: boolean }[] = [];
@@ -237,13 +246,13 @@ export function CalendarApp({ onComplete }: { onComplete: () => void }) {
       out.push({ at, date, isLast });
     }
     return out;
-  }, []);
+  }, [calToday]);
 
   useEffect(() => {
     let cancelled = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    setNow(CAL_TODAY);
+    setNow(calToday);
     setPhase("hold");
 
     timers.push(
@@ -262,7 +271,7 @@ export function CalendarApp({ onComplete }: { onComplete: () => void }) {
                   setTimeout(() => {
                     if (cancelled || completedRef.current) return;
                     completedRef.current = true;
-                    onComplete();
+                    onCompleteRef.current();
                   }, CAL_TIMINGS.settle),
                 );
               }
@@ -276,7 +285,7 @@ export function CalendarApp({ onComplete }: { onComplete: () => void }) {
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [onComplete, schedule]);
+  }, [calToday, schedule]);
 
   const month = MONTH_FULL[now.getMonth()];
   const monthAbbr = month.slice(0, 3).toUpperCase();

@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "The Reunion · Class of 2021",
   description:
-    "Minerva University Class of 2021 — Five-year reunion in San Francisco, June 12–14, 2026.",
+    "Minerva University Class of 2021 — Five-year reunion in San Francisco, September 11–13, 2026.",
 };
 
 export default function RootLayout({

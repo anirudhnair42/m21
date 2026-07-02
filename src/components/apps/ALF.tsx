@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MinervaLogo } from "@/components/MinervaLogo";
 import {
   REUNION_COURSE,
@@ -9,6 +9,8 @@ import {
   type Session,
   type Resource,
 } from "@/lib/reunion-course";
+import { useMyRsvp, type MyRsvp } from "@/lib/myRsvp";
+import { useAuth } from "@/lib/auth";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -22,13 +24,15 @@ type ViewState =
   | { kind: "home" }
   | { kind: "course"; courseId: string }
   | { kind: "session"; sessionId: string }
-  | { kind: "syllabus"; courseId: string };
+  | { kind: "syllabus"; courseId: string }
+  | { kind: "assignment"; assignmentId: string }
+  | { kind: "classroom" };
 
 type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events";
 
 type Props = {
   onOpenRSVP: () => void;
-  rsvpCount: number;
+  rsvpCount: number | null;
   /** Deep-link target. Pass "syllabus" to open straight onto the grader. */
   initialView?: AlfView;
 };
@@ -54,6 +58,29 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
   const [view, setView] = useState<ViewState>(() => initialViewState(initialView));
   const [nav, setNav] = useState<Nav>(() => navForInitial(initialView));
   const [coursesOpen, setCoursesOpen] = useState(true);
+  // Identity: Google session (Minerva Workspace) + this device/account's RSVP.
+  const auth = useAuth();
+  const [guest, setGuest] = useState(false);
+  const my = useMyRsvp();
+
+  // Who shows in the top-right: the live RSVP photo wins, then Google's.
+  const identity = {
+    name: my.name ?? auth.user?.name ?? null,
+    photoUrl: my.photoUrl ?? auth.user?.avatarUrl ?? null,
+    signedIn: auth.user !== null,
+  };
+
+  // The Forum wants to know who you are (the real ALF had a login page).
+  if (auth.configured && !auth.user && !guest) {
+    return (
+      <ForumLogin
+        onGoogle={auth.signIn}
+        onGuest={() => setGuest(true)}
+        blockedEmail={auth.blockedEmail}
+        error={auth.error}
+      />
+    );
+  }
 
   const goHome = () => {
     setNav("home");
@@ -71,6 +98,14 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
     setNav("courses");
     setView({ kind: "syllabus", courseId });
   };
+  const openAssignment = (assignmentId: string) => {
+    setNav("courses");
+    setView({ kind: "assignment", assignmentId });
+  };
+  const openClassroom = () => {
+    setNav("courses");
+    setView({ kind: "classroom" });
+  };
 
   // ----- the original letter+grades+comments view --------------------------
   if (view.kind === "syllabus") {
@@ -78,6 +113,8 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
       <SyllabusGraderView
         course={REUNION_COURSE}
         rsvpCount={rsvpCount}
+        joined={my.joined}
+        identity={identity}
         onOpenRSVP={onOpenRSVP}
         onMarkComplete={() => openCourse(REUNION_COURSE.id)}
         onBack={goHome}
@@ -85,10 +122,27 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
     );
   }
 
+  // ----- the live-class simulator (assignment 1.2) --------------------------
+  if (view.kind === "classroom") {
+    return (
+      <ClassroomView
+        course={REUNION_COURSE}
+        onBack={() => openCourse(REUNION_COURSE.id)}
+      />
+    );
+  }
+
   // ----- new Forum scaffolding (home / course / session) -------------------
   return (
     <div className="alf alf-forum">
-      <ForumBanner view={view} course={REUNION_COURSE} />
+      <ForumBanner
+        view={view}
+        course={REUNION_COURSE}
+        joined={my.joined}
+        identity={identity}
+        onSignIn={auth.signIn}
+        onSignOut={auth.signOut}
+      />
       <div className="alf-forum-row">
         <ForumSidebar
           nav={nav}
@@ -102,14 +156,23 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
         />
         <main className="alf-forum-main">
           {view.kind === "home" && (
-            <ForumHome onOpenCourse={() => openCourse(REUNION_COURSE.id)} />
+            <ForumHome
+              joined={my.joined}
+              pendingPayment={my.status === "pending"}
+              onOpenCourse={() => openCourse(REUNION_COURSE.id)}
+              onOpenRSVP={onOpenRSVP}
+              onOpenAssignment={openAssignment}
+            />
           )}
           {view.kind === "course" && (
             <CourseDetail
               course={REUNION_COURSE}
+              my={my}
               onOpenSession={openSession}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
+              onOpenAssignment={openAssignment}
+              onOpenClassroom={openClassroom}
               rsvpCount={rsvpCount}
             />
           )}
@@ -119,6 +182,13 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               course={REUNION_COURSE}
               onBackToCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
+            />
+          )}
+          {view.kind === "assignment" && (
+            <AssignmentPage
+              course={REUNION_COURSE}
+              my={my}
+              onBackToCourse={() => openCourse(REUNION_COURSE.id)}
             />
           )}
         </main>
@@ -144,9 +214,9 @@ function ForumSidebar({
     <aside className="alf-fs">
       <nav className="alf-fs-nav">
         <SidebarItem icon={HomeIcon} label="Home" active={nav === "home"} onClick={() => onNav("home")} />
-        <SidebarItem icon={ListIcon} label="Assignments" active={nav === "assignments"} onClick={() => onNav("assignments")} />
-        <SidebarItem icon={FlagIcon} label="Class Assessments" active={nav === "assessments"} onClick={() => onNav("assessments")} />
-        <SidebarItem icon={TargetIcon} label="Outcome Index" active={nav === "outcome"} onClick={() => onNav("outcome")} />
+        <SidebarItem icon={ListIcon} label="Assignments" locked />
+        <SidebarItem icon={FlagIcon} label="Class Assessments" locked />
+        <SidebarItem icon={TargetIcon} label="Outcome Index" locked />
         <SidebarItem
           icon={BookIcon}
           label="Courses"
@@ -158,11 +228,21 @@ function ForumSidebar({
         />
         {coursesOpen && (
           <div className="alf-fs-sub">
-            <button className="alf-fs-sub-item alf-fs-sub-item-on">Past Courses</button>
-            <button className="alf-fs-sub-item">Visiting Courses</button>
+            <button
+              className="alf-fs-sub-item locked locked-below"
+              data-locked="Will be unlocked later"
+            >
+              Past Courses
+            </button>
+            <button
+              className="alf-fs-sub-item locked locked-below"
+              data-locked="Will be unlocked later"
+            >
+              Visiting Courses
+            </button>
           </div>
         )}
-        <SidebarItem icon={DiamondIcon} label="All Events" active={nav === "events"} onClick={() => onNav("events")} />
+        <SidebarItem icon={DiamondIcon} label="All Events" locked />
       </nav>
     </aside>
   );
@@ -172,17 +252,23 @@ function SidebarItem({
   icon: Icon,
   label,
   active,
+  locked,
   onClick,
 }: {
   icon: React.FC;
   label: string;
   active?: boolean;
+  /** Dead-end nav item — shows the "unlocked later" hover instead of navigating. */
+  locked?: boolean;
   onClick?: () => void;
 }) {
   return (
     <button
-      className={`alf-fs-item ${active ? "alf-fs-item-on" : ""}`}
-      onClick={onClick}
+      className={`alf-fs-item ${active ? "alf-fs-item-on" : ""} ${
+        locked ? "locked locked-below" : ""
+      }`}
+      data-locked={locked ? "Will be unlocked later" : undefined}
+      onClick={locked ? undefined : onClick}
     >
       <span className="alf-fs-icon" aria-hidden>
         <Icon />
@@ -192,11 +278,101 @@ function SidebarItem({
   );
 }
 
+// ----- login gate (the real ALF had one too) --------------------------------
+
+function ForumLogin({
+  onGoogle,
+  onGuest,
+  blockedEmail,
+  error,
+}: {
+  onGoogle: () => void;
+  onGuest: () => void;
+  blockedEmail: string | null;
+  error: string | null;
+}) {
+  return (
+    <div className="alf-login">
+      <div className="alf-login-card">
+        <MinervaLogo size={52} />
+        <h1 className="alf-login-title">Active Learning Forum</h1>
+        <p className="alf-login-sub">
+          Minerva University · Class of 2021 · RU26
+        </p>
+        <button className="alf-login-google" onClick={onGoogle}>
+          <GoogleG />
+          <span>Sign in with your Minerva Google account</span>
+        </button>
+        <p className="alf-login-note">
+          Use your <strong>@uni.minerva.edu</strong>
+          {" account — it's the guest list."}
+        </p>
+        {blockedEmail && (
+          <p className="alf-login-warn">
+            {blockedEmail} isn&apos;t on the class list — try your Minerva
+            account instead.
+          </p>
+        )}
+        {error && <p className="alf-login-warn">{error}</p>}
+        <button className="alf-login-guest" onClick={onGuest}>
+          Just looking — continue as guest
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GoogleG() {
+  return (
+    <svg viewBox="0 0 48 48" width="17" height="17" aria-hidden>
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  );
+}
+
 // ----- banner -------------------------------------------------------------
 
-function ForumBanner({ view, course }: { view: ViewState; course: Course }) {
-  let title = `Welcome, B Nelly`;
-  let sub = "You have no upcoming classes today and nothing due.";
+type Identity = {
+  name: string | null;
+  photoUrl: string | null;
+  signedIn: boolean;
+};
+
+function ForumBanner({
+  view,
+  course,
+  joined,
+  identity,
+  onSignIn,
+  onSignOut,
+}: {
+  view: ViewState;
+  course: Course;
+  joined: boolean;
+  identity: Identity;
+  onSignIn: () => void;
+  onSignOut: () => void;
+}) {
+  const firstName = identity.name?.split(" ")[0];
+  let title = firstName ? `Welcome, ${firstName}` : "Welcome back";
+  let sub = joined
+    ? "You're in — one reflection due before September 11."
+    : "One course this fall, one thing due — your RSVP.";
 
   if (view.kind === "course") {
     title = `${course.code} – ${course.sectionTitle} (${course.term})`;
@@ -207,6 +383,9 @@ function ForumBanner({ view, course }: { view: ViewState; course: Course }) {
       title = `${course.code} Session ${s.number} – ${s.title}`;
       sub = s.location ?? "";
     }
+  } else if (view.kind === "assignment") {
+    title = `${course.code} – Session 1.1 reflection`;
+    sub = "";
   }
 
   return (
@@ -224,86 +403,138 @@ function ForumBanner({ view, course }: { view: ViewState; course: Course }) {
         {sub && <p className="alf-fb-sub">{sub}</p>}
       </div>
       <div className="alf-fb-user">
-        <span className="alf-fb-username">B Nelly</span>
-        <span className="alf-fb-avatar">B</span>
+        {identity.name ? (
+          <>
+            <span className="alf-fb-username">{identity.name}</span>
+            <button
+              className="alf-fb-avatar-btn tip"
+              data-tip={identity.signedIn ? "Sign out" : "Your RSVP photo"}
+              onClick={identity.signedIn ? onSignOut : undefined}
+            >
+              {identity.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className="alf-fb-avatar-photo"
+                  src={identity.photoUrl}
+                  alt=""
+                />
+              ) : (
+                <span className="alf-fb-avatar">
+                  {identity.name.charAt(0)}
+                </span>
+              )}
+            </button>
+          </>
+        ) : (
+          <button className="alf-fb-signin" onClick={onSignIn}>
+            Sign in
+          </button>
+        )}
         <span className="alf-fb-help" aria-label="Help">?</span>
       </div>
     </header>
   );
 }
 
-// ----- HOME (matches the screenshot) --------------------------------------
+// ----- HOME (matches the real Forum home) ----------------------------------
 
-type GradedRow = {
-  kind: "assessment" | "written";
-  code: string;
-  title: string;
-  result: string;
-};
-
-const RECENTLY_GRADED: GradedRow[] = [
-  {
-    kind: "assessment",
-    code: "CP195.107",
-    title: "Session 1 - Ani's Class Class Assessment",
-    result: "2 scores, 2 comments",
-  },
-  {
-    kind: "written",
-    code: "Capstone Prospectus™",
-    title: "Written Assignment",
-    result: "No feedback",
-  },
-];
-
-function ForumHome({ onOpenCourse: _onOpenCourse }: { onOpenCourse: () => void }) {
-  void _onOpenCourse;
+function ForumHome({
+  joined,
+  pendingPayment,
+  onOpenCourse,
+  onOpenRSVP,
+  onOpenAssignment,
+}: {
+  joined: boolean;
+  pendingPayment: boolean;
+  onOpenCourse: () => void;
+  onOpenRSVP: () => void;
+  onOpenAssignment: (id: string) => void;
+}) {
+  const course = REUNION_COURSE;
   return (
     <div className="alf-fm-home">
       <div className="alf-fm-home-main">
         <section className="alf-card">
-          <h2 className="alf-card-h">Assignments Due in the Next 7 Days</h2>
-          <p className="alf-card-empty">There are no assignments.</p>
-        </section>
-
-        <section className="alf-card">
-          <h2 className="alf-card-h">Recently Graded</h2>
+          <h2 className="alf-card-h">
+            {joined ? "Assignments Due" : "Assignments Due in the Next 7 Days"}
+          </h2>
           <table className="alf-graded-table">
-            <thead>
-              <tr>
-                <th className="alf-graded-type">Type</th>
-                <th></th>
-                <th>Results</th>
-                <th></th>
-              </tr>
-            </thead>
             <tbody>
-              {RECENTLY_GRADED.map((row, i) => (
-                <tr key={i} className="alf-graded-row">
-                  <td className="alf-graded-iconcell">
-                    {row.kind === "assessment" ? (
-                      <FolderIcon />
-                    ) : (
+              {joined ? (
+                <>
+                  <tr
+                    className="alf-graded-row alf-graded-row-done"
+                    onClick={onOpenRSVP}
+                  >
+                    <td className="alf-graded-iconcell alf-done-check">✓</td>
+                    <td className="alf-graded-title">
+                      <a className="alf-link">
+                        {course.code} — RSVP to The Reunion
+                      </a>
+                    </td>
+                    <td className="alf-graded-result alf-graded-result-done">
+                      Submitted
+                    </td>
+                  </tr>
+                  <tr
+                    className="alf-graded-row"
+                    onClick={() => onOpenAssignment("a11")}
+                  >
+                    <td className="alf-graded-iconcell">
                       <PaperclipIcon />
-                    )}
+                    </td>
+                    <td className="alf-graded-title">
+                      <a className="alf-link">
+                        {course.code} — Session 1.1 reflection: opening line
+                      </a>
+                      <span className="guide-chip">Due before the reunion</span>
+                    </td>
+                    <td className="alf-graded-result">Open</td>
+                  </tr>
+                </>
+              ) : (
+                <tr className="alf-graded-row" onClick={onOpenRSVP}>
+                  <td className="alf-graded-iconcell">
+                    <PaperclipIcon />
                   </td>
                   <td className="alf-graded-title">
                     <a className="alf-link">
-                      {row.code} {row.title}
+                      {course.code} — RSVP to The Reunion
                     </a>
+                    {!pendingPayment && (
+                      <span className="guide-chip">Due this week</span>
+                    )}
                   </td>
-                  <td className="alf-graded-result">{row.result}</td>
-                  <td className="alf-graded-dismiss">
-                    <span aria-label="Dismiss">✕</span>
+                  <td className="alf-graded-result">
+                    {pendingPayment ? (
+                      <span className="alf-status-pending">Payment pending</span>
+                    ) : (
+                      "Not started"
+                    )}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
-          <div className="alf-graded-pager">
-            <span className="alf-link alf-link-muted">« Previous</span>
-            <span className="alf-link"> | Next »</span>
-          </div>
+        </section>
+
+        <section className="alf-card">
+          <h2 className="alf-card-h">Upcoming Courses</h2>
+          <button className="alf-course-tile" onClick={onOpenCourse}>
+            <span className="alf-course-tile-code">{course.code}</span>
+            <span className="alf-course-tile-body">
+              <span className="alf-course-tile-title">
+                The Reunion — {course.sectionTitle}
+              </span>
+              <span className="alf-course-tile-meta">
+                {course.term} · San Francisco · 3 sessions
+              </span>
+            </span>
+            <span className="alf-course-tile-arrow" aria-hidden>
+              →
+            </span>
+          </button>
         </section>
       </div>
 
@@ -311,7 +542,12 @@ function ForumHome({ onOpenCourse: _onOpenCourse }: { onOpenCourse: () => void }
         <section className="alf-card alf-card-side">
           <h2 className="alf-card-h">Announcements</h2>
           <p className="alf-card-empty">There are no recent announcements.</p>
-          <a className="alf-link">See all announcements</a>
+          <a
+            className="alf-link locked locked-below"
+            data-locked="Will be unlocked later"
+          >
+            See all announcements
+          </a>
         </section>
         <section className="alf-card alf-card-side">
           <h2 className="alf-card-h">Office Hours</h2>
@@ -323,16 +559,14 @@ function ForumHome({ onOpenCourse: _onOpenCourse }: { onOpenCourse: () => void }
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                Office Hours with B Nelly
+                Office Hours with Anirudh Nair
               </a>
               <div className="alf-office-meta">cal.com/ani</div>
             </li>
           </ul>
           <a
-            className="alf-link"
-            href="https://cal.com/ani"
-            target="_blank"
-            rel="noreferrer noopener"
+            className="alf-link locked locked-below"
+            data-locked="Will be unlocked later"
           >
             See all office hours
           </a>
@@ -346,19 +580,26 @@ function ForumHome({ onOpenCourse: _onOpenCourse }: { onOpenCourse: () => void }
 
 function CourseDetail({
   course,
+  my,
   onOpenSession,
   onOpenSyllabus,
   onOpenRSVP,
+  onOpenAssignment,
+  onOpenClassroom,
   rsvpCount,
 }: {
   course: Course;
+  my: MyRsvp;
   onOpenSession: (id: string) => void;
   onOpenSyllabus: () => void;
   onOpenRSVP: () => void;
-  rsvpCount: number;
+  onOpenAssignment: (id: string) => void;
+  onOpenClassroom: () => void;
+  rsvpCount: number | null;
 }) {
   const upcoming = course.sessions.filter((s) => s.status === "upcoming");
   const past = course.sessions.filter((s) => s.status === "past");
+  const joined = my.joined;
 
   return (
     <div className="alf-fm-cd">
@@ -379,17 +620,59 @@ function CourseDetail({
                 </tr>
               </thead>
               <tbody>
-                {course.assignments.map((a, i) => (
-                  <tr key={i} className="alf-graded-row">
-                    <td className="alf-graded-title">
-                      <a className="alf-link">{a.title}</a>
-                    </td>
-                    <td>{a.weight}</td>
-                    <td>
-                      <a className="alf-link">{a.status}</a>
-                    </td>
-                  </tr>
-                ))}
+                {course.assignments.map((a) => {
+                  // Post-reunion assignment stays sealed even for members.
+                  const sealed = a.id === "a13";
+                  if (!joined || sealed) {
+                    return (
+                      <tr
+                        key={a.id}
+                        className="alf-graded-row alf-row-disabled locked locked-below"
+                        data-locked={
+                          sealed && joined
+                            ? "Unlocks after the reunion — something fun"
+                            : my.status === "pending"
+                              ? "Unlocks the moment your payment confirms"
+                              : "Unlocks once you RSVP — you join the class"
+                        }
+                      >
+                        <td className="alf-graded-title">
+                          <span className="alf-link alf-link-disabled">
+                            {a.title}
+                          </span>
+                        </td>
+                        <td>{a.weight}</td>
+                        <td className="alf-status-muted">
+                          {sealed && joined
+                            ? "Locked until Sep 14"
+                            : "Available post-RSVP"}
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return (
+                    <tr
+                      key={a.id}
+                      className="alf-graded-row"
+                      onClick={() =>
+                        a.id === "a12" ? onOpenClassroom() : onOpenAssignment(a.id)
+                      }
+                    >
+                      <td className="alf-graded-title">
+                        <a className="alf-link">{a.title}</a>
+                        {a.id === "a12" && (
+                          <span className="guide-chip">Live</span>
+                        )}
+                      </td>
+                      <td>{a.weight}</td>
+                      <td>
+                        <a className="alf-link">
+                          {a.id === "a12" ? "Join class" : "Open"}
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (
@@ -449,36 +732,378 @@ function CourseDetail({
           )}
         </section>
 
-        <section className="alf-card">
-          <h2 className="alf-card-h">RSVP</h2>
-          <p className="alf-card-para">
-            {rsvpCount} classmates have RSVP&apos;d for this session.
-          </p>
-          <button className="alf-fm-cta" onClick={onOpenRSVP}>
-            Mark Complete &amp; RSVP →
-          </button>
-        </section>
       </div>
 
       <aside className="alf-fm-cd-side">
+        {joined ? (
+          <div className="alf-fm-countdown">
+            <span className="alf-fm-countdown-eyebrow">
+              ✓ You&apos;re in
+              {my.status === "processing" ? " · payment clearing" : ""}
+            </span>
+            {reunionDaysLeft() > 0 ? (
+              <>
+                <span className="alf-fm-countdown-days">
+                  {reunionDaysLeft()}
+                </span>
+                <span className="alf-fm-countdown-label">
+                  {reunionDaysLeft() === 1 ? "day" : "days"} until class starts
+                  · Sep 11
+                </span>
+              </>
+            ) : (
+              <span className="alf-fm-countdown-days alf-fm-countdown-now">
+                Class is in session
+              </span>
+            )}
+          </div>
+        ) : my.status === "pending" ? (
+          <div className="alf-fm-pendingcard">
+            <span className="alf-fm-pendingcard-eyebrow">Payment pending</span>
+            <p className="alf-fm-pendingcard-body">
+              Your RSVP is saved — assignments unlock the moment your payment
+              confirms. Already paid? It usually lands within a minute.
+            </p>
+            <button className="alf-fm-pendingcard-link" onClick={onOpenRSVP}>
+              Finish checkout →
+            </button>
+          </div>
+        ) : (
+          <>
+            <button className="alf-fm-rsvp-btn" onClick={onOpenRSVP}>
+              RSVP →
+            </button>
+            {rsvpCount != null && (
+              <p className="alf-fm-rsvp-note">
+                {rsvpCount === 0
+                  ? "Be the first to RSVP."
+                  : rsvpCount === 1
+                    ? "1 classmate has already joined."
+                    : `${rsvpCount} classmates have already joined.`}
+              </p>
+            )}
+          </>
+        )}
         <button className="alf-fm-syllabus-btn" onClick={onOpenSyllabus}>
           📄 Review Syllabus
         </button>
         <h3 className="alf-fm-cd-side-h">Participants</h3>
-        <ul className="alf-fm-participants">
-          {course.participants.map((p) => (
-            <li key={p.name} className="alf-fm-participant">
-              <span className="alf-fm-participant-avatar">
-                {p.name.charAt(0)}
-              </span>
-              <span className="alf-fm-participant-name">{p.name}</span>
-              {p.role && (
-                <span className="alf-fm-participant-role">({p.role})</span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <Participants />
       </aside>
+    </div>
+  );
+}
+
+/** Days until class starts — Friday, September 11, 2026. */
+function reunionDaysLeft(): number {
+  const start = new Date(2026, 8, 11);
+  return Math.max(0, Math.ceil((start.getTime() - Date.now()) / 86_400_000));
+}
+
+// ----- participants (organizers + live RSVPs from the DB) ------------------
+
+type LiveParticipant = {
+  name: string;
+  photo_url: string | null;
+  voice_url: string | null;
+  status: "pending" | "processing" | "paid";
+};
+
+/** Yellow while the RSVP/payment is settling, green once confirmed. */
+function participantDot(status: LiveParticipant["status"]) {
+  if (status === "paid") {
+    return { cls: "alf-pdot-green", tip: "Confirmed attending" };
+  }
+  if (status === "processing") {
+    return { cls: "alf-pdot-yellow", tip: "Payment clearing" };
+  }
+  return { cls: "alf-pdot-yellow", tip: "Pending confirmation" };
+}
+
+/** The orange speaker — tap to hear how their name is pronounced. */
+function SpeakerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" aria-hidden>
+      <path
+        d="M4 9.5v5h3.2L12 18.6V5.4L7.2 9.5H4z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.8a7.4 7.4 0 0 1 0 10.4"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function Participants() {
+  // Live RSVPs only — the class list fills in as real people join.
+  const [live, setLive] = useState<LiveParticipant[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/participants")
+      .then((r) => (r.ok ? r.json() : { participants: [] }))
+      .then((body) => {
+        if (!cancelled && Array.isArray(body.participants)) {
+          setLive(body.participants);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const playVoice = (url: string) => {
+    new Audio(url).play().catch(() => {});
+  };
+
+  if (live.length === 0) {
+    return (
+      <p className="alf-fm-participants-empty">
+        No one yet — the list fills in as classmates RSVP.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="alf-fm-participants">
+      {live.map((p, i) => (
+        <li key={`${p.name}-${i}`} className="alf-fm-participant">
+          {p.photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="alf-fm-participant-photo"
+              src={p.photo_url}
+              alt=""
+            />
+          ) : (
+            <span className="alf-fm-participant-avatar">
+              {p.name.charAt(0)}
+            </span>
+          )}
+          <span className="alf-fm-participant-name">{p.name}</span>
+          {p.voice_url && (
+            <button
+              className="alf-fm-participant-voice"
+              onClick={() => playVoice(p.voice_url!)}
+              aria-label={`Hear how to pronounce ${p.name}`}
+            >
+              <SpeakerIcon />
+            </button>
+          )}
+          {(() => {
+            const dot = participantDot(p.status);
+            return (
+              <span
+                className={`alf-pdot ${dot.cls} tip`}
+                data-tip={dot.tip}
+                aria-label={dot.tip}
+              />
+            );
+          })()}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ----- ASSIGNMENT 1.1: the opening-line reflection --------------------------
+
+const A11_PROMPT = {
+  title: "Session 1.1 reflection: opening line",
+  due: "Due before the reunion · Weight 1x",
+  prompt:
+    "Who are you most excited to see? Name the classmates you can't wait to catch up with — old housemates, project partners, the people you lost track of somewhere between graduation and now. A few honest sentences is plenty.",
+  note: "Your answer goes to the organizers only. We'll use it to put you in Questival teams with — and near — your people.",
+};
+
+function AssignmentPage({
+  course,
+  my,
+  onBackToCourse,
+}: {
+  course: Course;
+  my: MyRsvp;
+  onBackToCourse: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load any existing submission so people can edit until the reunion.
+  useEffect(() => {
+    if (!my.id) {
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/submissions?rsvp_id=${encodeURIComponent(my.id)}&assignment=a11`)
+      .then((r) => (r.ok ? r.json() : { submission: null }))
+      .then((data) => {
+        if (cancelled) return;
+        if (data.submission?.body) {
+          setBody(data.submission.body);
+          setSavedAt(data.submission.updated_at ?? "");
+        }
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [my.id]);
+
+  const submit = async () => {
+    if (!my.id) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rsvp_id: my.id, assignment: "a11", body }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Couldn't save — try again.");
+      setSavedAt(new Date().toISOString());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save — try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="alf-fm-assignment">
+      <div className="alf-fm-crumbs">
+        <a className="alf-link" onClick={onBackToCourse}>
+          {course.code}
+        </a>{" "}
+        &gt; Assignments &gt; Session 1.1 reflection
+      </div>
+
+      <section className="alf-card alf-assignment-card">
+        <h2 className="alf-card-h">{A11_PROMPT.title}</h2>
+        <div className="alf-assignment-due">{A11_PROMPT.due}</div>
+        <p className="alf-assignment-prompt">{A11_PROMPT.prompt}</p>
+
+        {!loaded ? (
+          <p className="alf-card-empty">Loading…</p>
+        ) : (
+          <>
+            <textarea
+              className="alf-assignment-input"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="I still owe M— a rematch from Berlin, and I want to hear how the Buenos Aires house turned out…"
+              rows={7}
+            />
+            <div className="alf-assignment-actions">
+              <button
+                className="alf-fm-rsvp-btn alf-assignment-submit"
+                disabled={saving || body.trim().length === 0}
+                onClick={submit}
+              >
+                {saving ? "Saving…" : savedAt ? "Update submission" : "Submit"}
+              </button>
+              {savedAt && !error && (
+                <span className="alf-assignment-saved">
+                  ✓ Submitted — you can edit until the reunion.
+                </span>
+              )}
+              {error && (
+                <span className="alf-assignment-error">{error}</span>
+              )}
+            </div>
+          </>
+        )}
+        <p className="alf-assignment-note">{A11_PROMPT.note}</p>
+      </section>
+    </div>
+  );
+}
+
+// ----- ASSIGNMENT 1.2: the class, live (RSVP photos as video tiles) ---------
+
+function ClassroomView({
+  course,
+  onBack,
+}: {
+  course: Course;
+  onBack: () => void;
+}) {
+  const [people, setPeople] = useState<LiveParticipant[]>([]);
+
+  // The class fills in live: refetch as classmates RSVP.
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch("/api/participants")
+        .then((r) => (r.ok ? r.json() : { participants: [] }))
+        .then((data) => {
+          if (!cancelled && Array.isArray(data.participants)) {
+            setPeople(data.participants);
+          }
+        })
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
+  // Oldest first — the earliest RSVPs sit top-left, like they logged in first.
+  const tiles = [...people].reverse();
+
+  return (
+    <div className="alf-classroom">
+      <div className="alf-classroom-topbar">
+        <button className="alf-classroom-back" onClick={onBack} aria-label="Leave class">
+          ←
+        </button>
+        <MinervaLogo size={18} invert />
+        <span className="alf-classroom-title">
+          {course.code} Session 1.2 — The Class of 2021, Live
+        </span>
+        <span className="alf-classroom-lo">LO 1</span>
+        <span className="alf-classroom-count">
+          {tiles.length} {tiles.length === 1 ? "person" : "people"} here
+        </span>
+      </div>
+
+      {tiles.length === 0 ? (
+        <div className="alf-classroom-empty">
+          <p>Class hasn&apos;t filled in yet.</p>
+          <p>Every RSVP adds a face — check back as the class arrives.</p>
+        </div>
+      ) : (
+        <div className="alf-classroom-grid">
+          {tiles.map((p, i) => (
+            <div className="alf-tile" key={`${p.name}-${i}`}>
+              {p.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="alf-tile-photo" src={p.photo_url} alt="" />
+              ) : (
+                <div className="alf-tile-off">
+                  <span>{p.name.charAt(0)}</span>
+                </div>
+              )}
+              <span className="alf-tile-name">{p.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -519,13 +1144,47 @@ function SessionPage({
               <span className="alf-fm-dot">·</span>
               <span>Virtual Class ✕</span>
             </div>
-            <button className="alf-fm-enter">Enter Class</button>
+            <button
+          className="alf-fm-enter locked locked-below"
+          data-locked="Will be unlocked later"
+        >
+          Enter Class
+        </button>
           </div>
           <div className="alf-fm-datechip">
             <div className="alf-fm-datechip-day">{day || "—"}</div>
             <div className="alf-fm-datechip-mon">{(mon || "").slice(0, 3)}</div>
           </div>
         </div>
+
+        {session.agenda && session.agenda.length > 0 && (
+          <section className="alf-card">
+            <h3 className="alf-card-h">Run of show</h3>
+            <ul className="alf-agenda">
+              {session.agenda.map((a, i) => (
+                <li
+                  className={`alf-agenda-item${a.optional ? " alf-agenda-optional" : ""}`}
+                  key={i}
+                >
+                  <div className="alf-agenda-time">{a.time}</div>
+                  <div className="alf-agenda-content">
+                    <div className="alf-agenda-title">
+                      {a.title}
+                      {a.location && (
+                        <span className="alf-agenda-loc">{a.location}</span>
+                      )}
+                    </div>
+                    {a.body && (
+                      <div className="alf-agenda-body">
+                        {typeof a.body === "string" ? <p>{a.body}</p> : a.body}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {session.sections.map((s, i) => (
           <section className="alf-card" key={i}>
@@ -543,10 +1202,18 @@ function SessionPage({
       </div>
 
       <aside className="alf-fm-session-side">
-        <button className="alf-fm-side-btn alf-fm-side-btn-primary">
+        <button
+          className="alf-fm-side-btn alf-fm-side-btn-primary locked locked-below"
+          data-locked="Will be unlocked later"
+        >
           ◉ View Recording
         </button>
-        <button className="alf-fm-side-btn">▸ Enter Class</button>
+        <button
+          className="alf-fm-side-btn locked locked-below"
+          data-locked="Will be unlocked later"
+        >
+          ▸ Enter Class
+        </button>
         <button className="alf-fm-side-btn" onClick={onOpenSyllabus}>
           📄 Review Syllabus
         </button>
@@ -570,7 +1237,12 @@ function ResourceList({ items }: { items: Resource[] }) {
               {r.label}
             </a>
           ) : (
-            <span className="alf-link">{r.label}</span>
+            <span
+              className="alf-link locked locked-below"
+              data-locked="Will be unlocked later"
+            >
+              {r.label}
+            </span>
           )}
           {r.note && <span className="alf-fm-resource-note">{r.note}</span>}
         </li>
@@ -714,22 +1386,34 @@ type Status = "not_graded" | "complete" | "incomplete";
 function SyllabusGraderView({
   course,
   rsvpCount,
+  joined,
+  identity,
   onOpenRSVP,
   onMarkComplete,
   onBack,
 }: {
   course: Course;
-  rsvpCount: number;
+  rsvpCount: number | null;
+  /** This device has RSVP'd (payment received or in flight). */
+  joined: boolean;
+  identity: Identity;
   onOpenRSVP: () => void;
   /** Called when the letter's "Mark Complete →" CTA is clicked — navigates to
    * the course page in the ALF. */
   onMarkComplete: () => void;
   onBack: () => void;
 }) {
-  const [status, setStatus] = useState<Status>("not_graded");
+  const [status, setStatus] = useState<Status>(
+    joined ? "complete" : "not_graded",
+  );
+  // Flip to Complete once the joined signal loads (it arrives async).
+  useEffect(() => {
+    if (joined) setStatus("complete");
+  }, [joined]);
 
   const handleStatusChange = (next: Status) => {
-    if (next === "complete") {
+    // Pre-RSVP, "Complete" is the call to action; post-RSVP it's just true.
+    if (next === "complete" && !joined) {
       onOpenRSVP();
       return;
     }
@@ -755,9 +1439,20 @@ function SyllabusGraderView({
           <div className="alf-topbar-title">{course.code} – The Reunion</div>
         </div>
         <div className="alf-topbar-right">
-          <span className="alf-topbar-user">B Nelly</span>
+          <span className="alf-topbar-user">
+            {identity.name ?? "Class of 2021"}
+          </span>
           <div className="alf-topbar-avatar">
-            <span>B</span>
+            {identity.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="alf-topbar-avatar-photo"
+                src={identity.photoUrl}
+                alt=""
+              />
+            ) : (
+              <span>{(identity.name ?? "M").charAt(0)}</span>
+            )}
           </div>
           <div className="alf-topbar-cog" title="Settings">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
@@ -779,22 +1474,22 @@ function SyllabusGraderView({
             <div className="alf-sidebar-heading">Resources</div>
             <div className="alf-resource-group">
               <div className="alf-resource-label">Primary resource:</div>
-              <a className="alf-resource-link" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
                 Itinerary.pdf
               </a>
             </div>
             <div className="alf-resource-group">
               <div className="alf-resource-label">Secondary resource:</div>
-              <a className="alf-resource-link" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
                 Travel-and-Visas.pdf
               </a>
-              <a className="alf-resource-link" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
                 Stay.pdf
               </a>
-              <a className="alf-resource-link" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
                 Pre-Trip-Checklist.md
               </a>
-              <a className="alf-resource-link" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
                 Photo-Wall.app
               </a>
             </div>
@@ -832,15 +1527,17 @@ function SyllabusGraderView({
             </label>
           </div>
 
-          <div className="alf-sidebar-foot">
-            <div className="alf-sidebar-counter">
-              <span className="alf-sidebar-counter-dot" />
-              <span className="alf-sidebar-counter-n">{rsvpCount}</span>
-              <span className="alf-sidebar-counter-label">
-                classmates marked&nbsp;Complete
-              </span>
+          {rsvpCount != null && (
+            <div className="alf-sidebar-foot">
+              <div className="alf-sidebar-counter">
+                <span className="alf-sidebar-counter-dot" />
+                <span className="alf-sidebar-counter-n">{rsvpCount}</span>
+                <span className="alf-sidebar-counter-label">
+                  classmates marked&nbsp;Complete
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </aside>
 
         <main className="alf-doc">
@@ -854,7 +1551,7 @@ function SyllabusGraderView({
               all in one place.
             </h1>
             <div className="alf-letter-subtitle">
-              San Francisco · the weekend of June 12–14, 2026
+              San Francisco · the weekend of September 11–13, 2026
             </div>
 
             <hr className="alf-letter-rule" />
@@ -883,23 +1580,26 @@ function SyllabusGraderView({
 
             <p>
               For now: please RSVP. The deposit is $100, refundable through
-              April. It holds your spot, helps us plan, and pins your face to
-              the wall.
+              August 1. It holds your spot, helps us plan, and pins your face
+              to the wall.
             </p>
 
             <div className="alf-doc-cta">
               <div className="alf-doc-cta-text">
                 <strong>Submit your decision</strong>
-                <span>RSVP + $100 deposit · Refundable through April 30</span>
+                <span>RSVP + $100 deposit · Refundable through Aug 1</span>
               </div>
               <button className="alf-doc-cta-btn" onClick={onMarkComplete}>
-                Mark Complete →
+                Review the coursework →
               </button>
             </div>
 
-            <p className="alf-letter-signoff">See you in June,</p>
+            <p className="alf-letter-signoff">See you in September,</p>
             <p className="alf-letter-signature">
-              <em>Maya, Theo, Ananya, Kofi &amp; the rest of the reunion crew</em>
+              <em>
+                Ani, Nathan, Dulce, Anna, Amal, Mauricio &amp; the rest of the
+                reunion crew
+              </em>
             </p>
           </div>
         </main>
@@ -975,13 +1675,6 @@ function DiamondIcon() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
       <path d="M12 3l9 9-9 9-9-9 9-9z" />
-    </svg>
-  );
-}
-function FolderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#1f7ad6" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
     </svg>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { APPS, DOCK_ORDER, type AppId } from "@/lib/apps";
-import { playMailChime } from "@/lib/sound";
 import { Window } from "@/components/Window";
 import { MenuBar } from "@/components/MenuBar";
 import { DockIcon } from "@/components/DockIcon";
@@ -16,7 +15,15 @@ import { ALF, type AlfView } from "@/components/apps/ALF";
 import { Inbox } from "@/components/apps/Inbox";
 import { CalendarApp } from "@/components/apps/CalendarApp";
 import { BrowserApp } from "@/components/apps/BrowserApp";
+import { RSVPApp } from "@/components/apps/RSVPApp";
 import { AppStub } from "@/components/apps/AppStub";
+import { IntroDialog } from "@/components/IntroDialog";
+import { useReunionFlow, REUNION_TIMINGS } from "@/lib/useReunionFlow";
+import {
+  readPaymentReturn,
+  clearPaymentReturn,
+  type PaymentReturn,
+} from "@/lib/payments";
 
 type WindowState = {
   open: boolean;
@@ -40,32 +47,61 @@ export function Desktop() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const [windows, setWindows] = useState<WindowsMap>(() => emptyWindows());
-  const [topZ, setTopZ] = useState(1);
-  const [activeId, setActiveId] = useState<AppId | null>(null);
-  const [now, setNow] = useState<Date>(() => new Date());
-  const [rsvpCount, setRsvpCount] = useState(47);
-  const [showNotification, setShowNotification] = useState(false);
-  const [notifClosing, setNotifClosing] = useState(false);
-  const [mailUnread, setMailUnread] = useState(0);
-  /** Deep-link target for the next ALF mount. Consumed on open. */
-  const [alfInitialView, setAlfInitialView] = useState<AlfView | undefined>(undefined);
-  const introHandedOffRef = useRef(false);
-
-  // Tick the clock every 30s and fake-tick the RSVP counter occasionally.
+  // Back from Stripe (or Google sign-in)? Mount with the intro skipped and
+  // the right window already open.
+  const [paymentReturn] = useState<PaymentReturn | null>(() =>
+    readPaymentReturn(),
+  );
+  const [authReturn] = useState<boolean>(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("auth") === "alf",
+  );
   useEffect(() => {
-    const clockTick = setInterval(() => setNow(new Date()), 30_000);
-    const counterTick = setInterval(() => {
-      if (Math.random() < 0.18) setRsvpCount((c) => c + 1);
-    }, 5_000);
-    return () => {
-      clearInterval(clockTick);
-      clearInterval(counterTick);
-    };
-  }, []);
+    // Strip the return params so a reload doesn't replay the state.
+    if (paymentReturn) clearPaymentReturn();
+    if (authReturn) {
+      // Keep url.hash + the ?code param — Supabase may still be reading them.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("auth");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
+  }, [paymentReturn, authReturn]);
 
-  // After the page settles, open Calendar so the rewind intro plays.
+  const [windows, setWindows] = useState<WindowsMap>(() => {
+    const map = emptyWindows();
+    if (paymentReturn) {
+      map.rsvp = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
+    } else if (authReturn) {
+      map.alf = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
+    }
+    return map;
+  });
+  const [topZ, setTopZ] = useState(paymentReturn || authReturn ? 2 : 1);
+  const [activeId, setActiveId] = useState<AppId | null>(
+    paymentReturn ? "rsvp" : authReturn ? "alf" : null,
+  );
+
+  // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
+  // and the "Turn back time" gate).
+  const flow = useReunionFlow({
+    skipIntro: paymentReturn !== null || authReturn,
+  });
+  const {
+    now,
+    rsvpCount,
+    mailUnread,
+    showNotification,
+    notifClosing,
+    alfInitialView,
+    started,
+    introMode,
+  } = flow;
+
+  // Once "Turn back time" is pressed, open Calendar so the rewind intro
+  // plays. Skipped intros (checkout returns) go straight to the desktop.
   useEffect(() => {
+    if (introMode !== "scripted") return;
     const t = setTimeout(() => {
       setTopZ((z) => {
         const nextZ = z + 1;
@@ -81,9 +117,9 @@ export function Desktop() {
         return nextZ;
       });
       setActiveId("calendar");
-    }, 800);
+    }, REUNION_TIMINGS.introLaunchDelay);
     return () => clearTimeout(t);
-  }, []);
+  }, [introMode]);
 
   const openApp = (id: AppId, opts?: { freshMount?: boolean }) => {
     setTopZ((z) => {
@@ -106,7 +142,7 @@ export function Desktop() {
   /** Open ALF, deep-linking to a specific view (home / syllabus). Always
    * forces a fresh mount so the new initialView takes effect. */
   const openAlfAt = (view: AlfView | undefined) => {
-    setAlfInitialView(view);
+    flow.setAlfInitialView(view);
     openApp("alf", { freshMount: true });
   };
 
@@ -136,41 +172,19 @@ export function Desktop() {
     if (activeId === id) setActiveId(null);
   };
 
-  // Slide the mail notification off-screen, then unmount it. macOS-style:
-  // glide right + fade. Match the duration to the .mail-notif-out CSS animation.
-  const NOTIF_SLIDE_MS = 420;
-  const dismissNotification = () => {
-    setNotifClosing((closing) => {
-      if (closing) return closing;
-      setTimeout(() => {
-        setShowNotification(false);
-        setNotifClosing(false);
-      }, NOTIF_SLIDE_MS);
-      return true;
-    });
-  };
-
   // Open Mail and, if the notification is currently visible, slide it off.
   // Always clears the unread badge.
   const openMail = () => {
-    setMailUnread(0);
-    if (showNotification && !notifClosing) dismissNotification();
+    flow.clearMailUnread();
+    if (showNotification && !notifClosing) flow.dismissNotification();
     openApp("mail");
   };
 
   // Calendar finished its rewind → pause, close it, then drop the notif +
-  // badge. Mail does NOT auto-open; the user has to click the notification or
-  // the dock icon. */
+  // badge. Mail does NOT auto-open; the user clicks the notification or the
+  // dock icon.
   const handleCalendarDone = () => {
-    if (introHandedOffRef.current) return;
-    introHandedOffRef.current = true;
-    setTimeout(() => closeApp("calendar"), 1200);
-    setTimeout(() => {
-      playMailChime();
-      setMailUnread(1);
-      setNotifClosing(false);
-      setShowNotification(true);
-    }, 1900);
+    flow.runCalendarHandoff(() => closeApp("calendar"));
   };
 
   if (!mounted) {
@@ -238,6 +252,11 @@ export function Desktop() {
                   openAlfAt("syllabus");
                 }}
               />
+            ) : id === "rsvp" ? (
+              <RSVPApp
+                initialReturn={paymentReturn}
+                onOpenALF={() => openAlfAt("home")}
+              />
             ) : (
               <AppStub app={app} />
             )}
@@ -294,13 +313,24 @@ export function Desktop() {
             className="mail-notif-close"
             onClick={(e) => {
               e.stopPropagation();
-              dismissNotification();
+              flow.dismissNotification();
             }}
             aria-label="Dismiss"
           >
             ×
           </button>
         </div>
+      )}
+
+      {!started && (
+        <IntroDialog
+          variant="macos"
+          onStart={flow.start}
+          onSkip={() => {
+            flow.skipIntro();
+            openAlfAt("home");
+          }}
+        />
       )}
     </div>
   );
