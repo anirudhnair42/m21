@@ -111,8 +111,9 @@ function RSVPJoined({
         </div>
       )}
       <p className="rsvp-hint">
-        Up next: subsidized housing at the Minerva Res Hall on Van Ness —
-        flat $200 per room for the weekend. Room booking opens here soon.
+        Up next: subsidized housing at the Minerva Res Hall, 2550 Van Ness
+        Ave — flat $200 per room for the weekend. Room booking opens here
+        soon.
       </p>
     </div>
   );
@@ -405,8 +406,8 @@ function RSVPForm({
         </p>
         <p className="rsvp-lede rsvp-lede-housing">
           Housing&apos;s handled too: subsidized rooms at the Minerva Res Hall
-          on Van Ness for the whole weekend — a flat $200 per room. Details
-          after you RSVP.
+          (2550 Van Ness Ave) for the whole weekend — a flat $200 per room.
+          Details after you RSVP.
         </p>
       </header>
 
@@ -592,8 +593,9 @@ function RSVPSuccess({
         </div>
       )}
       <p className="rsvp-hint">
-        Up next: subsidized housing at the Minerva Res Hall on Van Ness —
-        flat $200 per room for the weekend. Room booking opens here soon.
+        Up next: subsidized housing at the Minerva Res Hall, 2550 Van Ness
+        Ave — flat $200 per room for the weekend. Room booking opens here
+        soon.
       </p>
     </div>
   );

@@ -5,7 +5,7 @@ already live on the RSVP form and success screen.
 
 ## The facts (from Ani)
 
-- The **Minerva Res Hall on Van Ness** can tentatively accommodate the group
+- The **Minerva Res Hall at 2550 Van Ness Ave** can tentatively accommodate the group
   for the **September 11–13, 2026** weekend.
 - Flat rate: **$200 per room** for the weekend.
 - Headcount and room configurations to be finalized later — the hall is
