@@ -344,6 +344,7 @@ function RSVPForm({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
   const [method, setMethod] = useState<PaymentMethod>("ach");
+  const [housingInterest, setHousingInterest] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -370,6 +371,7 @@ function RSVPForm({
       form.set("from", from.trim());
       form.set("notes", notes.trim());
       form.set("method", method);
+      form.set("housing", housingInterest ? "1" : "0");
       if (existingId) form.set("existing", existingId);
       if (photoFile) form.set("photo", photoFile);
       if (voiceFile) form.set("voice", voiceFile);
@@ -404,11 +406,19 @@ function RSVPForm({
           One weekend, five years out. Tell us you&apos;re coming, add a photo
           for the wall, and lock it in with the $100 registration.
         </p>
-        <p className="rsvp-lede rsvp-lede-housing">
+        <div className="rsvp-lede rsvp-lede-housing">
           Housing&apos;s handled too: subsidized rooms at the Minerva Res Hall
           (2550 Van Ness Ave) for the whole weekend — a flat $200 per room.
           Details after you RSVP.
-        </p>
+          <label className="rsvp-check rsvp-housing-check">
+            <input
+              type="checkbox"
+              checked={housingInterest}
+              onChange={(e) => setHousingInterest(e.target.checked)}
+            />
+            <span>I&apos;m interested in a $200 Res Hall room</span>
+          </label>
+        </div>
       </header>
 
       {cancelled ? (

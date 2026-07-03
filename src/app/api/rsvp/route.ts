@@ -90,39 +90,64 @@ export async function POST(request: Request) {
     verifiedEmail = userData?.user?.email?.toLowerCase() ?? null;
   }
 
-  const values = {
+  const values: Record<string, unknown> = {
     name,
     from_city: fromCity || null,
     notes: notes || null,
     payment_method: method,
     amount_cents: price.amountCents,
     status: "pending",
+    // Who wants a $200 Res Hall room — drives housing planning.
+    housing_interest: form.get("housing") === "1",
     ...(verifiedEmail ? { email: verifiedEmail } : {}),
     // Keep previously-uploaded media when resubmitting without new files.
     ...(photoUrl ? { photo_url: photoUrl } : {}),
     ...(voiceUrl ? { voice_url: voiceUrl } : {}),
   };
 
+  // If the housing_interest column hasn't been added yet, drop the field
+  // rather than failing the whole RSVP.
+  const missingColumn = (message?: string) =>
+    !!message && /housing_interest/.test(message);
+
   // If this device already has an unpaid row (abandoned checkout), update it
   // instead of creating a duplicate.
   const existing = String(form.get("existing") ?? "");
   let rowId: string | null = null;
   if (/^[0-9a-f-]{36}$/i.test(existing)) {
-    const { data: updated } = await supabase
+    let { data: updated, error: updateError } = await supabase
       .from("rsvps")
       .update(values)
       .eq("id", existing)
       .eq("status", "pending")
       .select("id")
       .maybeSingle();
+    if (updateError && missingColumn(updateError.message)) {
+      delete values.housing_interest;
+      ({ data: updated } = await supabase
+        .from("rsvps")
+        .update(values)
+        .eq("id", existing)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle());
+    }
     if (updated) rowId = updated.id;
   }
   if (!rowId) {
-    const { data: inserted, error: insertError } = await supabase
+    let { data: inserted, error: insertError } = await supabase
       .from("rsvps")
       .insert({ photo_url: photoUrl, voice_url: voiceUrl, ...values })
       .select("id")
       .single();
+    if (insertError && missingColumn(insertError.message)) {
+      delete values.housing_interest;
+      ({ data: inserted, error: insertError } = await supabase
+        .from("rsvps")
+        .insert({ photo_url: photoUrl, voice_url: voiceUrl, ...values })
+        .select("id")
+        .single());
+    }
     if (insertError || !inserted) {
       console.error("rsvp insert failed:", insertError?.message);
       return Response.json({ error: "Couldn't save your RSVP — please try again." }, { status: 500 });

@@ -50,6 +50,7 @@ create table rsvps (
   photo_url text,
   voice_url text,            -- optional name-pronunciation clip
   payment_method text,       -- 'ach' | 'card'
+  housing_interest boolean default false,  -- wants a $200 Res Hall room
   amount_cents int,
   status text not null default 'pending',  -- pending | processing | paid | failed
   stripe_session_id text unique

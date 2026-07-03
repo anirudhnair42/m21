@@ -3599,6 +3599,13 @@ body {
   border: 1px solid rgba(20, 99, 176, 0.14);
   border-radius: 9px;
 }
+.rsvp-housing-check {
+  margin-top: 8px;
+  padding: 6px 0 0;
+  border-top: 1px dashed rgba(20, 99, 176, 0.18);
+  font-weight: 600;
+  font-size: 13px;
+}
 
 /* ----- fields ----- */
 .rsvp-field { margin-bottom: 18px; }
