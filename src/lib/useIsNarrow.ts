@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-/** Phone breakpoint — below this we present the iOS shell. */
-export const NARROW_QUERY = "(max-width: 820px)";
+/** Phone breakpoint — at/below this we present the mobile invitation card. */
+export const NARROW_QUERY = "(max-width: 700px)";
 
 /**
  * Returns whether the viewport currently matches a media query (defaults to

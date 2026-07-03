@@ -1,176 +1,71 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useReunionFlow, REUNION_TIMINGS } from "@/lib/useReunionFlow";
-import { IntroDialog } from "@/components/IntroDialog";
-import { StatusBar } from "@/components/mobile/StatusBar";
-import { Springboard } from "@/components/mobile/Springboard";
-import { AppFrame } from "@/components/mobile/AppFrame";
-import { HomeIndicator } from "@/components/mobile/HomeIndicator";
-import { NotificationBanner } from "@/components/mobile/NotificationBanner";
-import type { IosAppId } from "@/components/mobile/iosApps";
-import { ALF } from "@/components/apps/ALF";
-import { Inbox } from "@/components/apps/Inbox";
-import { CalendarApp } from "@/components/apps/CalendarApp";
-import { BrowserApp } from "@/components/apps/BrowserApp";
-import { RSVPApp } from "@/components/apps/RSVPApp";
-import {
-  readPaymentReturn,
-  clearPaymentReturn,
-  type PaymentReturn,
-} from "@/lib/payments";
+import { MinervaWordmark } from "@/components/MinervaLogo";
 
 /**
- * The iOS 11 mobile experience: Springboard + fullscreen apps, driven by the
- * same scripted intro as the desktop (via useReunionFlow). Launches Calendar
- * after "Turn back time", hands off to the Mail banner, then Safari, then ALF.
+ * Mobile is intentionally minimal: the scripted iOS experience only shines on a
+ * desktop, so phones get a single tasteful invitation card that points people
+ * there rather than a degraded version of the full flow.
  */
 export function MobileShell() {
-  // Back from Stripe? Mount with the intro skipped and RSVP already open in
-  // the matching state (success or cancelled).
-  const [paymentReturn] = useState<PaymentReturn | null>(() =>
-    readPaymentReturn(),
-  );
-  const [authReturn] = useState<boolean>(
-    () =>
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("auth") === "alf",
-  );
-  useEffect(() => {
-    // Strip the return params so a reload doesn't replay the state.
-    if (paymentReturn) clearPaymentReturn();
-    if (authReturn) {
-      // Keep url.hash + the ?code param — Supabase may still be reading them.
-      const url = new URL(window.location.href);
-      url.searchParams.delete("auth");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    }
-  }, [paymentReturn, authReturn]);
-
-  const flow = useReunionFlow({
-    skipIntro: paymentReturn !== null || authReturn,
-  });
-  const { now, started, showNotification, notifClosing, mailUnread } = flow;
-
-  const [openAppId, setOpenAppId] = useState<IosAppId | null>(
-    paymentReturn ? "rsvp" : authReturn ? "alf" : null,
-  );
-  const [launchRect, setLaunchRect] = useState<DOMRect | null>(null);
-  const [closing, setClosing] = useState(false);
-
-  const openApp = useCallback((id: IosAppId, rect: DOMRect | null = null) => {
-    setLaunchRect(rect);
-    setClosing(false);
-    setOpenAppId(id);
-  }, []);
-
-  // Begin the close animation. Harmless if no app is open (AppFrame isn't
-  // mounted); openApp() resets `closing` before the next launch.
-  const closeToHome = useCallback(() => {
-    setClosing(true);
-  }, []);
-
-  const handleAppClosed = useCallback(() => {
-    setOpenAppId(null);
-    setClosing(false);
-    setLaunchRect(null);
-  }, []);
-
-  // "Turn back time" → after a beat, launch Calendar fullscreen. Skipped
-  // intros (checkout returns) go straight to the springboard.
-  useEffect(() => {
-    if (flow.introMode !== "scripted") return;
-    const t = setTimeout(() => openApp("calendar"), REUNION_TIMINGS.introLaunchDelay);
-    return () => clearTimeout(t);
-  }, [flow.introMode, openApp]);
-
-  const openMail = useCallback(() => {
-    flow.clearMailUnread();
-    if (showNotification && !notifClosing) flow.dismissNotification();
-    openApp("mail");
-  }, [flow, showNotification, notifClosing, openApp]);
-
-  const renderApp = (id: IosAppId) => {
-    switch (id) {
-      case "calendar":
-        return (
-          <CalendarApp onComplete={() => flow.runCalendarHandoff(closeToHome)} />
-        );
-      case "mail":
-        return <Inbox onOpenDecision={() => openApp("browser")} />;
-      case "browser":
-        return (
-          <BrowserApp
-            onProceed={() => {
-              flow.setAlfInitialView("syllabus");
-              openApp("alf");
-            }}
-          />
-        );
-      case "alf":
-        return (
-          <ALF
-            onOpenRSVP={() => openApp("rsvp")}
-            rsvpCount={flow.rsvpCount}
-            initialView={flow.alfInitialView}
-          />
-        );
-      case "rsvp":
-        return (
-          <RSVPApp
-            initialReturn={paymentReturn}
-            onOpenALF={() => {
-              flow.setAlfInitialView("home");
-              openApp("alf");
-            }}
-          />
-        );
-    }
-  };
-
-  const onSpringboard = openAppId === null;
-
   return (
-    <div className="ios-shell">
-      {/* Home screen is always present underneath; an open app covers it. */}
-      <Springboard
-        mailUnread={mailUnread}
-        onLaunch={(id, rect) => openApp(id, rect)}
-      />
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 32,
+        padding: "48px 28px",
+        textAlign: "center",
+        background: "#f6f3ec",
+        color: "#1a1a1a",
+      }}
+    >
+      <MinervaWordmark width={200} />
 
-      {openAppId && (
-        <AppFrame
-          key={openAppId}
-          launchRect={launchRect}
-          closing={closing}
-          onClosed={handleAppClosed}
-        >
-          {renderApp(openAppId)}
-        </AppFrame>
-      )}
+      <p
+        style={{
+          fontFamily: "var(--serif-font-family)",
+          fontWeight: 400,
+          fontSize: 16,
+          lineHeight: 1.5,
+          maxWidth: 420,
+          margin: 0,
+          textWrap: "balance",
+        }}
+      >
+        We are organizing a special homecoming for M21s on{" "}
+        <strong style={{ fontWeight: 600 }}>September 11&ndash;13</strong>{" "}
+        in San Francisco. 
+    
+    <br/><br/>
+    
+    We created a special invitation for you, but the experience is much better on wider screens. Please visit this website on a computer 
 
-      <StatusBar now={now} dark={onSpringboard} />
-      <HomeIndicator onHome={closeToHome} dark={onSpringboard} />
-
-      {showNotification && (
-        <NotificationBanner
-          closing={notifClosing}
-          onOpen={openMail}
-          onDismiss={flow.dismissNotification}
-        />
-      )}
-
-      {!started && (
-        <IntroDialog
-          variant="ios"
-          onStart={flow.start}
-          onSkip={() => {
-            flow.skipIntro();
-            flow.setAlfInitialView("home");
-            openApp("alf");
-          }}
-        />
-      )}
+        
+    <br/><br/>
+    <em style={{ fontStyle: "italic", fontWeight: 300 }}>
+          Trust us, it&rsquo;ll be worth it&nbsp;;)
+        </em>
+     
+  </p>
+  <p
+        style={{
+          fontFamily: "var(--serif-font-family)",
+          fontWeight: 400,
+          fontSize: 12,
+          lineHeight: 1.5,
+          width: "100%",
+          maxWidth: 420,
+          margin: 0,
+        }}
+      >
+    &ndash; Ani, Amal, Anna, Dulce, Mau, Nathan
+  </p>
+    
+    
     </div>
   );
 }
