@@ -44,6 +44,23 @@ export async function POST(request: Request) {
   const method: PaymentMethod = methodRaw;
   const price = PAYMENT_OPTIONS[method];
 
+  // RSVP is members-only: require a signed-in Google account. The verified
+  // email also stamps the row so it follows the account across devices, and
+  // locks the Stripe receipt to the same identity. No valid token → no RSVP.
+  const authHeader = request.headers.get("authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "");
+  let verifiedEmail: string | null = null;
+  if (token) {
+    const { data: userData } = await supabase.auth.getUser(token);
+    verifiedEmail = userData?.user?.email?.toLowerCase() ?? null;
+  }
+  if (!verifiedEmail) {
+    return Response.json(
+      { error: "Please sign in to RSVP." },
+      { status: 401 },
+    );
+  }
+
   // Uploads first (both optional) so the row can carry their public URLs.
   // Failures are non-fatal: an RSVP without media beats a lost RSVP.
   const uploadPublic = async (
@@ -79,16 +96,6 @@ export async function POST(request: Request) {
     5 * 1024 * 1024,
     "webm",
   );
-
-  // Logged-in RSVPs get stamped with the verified Google email so the row
-  // follows the account across devices (Stripe backfills it for guests).
-  let verifiedEmail: string | null = null;
-  const authHeader = request.headers.get("authorization") ?? "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (token) {
-    const { data: userData } = await supabase.auth.getUser(token);
-    verifiedEmail = userData?.user?.email?.toLowerCase() ?? null;
-  }
 
   const values: Record<string, unknown> = {
     name,
