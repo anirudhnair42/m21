@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MinervaLogo } from "@/components/MinervaLogo";
 import {
   REUNION_COURSE,
@@ -10,7 +10,7 @@ import {
   type Resource,
 } from "@/lib/reunion-course";
 import { useMyRsvp, type MyRsvp } from "@/lib/myRsvp";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getAccessToken } from "@/lib/auth";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -54,6 +54,72 @@ function navForInitial(initial: AlfView | undefined): Nav {
   return "home";
 }
 
+/** The saved Session 1.1 reflection, once it exists. */
+type A11Submission = { body: string; updatedAt: string | null };
+
+/**
+ * Single source of truth for the Session 1.1 reflection. Owned by the ALF
+ * shell and read by every surface (home list, course table, detail page) so
+ * they can never disagree about whether it's been submitted. The detail page's
+ * in-progress textarea keystrokes stay local to it — only a successful save
+ * promotes a draft into this shared state.
+ */
+function useA11Submission(rsvpId: string | null) {
+  const [submission, setSubmission] = useState<A11Submission | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!rsvpId) {
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/submissions?rsvp_id=${encodeURIComponent(rsvpId)}&assignment=a11`)
+      .then((r) => (r.ok ? r.json() : { submission: null }))
+      .then((data) => {
+        if (cancelled) return;
+        if (data.submission?.body) {
+          setSubmission({
+            body: data.submission.body,
+            updatedAt: data.submission.updated_at ?? null,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [rsvpId]);
+
+  const save = useCallback(
+    async (body: string) => {
+      if (!rsvpId) return;
+      setSaving(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/submissions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rsvp_id: rsvpId, assignment: "a11", body }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Couldn't save — try again.");
+        setSubmission({ body, updatedAt: new Date().toISOString() });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't save — try again.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [rsvpId],
+  );
+
+  return { submission, submitted: submission !== null, loaded, saving, error, save };
+}
+
 export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
   const [view, setView] = useState<ViewState>(() => initialViewState(initialView));
   const [nav, setNav] = useState<Nav>(() => navForInitial(initialView));
@@ -63,12 +129,33 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
   const [guest, setGuest] = useState(false);
   const my = useMyRsvp();
 
+  // The Session 1.1 reflection, fetched once here so every surface — home list,
+  // course table, detail page — reads the same "Submitted · Editable" state.
+  const a11 = useA11Submission(my.id);
+
   // Who shows in the top-right: the live RSVP photo wins, then Google's.
   const identity = {
     name: my.name ?? auth.user?.name ?? null,
     photoUrl: my.photoUrl ?? auth.user?.avatarUrl ?? null,
     signedIn: auth.user !== null,
   };
+
+  // Signing in is itself a soft signal — record it as "considering" so the
+  // class can watch interest build before anyone RSVPs. Fire-and-forget, once
+  // per signed-in email; the server verifies the token and pulls the name.
+  const consideringSaved = useRef<string | null>(null);
+  useEffect(() => {
+    const email = auth.user?.email;
+    if (!email || consideringSaved.current === email) return;
+    consideringSaved.current = email;
+    getAccessToken().then((token) => {
+      if (!token) return;
+      fetch("/api/considering", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    });
+  }, [auth.user?.email]);
 
   // The Forum wants to know who you are (the real ALF had a login page).
   if (auth.configured && !auth.user && !guest) {
@@ -142,6 +229,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
         identity={identity}
         onSignIn={auth.signIn}
         onSignOut={auth.signOut}
+        onOpenRSVP={onOpenRSVP}
       />
       <div className="alf-forum-row">
         <ForumSidebar
@@ -161,6 +249,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
             <ForumHome
               joined={my.joined}
               pendingPayment={my.status === "pending"}
+              a11Submitted={a11.submitted}
               onOpenCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
               onOpenAssignment={openAssignment}
@@ -170,6 +259,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
             <CourseDetail
               course={REUNION_COURSE}
               my={my}
+              a11Submitted={a11.submitted}
               onOpenSession={openSession}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
@@ -189,7 +279,11 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
           {view.kind === "assignment" && (
             <AssignmentPage
               course={REUNION_COURSE}
-              my={my}
+              submission={a11.submission}
+              loaded={a11.loaded}
+              saving={a11.saving}
+              error={a11.error}
+              onSave={a11.save}
               onBackToCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenClassroom={openClassroom}
             />
@@ -365,6 +459,7 @@ function ForumBanner({
   identity,
   onSignIn,
   onSignOut,
+  onOpenRSVP,
 }: {
   view: ViewState;
   course: Course;
@@ -372,6 +467,7 @@ function ForumBanner({
   identity: Identity;
   onSignIn: () => void;
   onSignOut: () => void;
+  onOpenRSVP: () => void;
 }) {
   const firstName = identity.name?.split(" ")[0];
   let title = firstName ? `Welcome, ${firstName}` : "Welcome back";
@@ -414,7 +510,7 @@ function ForumBanner({
             <button
               className="alf-fb-avatar-btn tip"
               data-tip={identity.signedIn ? "Sign out" : "Your RSVP photo"}
-              onClick={identity.signedIn ? onSignOut : undefined}
+              onClick={identity.signedIn ? onSignOut : onOpenRSVP}
             >
               {identity.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -446,12 +542,14 @@ function ForumBanner({
 function ForumHome({
   joined,
   pendingPayment,
+  a11Submitted,
   onOpenCourse,
   onOpenRSVP,
   onOpenAssignment,
 }: {
   joined: boolean;
   pendingPayment: boolean;
+  a11Submitted: boolean;
   onOpenCourse: () => void;
   onOpenRSVP: () => void;
   onOpenAssignment: (id: string) => void;
@@ -483,19 +581,27 @@ function ForumHome({
                     </td>
                   </tr>
                   <tr
-                    className="alf-graded-row"
+                    className={`alf-graded-row${a11Submitted ? " alf-graded-row-done" : ""}`}
                     onClick={() => onOpenAssignment("a11")}
                   >
-                    <td className="alf-graded-iconcell">
-                      <PaperclipIcon />
+                    <td
+                      className={`alf-graded-iconcell${a11Submitted ? " alf-done-check" : ""}`}
+                    >
+                      {a11Submitted ? "✓" : <PaperclipIcon />}
                     </td>
                     <td className="alf-graded-title">
                       <a className="alf-link">
                         {course.code} — Session 1.1 reflection: opening line
                       </a>
-                      <span className="guide-chip">Due before the reunion</span>
+                      {!a11Submitted && (
+                        <span className="guide-chip">Due before the reunion</span>
+                      )}
                     </td>
-                    <td className="alf-graded-result">Open</td>
+                    <td
+                      className={`alf-graded-result${a11Submitted ? " alf-graded-result-done" : ""}`}
+                    >
+                      {a11Submitted ? "Submitted · Editable" : "Open"}
+                    </td>
                   </tr>
                 </>
               ) : (
@@ -586,6 +692,7 @@ function ForumHome({
 function CourseDetail({
   course,
   my,
+  a11Submitted,
   onOpenSession,
   onOpenSyllabus,
   onOpenRSVP,
@@ -595,6 +702,7 @@ function CourseDetail({
 }: {
   course: Course;
   my: MyRsvp;
+  a11Submitted: boolean;
   onOpenSession: (id: string) => void;
   onOpenSyllabus: () => void;
   onOpenRSVP: () => void;
@@ -625,6 +733,29 @@ function CourseDetail({
                 </tr>
               </thead>
               <tbody>
+                {/* Registration is the prerequisite for everything below —
+                    always shown, and it's what unlocks the reflections. */}
+                <tr
+                  className="alf-graded-row"
+                  onClick={onOpenRSVP}
+                >
+                  <td className="alf-graded-title">
+                    <a className="alf-link">RSVP to The Reunion</a>
+                    {!joined && my.status !== "pending" && (
+                      <span className="guide-chip">Due this week</span>
+                    )}
+                  </td>
+                  <td>—</td>
+                  <td>
+                    {joined ? (
+                      <span className="alf-graded-result-done">Submitted</span>
+                    ) : my.status === "pending" ? (
+                      <span className="alf-status-pending">Payment pending</span>
+                    ) : (
+                      <a className="alf-link">Start</a>
+                    )}
+                  </td>
+                </tr>
                 {course.assignments.map((a) => {
                   // Post-reunion assignment stays sealed even for members.
                   const sealed = a.id === "a13";
@@ -655,10 +786,11 @@ function CourseDetail({
                       </tr>
                     );
                   }
+                  const done = a.id === "a11" && a11Submitted;
                   return (
                     <tr
                       key={a.id}
-                      className="alf-graded-row"
+                      className={`alf-graded-row${done ? " alf-graded-row-done" : ""}`}
                       onClick={() =>
                         a.id === "a12" ? onOpenClassroom() : onOpenAssignment(a.id)
                       }
@@ -671,9 +803,15 @@ function CourseDetail({
                       </td>
                       <td>{a.weight}</td>
                       <td>
-                        <a className="alf-link">
-                          {a.id === "a12" ? "Join class" : "Open"}
-                        </a>
+                        {done ? (
+                          <span className="alf-graded-result-done">
+                            Submitted · Editable
+                          </span>
+                        ) : (
+                          <a className="alf-link">
+                            {a.id === "a12" ? "Join class" : "Open"}
+                          </a>
+                        )}
                       </td>
                     </tr>
                   );
@@ -794,6 +932,8 @@ function CourseDetail({
         </button>
         <h3 className="alf-fm-cd-side-h">Participants</h3>
         <Participants />
+        <h3 className="alf-fm-cd-side-h alf-fm-cd-side-h-sub">Considering</h3>
+        <Considering />
       </aside>
     </div>
   );
@@ -919,6 +1059,66 @@ function Participants() {
   );
 }
 
+// ----- considering (signed in, but not RSVP'd yet) -------------------------
+
+/**
+ * People who signed in with Google but haven't RSVP'd — shown as a name with a
+ * question mark instead of a face. Scrollable, capped at 10 names, with the
+ * true total underneath so it reads honestly when more are considering.
+ */
+function Considering() {
+  const [names, setNames] = useState<string[]>([]);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/considering")
+      .then((r) => (r.ok ? r.json() : { considering: [], count: 0 }))
+      .then((body) => {
+        if (cancelled) return;
+        if (Array.isArray(body.considering)) setNames(body.considering);
+        if (typeof body.count === "number") setCount(body.count);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Empty covers both "not loaded yet" and "genuinely nobody" — either way
+  // there's nothing to show but the friendly line (no "0 considering" flash).
+  if (count === 0) {
+    return (
+      <p className="alf-fm-participants-empty">
+        No one yet — sign-ins land here before they RSVP.
+      </p>
+    );
+  }
+
+  return (
+    <div className="alf-fm-considering">
+      <ul className="alf-fm-participants alf-fm-considering-list">
+        {names.map((name, i) => (
+          <li key={`${name}-${i}`} className="alf-fm-participant">
+            <span
+              className="alf-fm-participant-avatar alf-fm-considering-avatar"
+              aria-hidden
+            >
+              ?
+            </span>
+            <span className="alf-fm-participant-name alf-fm-considering-name">
+              {name}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="alf-fm-considering-count">
+        {count === 1 ? "1 considering" : `${count} considering`}
+      </p>
+    </div>
+  );
+}
+
 // ----- ASSIGNMENT 1.1: the opening-line reflection --------------------------
 
 const A11_PROMPT = {
@@ -931,63 +1131,28 @@ const A11_PROMPT = {
 
 function AssignmentPage({
   course,
-  my,
+  submission,
+  loaded,
+  saving,
+  error,
+  onSave,
   onBackToCourse,
   onOpenClassroom,
 }: {
   course: Course;
-  my: MyRsvp;
+  submission: A11Submission | null;
+  loaded: boolean;
+  saving: boolean;
+  error: string | null;
+  onSave: (body: string) => void;
   onBackToCourse: () => void;
   onOpenClassroom: () => void;
 }) {
-  const [body, setBody] = useState("");
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load any existing submission so people can edit until the reunion.
-  useEffect(() => {
-    if (!my.id) {
-      setLoaded(true);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/submissions?rsvp_id=${encodeURIComponent(my.id)}&assignment=a11`)
-      .then((r) => (r.ok ? r.json() : { submission: null }))
-      .then((data) => {
-        if (cancelled) return;
-        if (data.submission?.body) {
-          setBody(data.submission.body);
-          setSavedAt(data.submission.updated_at ?? "");
-        }
-      })
-      .catch(() => {})
-      .finally(() => !cancelled && setLoaded(true));
-    return () => {
-      cancelled = true;
-    };
-  }, [my.id]);
-
-  const submit = async () => {
-    if (!my.id) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/submissions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rsvp_id: my.id, assignment: "a11", body }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Couldn't save — try again.");
-      setSavedAt(new Date().toISOString());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save — try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // The textarea draft stays local — the shared submission only updates on a
+  // successful save, so keystrokes here never leak to the other surfaces.
+  // `null` means "untouched": show the saved body (or empty) until they type.
+  const [draft, setDraft] = useState<string | null>(null);
+  const body = draft ?? submission?.body ?? "";
 
   return (
     <div className="alf-fm-assignment">
@@ -1001,12 +1166,12 @@ function AssignmentPage({
       <section className="alf-card alf-assignment-card">
         <h2 className="alf-card-h">
           {A11_PROMPT.title}
-          {savedAt && (
+          {submission && (
             <span className="alf-assignment-chip">Submitted · Editable</span>
           )}
         </h2>
         <div className="alf-assignment-due">
-          {savedAt
+          {submission
             ? "Submitted — you can edit until the reunion · Weight 1x"
             : A11_PROMPT.due}
         </div>
@@ -1019,7 +1184,7 @@ function AssignmentPage({
             <textarea
               className="alf-assignment-input"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => setDraft(e.target.value)}
               placeholder="I still owe M— a rematch from Berlin, and I want to hear how the Buenos Aires house turned out…"
               rows={7}
             />
@@ -1027,11 +1192,11 @@ function AssignmentPage({
               <button
                 className="alf-fm-rsvp-btn alf-assignment-submit"
                 disabled={saving || body.trim().length === 0}
-                onClick={submit}
+                onClick={() => onSave(body)}
               >
-                {saving ? "Saving…" : savedAt ? "Update submission" : "Submit"}
+                {saving ? "Saving…" : submission ? "Update submission" : "Submit"}
               </button>
-              {savedAt && !error && (
+              {submission && !error && (
                 <span className="alf-assignment-saved">
                   ✓ Submitted — you can edit until the reunion.
                 </span>
@@ -1045,7 +1210,7 @@ function AssignmentPage({
         <p className="alf-assignment-note">{A11_PROMPT.note}</p>
       </section>
 
-      {savedAt && !error && (
+      {submission && !error && (
         <div className="alf-next-card">
           <div className="alf-next-card-text">
             <span className="alf-next-card-eyebrow">Next up</span>
@@ -1568,8 +1733,10 @@ function SyllabusGraderView({
           {rsvpCount != null && (
             <div className="alf-sidebar-foot">
               <div className="alf-sidebar-counter">
-                <span className="alf-sidebar-counter-dot" />
-                <span className="alf-sidebar-counter-n">{rsvpCount}</span>
+                <span className="alf-sidebar-counter-num">
+                  <span className="alf-sidebar-counter-dot" />
+                  <span className="alf-sidebar-counter-n">{rsvpCount}</span>
+                </span>
                 <span className="alf-sidebar-counter-label">
                   classmates marked&nbsp;Complete
                 </span>
