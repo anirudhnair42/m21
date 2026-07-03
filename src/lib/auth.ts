@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { useSnackbar } from "@/lib/snackbar";
 
 /**
  * Google sign-in. Open to ANY Google account (per Ani, July 2026) — flip
@@ -46,6 +47,7 @@ function toAuthUser(u: User): AuthUser | null {
 export function useAuth() {
   const supabase = getSupabaseBrowser();
   const configured = supabase !== null;
+  const { notify } = useSnackbar();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [blockedEmail, setBlockedEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,8 +77,15 @@ export function useAuth() {
   }, [supabase]);
 
   const signIn = useCallback(async () => {
-    if (!supabase) return;
     setError(null);
+    if (!supabase) {
+      // Used to fail silently — surface it so the dead button is explained.
+      const msg =
+        "Sign-in isn't available — Google auth isn't configured for this environment.";
+      setError(msg);
+      notify(msg);
+      return;
+    }
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -88,11 +97,12 @@ export function useAuth() {
       },
     });
     if (err) {
-      setError(
-        "Google sign-in isn't switched on yet — enable the Google provider in Supabase.",
-      );
+      const msg =
+        "Google sign-in isn't switched on yet — enable the Google provider in Supabase.";
+      setError(msg);
+      notify(msg);
     }
-  }, [supabase]);
+  }, [supabase, notify]);
 
   const signOut = useCallback(() => {
     supabase?.auth.signOut();

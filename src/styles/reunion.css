@@ -2055,12 +2055,19 @@ body {
   font-size: 12px;
   color: var(--alf-rail-mute);
 }
+/* Keep the dot glued to the number so it centers on the "4" rather than on
+   the two-line label block beside it. */
+.alf-sidebar-counter-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .alf-sidebar-counter-dot {
+  flex: none;
   width: 7px; height: 7px;
   border-radius: 50%;
   background: #4ade80;
   box-shadow: 0 0 4px #4ade80;
-  align-self: center;
 }
 .alf-sidebar-counter-n {
   font-size: 17px;
@@ -2976,6 +2983,32 @@ body {
   flex: 0 0 auto;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
 }
+/* ----- "Considering": signed in, not RSVP'd yet ----- */
+.alf-fm-cd-side-h-sub { margin-top: 18px; }
+/* Scrollable list — up to 10 names show, then it scrolls; the count sits
+   just below the scroll box. */
+.alf-fm-considering-list {
+  max-height: 180px;
+  overflow-y: auto;
+}
+/* A question mark instead of a face — they're interested, not confirmed. */
+.alf-fm-considering-avatar {
+  background: #ded8cd;
+  color: #8a7f6d;
+  font-weight: 700;
+}
+/* Muted, non-link name — nothing to open until they RSVP. */
+.alf-fm-considering-name {
+  color: #6b6660;
+  cursor: default;
+}
+.alf-fm-considering-count {
+  margin: 4px 0 0;
+  padding: 8px 14px 2px;
+  font-size: 12px;
+  color: #8a857b;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
 /* ----- Forum login gate (the real ALF had one) ----- */
 .alf-login {
   position: relative;
@@ -3819,6 +3852,32 @@ body {
 }
 .rsvp-minibtn-recording:hover { background: #c8362c; border-color: #c8362c; }
 
+/* ----- confirmation: retake / replace your class photo ----- */
+.rsvp-retake {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0 6px;
+}
+.rsvp-retake-photo {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--minerva-rule);
+}
+/* Split the two actions evenly so they line up edge-to-edge with the photo
+   above and the primary CTA below, instead of hugging the left. */
+.rsvp-retake .rsvp-minirow { width: 100%; }
+.rsvp-retake .rsvp-minibtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 14px;
+  font-size: 13.5px;
+}
+
 /* ----- payment method picker ----- */
 .rsvp-methods {
   display: flex;
@@ -4399,4 +4458,61 @@ body {
   }
   .alf-sidebar-right { order: 3; width: auto; }
   .alf-letter { max-width: none; }
+}
+
+/* ============================================================
+   SNACKBARS — global error/info toasts (see src/lib/snackbar.tsx)
+   ============================================================ */
+.snackbar-stack {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000; /* above every window, menu, and dialog */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  width: max-content;
+  max-width: min(92vw, 440px);
+  pointer-events: none;
+}
+.snackbar {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: #fff;
+  background: #2b2622;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  animation: snackbar-in 180ms ease-out;
+}
+.snackbar-error {
+  background: #c8362c;
+  border-color: #a82b22;
+}
+.snackbar-msg { flex: 1; }
+.snackbar-close {
+  flex: none;
+  margin: -2px -2px 0 0;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.75;
+  cursor: pointer;
+}
+.snackbar-close:hover { opacity: 1; }
+@keyframes snackbar-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
