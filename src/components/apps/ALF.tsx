@@ -311,9 +311,7 @@ function ForumLogin({
           <GoogleG />
           <span>Sign in with Google</span>
         </button>
-        <p className="alf-login-note">
-          Any Google account works — your RSVP and assignments stick to it.
-        </p>
+        <p className="alf-login-note">Any email works</p>
         {blockedEmail && (
           <p className="alf-login-warn">
             {blockedEmail} isn&apos;t on the class list — try your Minerva
@@ -321,10 +319,10 @@ function ForumLogin({
           </p>
         )}
         {error && <p className="alf-login-warn">{error}</p>}
-        <button className="alf-login-guest" onClick={onGuest}>
-          Just looking — continue as guest
-        </button>
       </div>
+      <button className="alf-login-guest" onClick={onGuest}>
+        Just looking — continue as guest
+      </button>
     </div>
   );
 }

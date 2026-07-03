@@ -2978,6 +2978,7 @@ body {
 }
 /* ----- Forum login gate (the real ALF had one) ----- */
 .alf-login {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
@@ -3039,15 +3040,20 @@ body {
   line-height: 1.5;
 }
 .alf-login-guest {
-  margin-top: 26px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  margin: 0 auto;
   background: transparent;
   border: 0;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   color: #9a948a;
+  text-decoration: underline;
   cursor: pointer;
 }
-.alf-login-guest:hover { color: #55504a; text-decoration: underline; }
+.alf-login-guest:hover { color: #55504a; }
 
 /* Banner avatar: the live RSVP photo (or Google's) worn top-right. */
 .alf-fb-avatar-btn {
