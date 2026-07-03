@@ -5,14 +5,15 @@ import type { User } from "@supabase/supabase-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 /**
- * Google sign-in with the Minerva Workspace account. Access is universal
- * for the class (confirmed), so the domain IS the guest list. The organizer
- * allowlist lets Ani & cohosts test with personal accounts.
+ * Google sign-in. Open to ANY Google account (per Ani, July 2026) — flip
+ * OPEN_TO_ALL to false to re-enable the Minerva-domain guest list below.
  */
+const OPEN_TO_ALL = true;
 const ALLOWED_DOMAINS = ["uni.minerva.edu", "minerva.kgi.edu"];
 const ALLOWED_EMAILS = ["ani@base10.vc", "anirudhnair42@gmail.com"];
 
 export function isAllowedEmail(email: string): boolean {
+  if (OPEN_TO_ALL) return true;
   const lower = email.toLowerCase();
   return (
     ALLOWED_EMAILS.includes(lower) ||
@@ -81,7 +82,9 @@ export function useAuth() {
       options: {
         // Land back on the desktop with ALF reopened, no intro replay.
         redirectTo: `${window.location.origin}/?auth=alf`,
-        queryParams: { hd: ALLOWED_DOMAINS[0], prompt: "select_account" },
+        queryParams: OPEN_TO_ALL
+          ? { prompt: "select_account" }
+          : { hd: ALLOWED_DOMAINS[0], prompt: "select_account" },
       },
     });
     if (err) {

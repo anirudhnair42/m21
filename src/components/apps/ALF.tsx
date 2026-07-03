@@ -150,7 +150,9 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
           onNav={(n) => {
             setNav(n);
             if (n === "home") setView({ kind: "home" });
-            if (n === "courses") setView({ kind: "course", courseId: REUNION_COURSE.id });
+            // Assignments live on the course page — same destination, honest tab.
+            if (n === "assignments" || n === "courses")
+              setView({ kind: "course", courseId: REUNION_COURSE.id });
           }}
           onToggleCourses={() => setCoursesOpen((o) => !o)}
         />
@@ -189,6 +191,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               course={REUNION_COURSE}
               my={my}
               onBackToCourse={() => openCourse(REUNION_COURSE.id)}
+              onOpenClassroom={openClassroom}
             />
           )}
         </main>
@@ -214,7 +217,12 @@ function ForumSidebar({
     <aside className="alf-fs">
       <nav className="alf-fs-nav">
         <SidebarItem icon={HomeIcon} label="Home" active={nav === "home"} onClick={() => onNav("home")} />
-        <SidebarItem icon={ListIcon} label="Assignments" locked />
+        <SidebarItem
+          icon={ListIcon}
+          label="Assignments"
+          active={nav === "assignments"}
+          onClick={() => onNav("assignments")}
+        />
         <SidebarItem icon={FlagIcon} label="Class Assessments" locked />
         <SidebarItem icon={TargetIcon} label="Outcome Index" locked />
         <SidebarItem
@@ -301,11 +309,10 @@ function ForumLogin({
         </p>
         <button className="alf-login-google" onClick={onGoogle}>
           <GoogleG />
-          <span>Sign in with your Minerva Google account</span>
+          <span>Sign in with Google</span>
         </button>
         <p className="alf-login-note">
-          Use your <strong>@uni.minerva.edu</strong>
-          {" account — it's the guest list."}
+          Any Google account works — your RSVP and assignments stick to it.
         </p>
         {blockedEmail && (
           <p className="alf-login-warn">
@@ -928,10 +935,12 @@ function AssignmentPage({
   course,
   my,
   onBackToCourse,
+  onOpenClassroom,
 }: {
   course: Course;
   my: MyRsvp;
   onBackToCourse: () => void;
+  onOpenClassroom: () => void;
 }) {
   const [body, setBody] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -992,8 +1001,17 @@ function AssignmentPage({
       </div>
 
       <section className="alf-card alf-assignment-card">
-        <h2 className="alf-card-h">{A11_PROMPT.title}</h2>
-        <div className="alf-assignment-due">{A11_PROMPT.due}</div>
+        <h2 className="alf-card-h">
+          {A11_PROMPT.title}
+          {savedAt && (
+            <span className="alf-assignment-chip">Submitted · Editable</span>
+          )}
+        </h2>
+        <div className="alf-assignment-due">
+          {savedAt
+            ? "Submitted — you can edit until the reunion · Weight 1x"
+            : A11_PROMPT.due}
+        </div>
         <p className="alf-assignment-prompt">{A11_PROMPT.prompt}</p>
 
         {!loaded ? (
@@ -1028,6 +1046,28 @@ function AssignmentPage({
         )}
         <p className="alf-assignment-note">{A11_PROMPT.note}</p>
       </section>
+
+      {savedAt && !error && (
+        <div className="alf-next-card">
+          <div className="alf-next-card-text">
+            <span className="alf-next-card-eyebrow">Next up</span>
+            <span className="alf-next-card-title">
+              Session 1.2 — the class, live
+            </span>
+            <span className="alf-next-card-sub">
+              The Class of 2021 is assembling — go see who&apos;s in the room.
+            </span>
+          </div>
+          <div className="alf-next-card-actions">
+            <button className="alf-next-card-btn" onClick={onOpenClassroom}>
+              Join class →
+            </button>
+            <button className="alf-next-card-link" onClick={onBackToCourse}>
+              All assignments
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

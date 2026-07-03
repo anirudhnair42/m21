@@ -50,7 +50,14 @@ export function RSVPApp({
     <div className="rsvp">
       <div className="rsvp-inner">
         {showJoined && (
-          <RSVPJoined name={my.name} status={my.status} onOpenALF={onOpenALF} />
+          <RSVPJoined
+            name={my.name}
+            status={my.status}
+            rsvpId={my.id}
+            photoUrl={my.photoUrl}
+            onPhotoChanged={my.refresh}
+            onOpenALF={onOpenALF}
+          />
         )}
         {view === "form" && !showJoined && (
           <RSVPForm
@@ -79,10 +86,16 @@ export function RSVPApp({
 function RSVPJoined({
   name,
   status,
+  rsvpId,
+  photoUrl,
+  onPhotoChanged,
   onOpenALF,
 }: {
   name: string | null;
   status: "pending" | "processing" | "paid" | null;
+  rsvpId: string | null;
+  photoUrl: string | null;
+  onPhotoChanged: () => void;
   onOpenALF?: () => void;
 }) {
   return (
@@ -103,6 +116,13 @@ function RSVPJoined({
           Check the RU26 course in ALF — your first assignment is waiting.
         </p>
       )}
+      {rsvpId && (
+        <PhotoRetake
+          rsvpId={rsvpId}
+          photoUrl={photoUrl}
+          onChanged={onPhotoChanged}
+        />
+      )}
       {onOpenALF && (
         <div className="rsvp-actions">
           <button className="rsvp-btn rsvp-btn-primary" onClick={onOpenALF}>
@@ -115,6 +135,81 @@ function RSVPJoined({
         Ave — flat $200 per room for the weekend. Room booking opens here
         soon.
       </p>
+    </div>
+  );
+}
+
+/** Not thrilled with your class photo? Retake or replace it. */
+function PhotoRetake({
+  rsvpId,
+  photoUrl,
+  onChanged,
+}: {
+  rsvpId: string;
+  photoUrl: string | null;
+  onChanged: () => void;
+}) {
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const upload = async (file: File) => {
+    setCameraOpen(false);
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("rsvp_id", rsvpId);
+      form.set("photo", file);
+      const token = await getAccessToken();
+      const res = await fetch("/api/rsvp/photo", {
+        method: "POST",
+        body: form,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Upload failed — try again.");
+      setPreview(body.photo_url ?? null);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed — try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) upload(file);
+  };
+
+  const shown = preview ?? photoUrl;
+
+  return (
+    <div className="rsvp-retake">
+      {shown && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="rsvp-retake-photo" src={shown} alt="Your class photo" />
+      )}
+      {cameraOpen ? (
+        <CameraCapture onCapture={upload} onCancel={() => setCameraOpen(false)} />
+      ) : (
+        <div className="rsvp-minirow">
+          <button
+            className="rsvp-minibtn"
+            disabled={uploading}
+            onClick={() => setCameraOpen(true)}
+          >
+            {uploading ? "Uploading…" : shown ? "Retake photo" : "Take a photo"}
+          </button>
+          <label className="rsvp-minibtn">
+            <input type="file" accept="image/*" onChange={onFile} hidden />
+            Upload instead
+          </label>
+        </div>
+      )}
+      {error && <p className="rsvp-hint rsvp-hint-warn">{error}</p>}
     </div>
   );
 }
