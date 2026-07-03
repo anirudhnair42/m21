@@ -54,11 +54,11 @@ function navForInitial(initial: AlfView | undefined): Nav {
   return "home";
 }
 
-/** The saved Session 1.1 reflection, once it exists. */
+/** The saved Assignment 1 (opening-line reflection), once it exists. */
 type A11Submission = { body: string; updatedAt: string | null };
 
 /**
- * Single source of truth for the Session 1.1 reflection. Owned by the ALF
+ * Single source of truth for Assignment 1 (the opening-line reflection). Owned by the ALF
  * shell and read by every surface (home list, course table, detail page) so
  * they can never disagree about whether it's been submitted. The detail page's
  * in-progress textarea keystrokes stay local to it — only a successful save
@@ -485,7 +485,7 @@ function ForumBanner({
       sub = s.location ?? "";
     }
   } else if (view.kind === "assignment") {
-    title = `${course.code} – Session 1.1 reflection`;
+    title = `${course.code} – Assignment 1: opening-line reflection`;
     sub = "";
   }
 
@@ -591,7 +591,7 @@ function ForumHome({
                     </td>
                     <td className="alf-graded-title">
                       <a className="alf-link">
-                        {course.code} — Session 1.1 reflection: opening line
+                        {course.code} — Assignment 1: opening-line reflection
                       </a>
                       {!a11Submitted && (
                         <span className="guide-chip">Due before the reunion</span>
@@ -1122,7 +1122,7 @@ function Considering() {
 // ----- ASSIGNMENT 1.1: the opening-line reflection --------------------------
 
 const A11_PROMPT = {
-  title: "Session 1.1 reflection: opening line",
+  title: "Assignment 1: opening-line reflection",
   due: "Due before the reunion · Weight 1x",
   prompt:
     "Who are you most excited to see? Name the classmates you can't wait to catch up with — old housemates, project partners, the people you lost track of somewhere between graduation and now. A few honest sentences is plenty.",
@@ -1160,7 +1160,7 @@ function AssignmentPage({
         <a className="alf-link" onClick={onBackToCourse}>
           {course.code}
         </a>{" "}
-        &gt; Assignments &gt; Session 1.1 reflection
+        &gt; Assignments &gt; Assignment 1
       </div>
 
       <section className="alf-card alf-assignment-card">

@@ -295,9 +295,9 @@ export const REUNION_COURSE: Course = {
   },
   sessions: [FRI, SAT, SUN],
   assignments: [
-    { id: "a11", title: "Session 1.1 reflection: opening line", weight: "1x", status: "Not started" },
-    { id: "a12", title: "Session 1.2 the class, live", weight: "1x", status: "Not started" },
-    { id: "a13", title: "Session 1.3 closing line", weight: "1x", status: "Not started" },
+    { id: "a11", title: "Assignment 1: opening-line reflection", weight: "1x", status: "Not started" },
+    { id: "a12", title: "Assignment 2: the class, live", weight: "1x", status: "Not started" },
+    { id: "a13", title: "Assignment 3: closing line", weight: "1x", status: "Not started" },
   ],
   participants: [
     { name: "Anirudh Nair" },
