@@ -2985,11 +2985,22 @@ body {
 }
 /* ----- "Considering": signed in, not RSVP'd yet ----- */
 .alf-fm-cd-side-h-sub { margin-top: 18px; }
-/* Scrollable list — up to 10 names show, then it scrolls; the count sits
+/* Scrollable window — every considering name is in here; the count sits
    just below the scroll box. */
 .alf-fm-considering-list {
-  max-height: 180px;
+  max-height: 240px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* "x attending · y confirmed" under the Participants heading. */
+.alf-fm-participants-summary {
+  margin: -4px 0 6px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b6660;
+  font-variant-numeric: tabular-nums;
 }
 /* A question mark instead of a face — they're interested, not confirmed. */
 .alf-fm-considering-avatar {

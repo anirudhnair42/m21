@@ -47,9 +47,8 @@ export async function POST(request: Request) {
 
 /**
  * The list for the rail: names only (emails never leave the server), newest
- * first, capped at 10 with a true total count so the UI can show "and N more".
- * Anyone who's already RSVP'd has graduated out of "considering" and is
- * filtered out by email.
+ * first — every name, the UI scrolls. Anyone who's already RSVP'd has
+ * graduated out of "considering" and is filtered out by email.
  */
 export async function GET() {
   const supabase = getSupabaseAdmin();
@@ -83,7 +82,7 @@ export async function GET() {
 
   return Response.json(
     {
-      considering: pending.slice(0, 10).map((r) => r.name as string),
+      considering: pending.map((r) => r.name as string),
       count: pending.length,
     },
     { headers: { "Cache-Control": "no-store" } },

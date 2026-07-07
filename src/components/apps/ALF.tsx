@@ -1017,8 +1017,14 @@ function Participants() {
     );
   }
 
+  const confirmed = live.filter((p) => p.status === "paid").length;
+
   return (
-    <ul className="alf-fm-participants">
+    <>
+      <p className="alf-fm-participants-summary">
+        {live.length} attending · {confirmed} confirmed
+      </p>
+      <ul className="alf-fm-participants">
       {live.map((p, i) => (
         <li key={`${p.name}-${i}`} className="alf-fm-participant">
           {p.photo_url ? (
@@ -1055,7 +1061,8 @@ function Participants() {
           })()}
         </li>
       ))}
-    </ul>
+      </ul>
+    </>
   );
 }
 
@@ -1063,8 +1070,8 @@ function Participants() {
 
 /**
  * People who signed in with Google but haven't RSVP'd — shown as a name with a
- * question mark instead of a face. Scrollable, capped at 10 names, with the
- * true total underneath so it reads honestly when more are considering.
+ * question mark instead of a face. Every name, in a scrollable window, with
+ * the total underneath.
  */
 function Considering() {
   const [names, setNames] = useState<string[]>([]);
