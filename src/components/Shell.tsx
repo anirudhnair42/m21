@@ -6,6 +6,7 @@ import { MobileShell } from "@/components/mobile/MobileShell";
 import { HoverTip } from "@/components/HoverTip";
 import { NARROW_QUERY } from "@/lib/useIsNarrow";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { SnackbarProvider } from "@/lib/snackbar";
 
 /**
  * Picks the experience by viewport: phones (≤820px) get the iOS 11 mobile
@@ -39,9 +40,9 @@ export function Shell() {
   }
 
   return (
-    <>
+    <SnackbarProvider>
       {isNarrow ? <MobileShell /> : <Desktop />}
       <HoverTip />
-    </>
+    </SnackbarProvider>
   );
 }

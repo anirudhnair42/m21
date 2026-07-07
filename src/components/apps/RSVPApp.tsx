@@ -12,7 +12,7 @@ import {
   AID_ATTEND_OPTIONS,
 } from "@/lib/financial-aid";
 import { useMyRsvp } from "@/lib/myRsvp";
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, useAuth } from "@/lib/auth";
 
 type View = "form" | "aid" | "aid-done" | "success";
 
@@ -27,12 +27,16 @@ type View = "form" | "aid" | "aid-done" | "success";
 export function RSVPApp({
   initialReturn,
   onOpenALF,
+  onClose,
 }: {
   /** Set when the visitor just came back from Stripe. */
   initialReturn?: PaymentReturn | null;
   /** Jump to the Forum — shown once you're in, where the assignments live. */
   onOpenALF?: () => void;
+  /** Close the RSVP app, returning to the desktop / home. */
+  onClose?: () => void;
 }) {
+  const auth = useAuth();
   const my = useMyRsvp({ eager: initialReturn?.kind === "success" });
   const [view, setView] = useState<View>(
     initialReturn?.kind === "success" ? "success" : "form",
@@ -45,6 +49,12 @@ export function RSVPApp({
   // gives way to the joined card, unless we're showing the fresh-payment
   // success screen or the aid flow.
   const showJoined = view === "form" && my.joined;
+
+  // RSVP is members-only. Until you sign in with Google, the form (and the
+  // payment it kicks off) is gated — the server enforces this too, rejecting
+  // any unauthenticated submit. Once Supabase isn't configured there's no
+  // sign-in to require, so fall through and let the server return its 503.
+  const needSignIn = auth.configured && !auth.user;
 
   return (
     <div className="rsvp">
@@ -59,12 +69,21 @@ export function RSVPApp({
             onOpenALF={onOpenALF}
           />
         )}
-        {view === "form" && !showJoined && (
+        {view === "form" && !showJoined && needSignIn && (
+          <RSVPSignInGate
+            onGoogle={auth.signIn}
+            blockedEmail={auth.blockedEmail}
+            error={auth.error}
+            onBack={onClose}
+          />
+        )}
+        {view === "form" && !showJoined && !needSignIn && (
           <RSVPForm
             cancelled={wasCancelled}
             existingId={my.status === "pending" ? my.id : null}
             onCreated={my.remember}
             onNeedAid={() => setView("aid")}
+            onBack={onClose}
           />
         )}
         {view === "success" && (
@@ -416,6 +435,57 @@ function VoiceRecorder({
 }
 
 // ---------------------------------------------------------------------------
+// Sign-in gate (shown in place of the form until you're signed in)
+// ---------------------------------------------------------------------------
+
+/** Members-only: you have to sign in before you can RSVP or pay. */
+function RSVPSignInGate({
+  onGoogle,
+  blockedEmail,
+  error,
+  onBack,
+}: {
+  onGoogle: () => void;
+  blockedEmail: string | null;
+  error: string | null;
+  /** Close the RSVP app, returning to the desktop / home. Omit to hide. */
+  onBack?: () => void;
+}) {
+  return (
+    <>
+      {onBack && (
+        <button className="rsvp-aidlink rsvp-back" onClick={onBack}>
+          ← Back
+        </button>
+      )}
+      <header className="rsvp-head">
+        <div className="rsvp-eyebrow">RU26 · Registration</div>
+        <h1 className="rsvp-title">Sign in to RSVP</h1>
+        <p className="rsvp-lede">
+          Registration is for the Class of 2021. Sign in with your Google
+          account to reserve your spot — it keeps your RSVP and payment tied
+          to you across devices.
+        </p>
+      </header>
+
+      <div className="rsvp-actions">
+        <button className="rsvp-btn rsvp-btn-primary" onClick={onGoogle}>
+          Sign in with Google
+        </button>
+        {blockedEmail && (
+          <p className="rsvp-hint rsvp-hint-warn">
+            {blockedEmail} isn&apos;t on the class list — try your Minerva
+            account instead.
+          </p>
+        )}
+        {error && <p className="rsvp-hint rsvp-hint-warn">{error}</p>}
+        <p className="rsvp-hint">Any Google email works.</p>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // RSVP form
 // ---------------------------------------------------------------------------
 
@@ -424,12 +494,15 @@ function RSVPForm({
   existingId,
   onCreated,
   onNeedAid,
+  onBack,
 }: {
   cancelled: boolean;
   /** This device's unpaid row, if any — resubmitting updates it in place. */
   existingId: string | null;
   onCreated: (id: string) => void;
   onNeedAid: () => void;
+  /** Close the RSVP app, returning to the desktop / home. Omit to hide. */
+  onBack?: () => void;
 }) {
   const [name, setName] = useState("");
   const [from, setFrom] = useState("");
@@ -494,6 +567,11 @@ function RSVPForm({
 
   return (
     <>
+      {onBack && (
+        <button className="rsvp-aidlink rsvp-back" onClick={onBack}>
+          ← Back
+        </button>
+      )}
       <header className="rsvp-head">
         <div className="rsvp-eyebrow">RU26 · Registration</div>
         <h1 className="rsvp-title">Reserve your spot</h1>

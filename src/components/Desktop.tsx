@@ -256,6 +256,7 @@ export function Desktop() {
               <RSVPApp
                 initialReturn={paymentReturn}
                 onOpenALF={() => openAlfAt("home")}
+                onClose={() => closeApp("rsvp")}
               />
             ) : (
               <AppStub app={app} />

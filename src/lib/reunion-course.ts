@@ -110,7 +110,7 @@ const FRI: Session = {
   title: "Welcome night & opening dinner",
   date: "Fri, Sep 11, 2026",
   status: "upcoming",
-  presenters: "Nair / Urdaneta / Muthukumarans / Torento / Graves",
+  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
   location: "San Francisco · arrivals & evening",
   agenda: [
     {
@@ -169,7 +169,7 @@ const SAT: Session = {
   title: "An unscheduled day, with a few anchors",
   date: "Sat, Sep 12, 2026",
   status: "upcoming",
-  presenters: "Nair / Urdaneta / Muthukumarans / Torento / Graves",
+  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
   location: "San Francisco · all day",
   agenda: [
     {
@@ -230,7 +230,7 @@ const SUN: Session = {
   title: "Slow Sunday & goodbyes",
   date: "Sun, Sep 13, 2026",
   status: "upcoming",
-  presenters: "Nair / Urdaneta / Muthukumarans / Torento / Graves",
+  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
   location: "Golden Gate Park · brunch",
   agenda: [
     {
@@ -267,7 +267,7 @@ export const REUNION_COURSE: Course = {
   code: "RU26",
   title: "Alumni Reunifications",
   sectionTitle:
-    "Nair / Urdaneta / Muthukumarans / Torento / Graves · Fri/Sat/Sun",
+    "Nair / Urdaneta / Mangos / Torento / Graves · Fri/Sat/Sun",
   term: "Fall 2026",
   greeting:
     "You have one upcoming class: RU26 Session 1.1 on Fri, Sep 11 in San Francisco.",
@@ -295,9 +295,9 @@ export const REUNION_COURSE: Course = {
   },
   sessions: [FRI, SAT, SUN],
   assignments: [
-    { id: "a11", title: "Session 1.1 reflection: opening line", weight: "1x", status: "Not started" },
-    { id: "a12", title: "Session 1.2 the class, live", weight: "1x", status: "Not started" },
-    { id: "a13", title: "Session 1.3 closing line", weight: "1x", status: "Not started" },
+    { id: "a11", title: "Assignment 1: opening-line reflection", weight: "1x", status: "Not started" },
+    { id: "a12", title: "Assignment 2: the class, live", weight: "1x", status: "Not started" },
+    { id: "a13", title: "Assignment 3: closing line", weight: "1x", status: "Not started" },
   ],
   participants: [
     { name: "Anirudh Nair" },
