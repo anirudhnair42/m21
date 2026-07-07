@@ -1467,8 +1467,8 @@ type AlfComment = {
 };
 
 /**
- * Faculty feedback on the letter. Authors are real M21 professors with their
- * actual section strings; tags are strictly first-year cornerstone HCs
+ * Faculty feedback on the letter. Authors are real M21 professors (surname
+ * only, like ALF showed them); tags are strictly first-year cornerstone HCs
  * (MC / CX / EA / FA — the 50-level classes where HCs were taught).
  */
 const ALF_COMMENTS: AlfComment[] = [
@@ -1476,73 +1476,73 @@ const ALF_COMMENTS: AlfComment[] = [
     score: 4,
     tag: "#thesis",
     body: "A well-defined thesis, stated once and never abandoned: come back. Most arguments this simple are hiding their premises; this one earns it.",
-    by: "Diamond, TT@9am Seoul",
+    by: "Diamond",
   },
   {
     score: 4,
     tag: "#audience",
     body: "You know exactly who you're writing to — people who were there. “That very small stage in Civic Center” does more audience work in six words than most decks manage in forty slides.",
-    by: "Carter, W@15:00 London",
+    by: "Carter",
   },
   {
     score: 3,
     tag: "#strategize",
     body: "The unscheduled Saturday is the leverage point — you've correctly diagnosed where the actual reunion happens and planned around it rather than over it. I would still like to see a contingency for rain.",
-    by: "Kenney, MW@9am Seoul",
+    by: "Kenney",
   },
   {
     score: 2,
     tag: "#shapingbehavior",
     body: "Note your own choice architecture: a visible counter, a refundable deposit, a photo wall — all nudges, well chosen. But $100 is a real disincentive at some income levels. If you want the incentive structure to do what you intend, the aid mechanism needs to be louder.",
-    by: "Kukis, MW@3pm ART",
+    by: "Kukis",
   },
   {
     score: 3,
     tag: "#gapanalysis",
     body: "Correctly identified that no existing solution — a group chat, a shared calendar — solves this problem. Whether the gap demanded an entire operating system is a scoping question, but I admire the commitment.",
-    by: "Gale, TT@9am",
+    by: "Gale",
   },
   {
     score: 2,
     tag: "#responsibility",
     body: "Visa timelines for the Seoul and Hyderabad contingents needed to start yesterday, not “soon.” Proactive is a habit, not a paragraph. Follow through and resubmit.",
-    by: "McAllister, TT@11am",
+    by: "McAllister",
   },
   {
     score: 4,
     tag: "#emotionaliq",
     body: "“No name tags. No panels.” You read the room five years out. This is what emotional intelligence looks like when it is operationalized instead of merely claimed.",
-    by: "Digby, TTh@09:00 Seoul",
+    by: "Digby",
   },
   {
     score: 3,
     tag: "#emergentproperties",
     body: "The reunion you are designing is an emergent property — it will arise from interactions you cannot schedule. The mostly-empty Saturday suggests you understand this. Protect it from your own itinerary.",
-    by: "Levitt, TT@11am Seoul",
+    by: "Levitt",
   },
   {
     score: 4,
     tag: "#breakitdown",
     body: "Three days, three sessions, one deliverable per surface. Tractable components, cleanly decomposed. The problem set writes itself.",
-    by: "Richard, MW@9am",
+    by: "Richard",
   },
   {
     score: 3,
     tag: "#estimation",
     body: "Your prior on attendance is doing a great deal of work in this budget. Show me the posterior after the first week of RSVPs, and update the room block accordingly.",
-    by: "Scheffler, TTh@09:00 San Francisco",
+    by: "Scheffler",
   },
   {
     score: 4,
     tag: "#composition",
     body: "Clear and precise, with no wasted clauses. Whoever edited this letter was paying attention for four years. It shows.",
-    by: "Donnelly, T@15:00 London",
+    by: "Donnelly",
   },
   {
     score: 3,
     tag: "#rightproblem",
     body: "State it explicitly: is the problem “see each other” or “see San Francisco together”? Both are defensible, but they are different problems with different budgets. Characterize before you solve.",
-    by: "Terrana, MW@11am",
+    by: "Terrana",
   },
 ];
 
