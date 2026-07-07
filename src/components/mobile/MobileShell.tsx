@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { MinervaWordmark } from "@/components/MinervaLogo";
 
 /**
@@ -38,19 +39,22 @@ export function MobileShell() {
       >
         We are organizing a special homecoming for M21s on{" "}
         <strong style={{ fontWeight: 600 }}>September 11&ndash;13</strong>{" "}
-        in San Francisco. 
-    
-    <br/><br/>
-    
-    We created a special invitation for you, but the experience is much better on wider screens. Please visit this website on a computer 
+        in San Francisco.
 
-        
+    <br/><br/>
+
+    We created a special invitation for you, but the experience is much better on wider screens. Please visit this website on a computer
+
+
     <br/><br/>
     <em style={{ fontStyle: "italic", fontWeight: 300 }}>
           Trust us, it&rsquo;ll be worth it&nbsp;;)
         </em>
-     
+
   </p>
+
+      <CopyLinkButton />
+
   <p
         style={{
           fontFamily: "var(--serif-font-family)",
@@ -64,8 +68,45 @@ export function MobileShell() {
       >
     &ndash; Ani, Amal, Anna, Dulce, Mau, Nathan
   </p>
-    
-    
+
+
     </div>
+  );
+}
+
+/** Copies the site URL so people can send it to their computer. */
+function CopyLinkButton() {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const copy = async () => {
+    const url = window.location.origin;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Older mobile browsers: fall back to the hidden-textarea trick.
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 2200);
+  };
+
+  return (
+    <button
+      className={`invite-copy ${copied ? "invite-copy-done" : ""}`}
+      onClick={copy}
+      aria-live="polite"
+    >
+      {copied ? "Link copied ✓" : "Copy the link"}
+    </button>
   );
 }
