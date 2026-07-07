@@ -199,11 +199,6 @@ function PhotoRetake({
     }
   };
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) upload(file);
-  };
-
   const shown = preview ?? photoUrl;
 
   return (
@@ -221,12 +216,8 @@ function PhotoRetake({
             disabled={uploading}
             onClick={() => setCameraOpen(true)}
           >
-            {uploading ? "Uploading…" : shown ? "Retake photo" : "Take a photo"}
+            {uploading ? "Uploading…" : shown ? "📷 Retake photo" : "📷 Take a live photo"}
           </button>
-          <label className="rsvp-minibtn">
-            <input type="file" accept="image/*" onChange={onFile} hidden />
-            Upload instead
-          </label>
         </div>
       )}
       {error && <p className="rsvp-hint rsvp-hint-warn">{error}</p>}
@@ -536,11 +527,6 @@ function RSVPForm({
     setCameraOpen(false);
   };
 
-  const onPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setPhoto(file);
-  };
-
   const ready = name.trim().length > 0 && !submitting;
   const price = PAYMENT_OPTIONS[method];
 
@@ -650,39 +636,34 @@ function RSVPForm({
       </div>
 
       <div className="rsvp-field">
-        <label className="rsvp-label">A current photo for the wall</label>
+        <label className="rsvp-label">A live photo for the wall</label>
         {cameraOpen ? (
           <CameraCapture
             onCapture={setPhoto}
             onCancel={() => setCameraOpen(false)}
           />
         ) : (
-          <>
-            <label className="rsvp-photo">
-              <input type="file" accept="image/*" onChange={onPhoto} hidden />
-              {photoPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className="rsvp-photo-preview"
-                  src={photoPreview}
-                  alt="Your photo"
-                />
-              ) : (
-                <span className="rsvp-photo-empty">＋ Choose a photo</span>
-              )}
-            </label>
-            <div className="rsvp-minirow rsvp-minirow-gap">
-              <button
-                className="rsvp-minibtn"
-                type="button"
-                onClick={() => setCameraOpen(true)}
-              >
-                📷 Use camera
-              </button>
-            </div>
-          </>
+          <button
+            type="button"
+            className="rsvp-photo"
+            onClick={() => setCameraOpen(true)}
+          >
+            {photoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="rsvp-photo-preview"
+                src={photoPreview}
+                alt="Your photo"
+              />
+            ) : (
+              <span className="rsvp-photo-empty">📷 Take a live photo</span>
+            )}
+          </button>
         )}
-        <p className="rsvp-hint">Optional — shown on the pre-reunion photo wall.</p>
+        <p className="rsvp-hint">
+          Optional — taken right here, like the class always did. Shown on the
+          pre-reunion photo wall.
+        </p>
       </div>
 
       <div className="rsvp-field">

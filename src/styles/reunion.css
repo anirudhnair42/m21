@@ -3784,6 +3784,7 @@ body {
   overflow: hidden;
   transition: border-color 120ms, background 120ms;
 }
+.rsvp-photo { font-family: inherit; padding: 0; }
 .rsvp-photo:hover { border-color: var(--minerva-blue-light); background: #fcfbf8; }
 .rsvp-photo-empty { font-size: 13.5px; color: #8a857b; font-weight: 500; }
 /* Never crop the person's photo — show it at its native aspect ratio. */

@@ -1466,78 +1466,83 @@ type AlfComment = {
   by: string;
 };
 
+/**
+ * Faculty feedback on the letter. Authors are real M21 professors with their
+ * actual section strings; tags are strictly first-year cornerstone HCs
+ * (MC / CX / EA / FA — the 50-level classes where HCs were taught).
+ */
 const ALF_COMMENTS: AlfComment[] = [
   {
     score: 4,
     tag: "#thesis",
-    body: "Five years felt right. Three would've been too early; ten would have been a different cohort entirely. The interval IS the argument.",
-    by: "Maya C.",
+    body: "A well-defined thesis, stated once and never abandoned: come back. Most arguments this simple are hiding their premises; this one earns it.",
+    by: "Diamond, TT@9am Seoul",
   },
   {
     score: 4,
     tag: "#audience",
-    body: "The line about the small stage is what got me. You know the room.",
-    by: "Theo G.",
+    body: "You know exactly who you're writing to — people who were there. “That very small stage in Civic Center” does more audience work in six words than most decks manage in forty slides.",
+    by: "Carter, W@15:00 London",
   },
   {
     score: 3,
     tag: "#strategize",
-    body: "Love that Saturday is mostly unscheduled. That's where the actual reunion happens — let the class shape it.",
-    by: "Ananya R.",
+    body: "The unscheduled Saturday is the leverage point — you've correctly diagnosed where the actual reunion happens and planned around it rather than over it. I would still like to see a contingency for rain.",
+    by: "Kenney, MW@9am Seoul",
   },
   {
     score: 2,
     tag: "#shapingbehavior",
-    body: "Flagging: $100 may be hard for classmates still in grad school. A quiet hardship slot changes who shows up.",
-    by: "Kofi M.",
+    body: "Note your own choice architecture: a visible counter, a refundable deposit, a photo wall — all nudges, well chosen. But $100 is a real disincentive at some income levels. If you want the incentive structure to do what you intend, the aid mechanism needs to be louder.",
+    by: "Kukis, MW@3pm ART",
   },
   {
     score: 3,
     tag: "#gapanalysis",
-    body: "Mission hotels are cheaper but please factor in transit. SOMA is closer to the venue — what's the gap you're solving for?",
-    by: "Devika S.",
+    body: "Correctly identified that no existing solution — a group chat, a shared calendar — solves this problem. Whether the gap demanded an entire operating system is a scoping question, but I admire the commitment.",
+    by: "Gale, TT@9am",
   },
   {
     score: 2,
     tag: "#responsibility",
-    body: "The visa process for the Hyderabad and Seoul crew needs to start now. April is too late and we know it.",
-    by: "Rishi K.",
+    body: "Visa timelines for the Seoul and Hyderabad contingents needed to start yesterday, not “soon.” Proactive is a habit, not a paragraph. Follow through and resubmit.",
+    by: "McAllister, TT@11am",
   },
   {
     score: 4,
     tag: "#emotionaliq",
-    body: "I'm shy about the photo wall but I'll do it. Promise.",
-    by: "Lena P.",
+    body: "“No name tags. No panels.” You read the room five years out. This is what emotional intelligence looks like when it is operationalized instead of merely claimed.",
+    by: "Digby, TTh@09:00 Seoul",
   },
   {
     score: 3,
     tag: "#emergentproperties",
-    body: "Knowing how many of us have RSVP'd is what makes me want to RSVP. Keep it visible — the count IS the call.",
-    by: "Jonas W.",
+    body: "The reunion you are designing is an emergent property — it will arise from interactions you cannot schedule. The mostly-empty Saturday suggests you understand this. Protect it from your own itinerary.",
+    by: "Levitt, TT@11am Seoul",
   },
   {
     score: 4,
     tag: "#breakitdown",
-    body: "Fri–Sun is correct. Anyone proposing a 'week-long thing' has clearly forgotten what jobs are.",
-    by: "Priya N.",
+    body: "Three days, three sessions, one deliverable per surface. Tractable components, cleanly decomposed. The problem set writes itself.",
+    by: "Richard, MW@9am",
   },
   {
-    score: 1,
-    tag: "#differences",
-    body: "No name tags is a power move. Some of us look very different from the founding-class photos and that's fine — but maybe leave Sharpies on the table just in case.",
-    by: "Sam O.",
+    score: 3,
+    tag: "#estimation",
+    body: "Your prior on attendance is doing a great deal of work in this budget. Show me the posterior after the first week of RSVPs, and update the room block accordingly.",
+    by: "Scheffler, TTh@09:00 San Francisco",
   },
   {
     score: 4,
     tag: "#composition",
-    body: "The prose is tight in a way that almost no other reunion email I've ever gotten has been. You should know that.",
-    by: "Imani F.",
+    body: "Clear and precise, with no wasted clauses. Whoever edited this letter was paying attention for four years. It shows.",
+    by: "Donnelly, T@15:00 London",
   },
   {
     score: 3,
     tag: "#rightproblem",
-    body: "Worth asking explicitly: is the problem we're solving 'see each other' or 'see SF together'? Both are valid, but the budget question changes.",
-    by: "Luca B.",
+    body: "State it explicitly: is the problem “see each other” or “see San Francisco together”? Both are defensible, but they are different problems with different budgets. Characterize before you solve.",
+    by: "Terrana, MW@11am",
   },
 ];
 
