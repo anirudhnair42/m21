@@ -81,6 +81,7 @@ export function RSVPApp({
           <RSVPForm
             cancelled={wasCancelled}
             existingId={my.status === "pending" ? my.id : null}
+            existingPhotoUrl={my.status === "pending" ? my.photoUrl : null}
             onCreated={my.remember}
             onNeedAid={() => setView("aid")}
             onBack={onClose}
@@ -492,6 +493,7 @@ function RSVPSignInGate({
 function RSVPForm({
   cancelled,
   existingId,
+  existingPhotoUrl,
   onCreated,
   onNeedAid,
   onBack,
@@ -499,6 +501,9 @@ function RSVPForm({
   cancelled: boolean;
   /** This device's unpaid row, if any — resubmitting updates it in place. */
   existingId: string | null;
+  /** The photo already on that row, shown in the picker so a pending
+   * resubmit can see (and replace) it. */
+  existingPhotoUrl?: string | null;
   onCreated: (id: string) => void;
   onNeedAid: () => void;
   /** Close the RSVP app, returning to the desktop / home. Omit to hide. */
@@ -515,6 +520,15 @@ function RSVPForm({
   const [housingInterest, setHousingInterest] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // A pending resubmit already has a photo on file — surface it in the
+  // picker (it arrives async, hence the effect). Picking a new one replaces
+  // it; leaving it alone keeps it.
+  useEffect(() => {
+    if (existingPhotoUrl && !photoFile) {
+      setPhotoPreview((current) => current ?? existingPhotoUrl);
+    }
+  }, [existingPhotoUrl, photoFile]);
 
   const setPhoto = (file: File) => {
     setPhotoFile(file);
