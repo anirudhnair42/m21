@@ -125,14 +125,16 @@ target ≤200 KB per image at 1600px wide, served through `next/image`.
 
 ## The email
 
-**Sender:** `anirudh.nair@uni.minerva.edu`, `Reply-To: anirudhnair42@gmail.com`.
-41 of 63 recipients are on `@uni.minerva.edu`, so two-thirds of the send is
-same-Workspace internal routing rather than external mail. It is also the address
-they knew him by. Replies land in the inbox he actually reads.
+**Sender:** `anirudhnair42@gmail.com` (Ani's decision). The Minerva alumni address
+would have given same-Workspace routing for 41 of 63, but a personal Gmail is a
+real inbox he controls and monitors, and consumer Gmail's 500/day limit is far
+above a 63-person send.
 
 **Mechanism:** Google Apps Script mail merge, sent individually (never BCC, since
-every link differs). Verify Apps Script is permitted on the alumni Workspace and
-send a real test to himself first.
+every link differs). Send a real test to himself first.
+
+**Base URL:** `https://www.m2021.co` — letter links are
+`https://www.m2021.co/letter/<token>`.
 
 **Attendee count is fetched live at send time** from `/api/participants`. A stale
 number in an email whose whole subject is obsessively watching that number would
