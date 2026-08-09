@@ -930,10 +930,7 @@ function CourseDetail({
         <button className="alf-fm-syllabus-btn" onClick={onOpenSyllabus}>
           📄 Review Syllabus
         </button>
-        <h3 className="alf-fm-cd-side-h">Participants</h3>
-        <Participants />
-        <h3 className="alf-fm-cd-side-h alf-fm-cd-side-h-sub">Considering</h3>
-        <Considering />
+        <Roster />
       </aside>
     </div>
   );
@@ -986,9 +983,38 @@ function SpeakerIcon() {
   );
 }
 
-function Participants() {
-  // Live RSVPs only — the class list fills in as real people join.
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M15.4 15.4 21 21" />
+    </svg>
+  );
+}
+
+// ----- roster: attending + considering, in one bounded window --------------
+
+/**
+ * The rail roster. Together the two lists run past 100 names, which dragged
+ * the page scroll far beyond the end of the main column — so they share one
+ * fixed-height window behind a segmented control. The tabs carry the counts;
+ * the line underneath carries what the count means.
+ */
+function Roster() {
   const [live, setLive] = useState<LiveParticipant[]>([]);
+  const [considering, setConsidering] = useState<string[]>([]);
+  const [consideringCount, setConsideringCount] = useState(0);
+  const [tab, setTab] = useState<"attending" | "considering">("attending");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -1000,31 +1026,147 @@ function Participants() {
         }
       })
       .catch(() => {});
+    fetch("/api/considering")
+      .then((r) => (r.ok ? r.json() : { considering: [], count: 0 }))
+      .then((body) => {
+        if (cancelled) return;
+        if (Array.isArray(body.considering)) setConsidering(body.considering);
+        if (typeof body.count === "number") setConsideringCount(body.count);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const attending = tab === "attending";
+  const confirmed = live.filter((p) => p.status === "paid").length;
+  const settling = live.length - confirmed;
+
+  // The filter spans both tabs — type a name once and you can check whether
+  // they're attending or still deciding without retyping it.
+  const q = query.trim().toLowerCase();
+  const shownLive = q
+    ? live.filter((p) => p.name.toLowerCase().includes(q))
+    : live;
+  const shownConsidering = q
+    ? considering.filter((n) => n.toLowerCase().includes(q))
+    : considering;
+  const shown = attending ? shownLive.length : shownConsidering.length;
+  const total = attending ? live.length : consideringCount;
+  // A filter that finds nothing here but something next door should say so
+  // rather than dead-end you.
+  const otherShown = attending ? shownConsidering.length : shownLive.length;
+
+  // Not worth the clutter until there are enough names to hunt through. Keyed
+  // off both lists so it doesn't appear and vanish as you switch tabs.
+  const filterable = live.length + consideringCount > 12;
+
+  // Empty covers both "not loaded yet" and "genuinely nobody" — either way
+  // there's nothing to show but the friendly line (no "0 attending" flash).
+  const empty = shown === 0;
+
+  return (
+    <div className="alf-fm-roster">
+      <h3 className="alf-fm-cd-side-h">Participants</h3>
+      <div className="alf-fm-roster-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={attending}
+          className={`alf-fm-roster-tab${attending ? " alf-fm-roster-tab-on" : ""}`}
+          onClick={() => setTab("attending")}
+        >
+          Attending
+          <span className="alf-fm-roster-tab-n">{live.length}</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={!attending}
+          className={`alf-fm-roster-tab${attending ? "" : " alf-fm-roster-tab-on"}`}
+          onClick={() => setTab("considering")}
+        >
+          Considering
+          <span className="alf-fm-roster-tab-n">{consideringCount}</span>
+        </button>
+      </div>
+
+      {filterable && (
+        <div className="alf-fm-roster-filter">
+          <span className="alf-fm-roster-filter-icon" aria-hidden>
+            <SearchIcon />
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a classmate"
+            aria-label="Filter the roster by name"
+            spellCheck={false}
+            autoComplete="off"
+          />
+          {query && (
+            <button
+              className="alf-fm-roster-filter-clear"
+              onClick={() => setQuery("")}
+              aria-label="Clear the filter"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
+      {empty ? (
+        <p className="alf-fm-participants-empty">
+          {q ? (
+            <>
+              No one here matching “{query.trim()}”.
+              {otherShown > 0 && (
+                <button
+                  className="alf-fm-roster-jump"
+                  onClick={() => setTab(attending ? "considering" : "attending")}
+                >
+                  {otherShown} in {attending ? "Considering" : "Attending"} →
+                </button>
+              )}
+            </>
+          ) : attending ? (
+            "No one yet — the list fills in as classmates RSVP."
+          ) : (
+            "No one yet — sign-ins land here before they RSVP."
+          )}
+        </p>
+      ) : (
+        <>
+          <div className="alf-fm-roster-window" role="tabpanel">
+            {attending ? (
+              <AttendingList live={shownLive} />
+            ) : (
+              <ConsideringList names={shownConsidering} />
+            )}
+          </div>
+          <p className="alf-fm-roster-foot">
+            {q
+              ? `${shown} of ${total} ${attending ? "attending" : "considering"}`
+              : attending
+                ? settling === 0
+                  ? `All ${confirmed} confirmed`
+                  : `${confirmed} confirmed · ${settling} settling`
+                : "Signed in, not RSVP’d yet"}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AttendingList({ live }: { live: LiveParticipant[] }) {
   const playVoice = (url: string) => {
     new Audio(url).play().catch(() => {});
   };
 
-  if (live.length === 0) {
-    return (
-      <p className="alf-fm-participants-empty">
-        No one yet — the list fills in as classmates RSVP.
-      </p>
-    );
-  }
-
-  const confirmed = live.filter((p) => p.status === "paid").length;
-
   return (
-    <>
-      <p className="alf-fm-participants-summary">
-        {live.length} attending · {confirmed} confirmed
-      </p>
-      <ul className="alf-fm-participants">
+    <ul className="alf-fm-participants">
       {live.map((p, i) => (
         <li key={`${p.name}-${i}`} className="alf-fm-participant">
           {p.photo_url ? (
@@ -1033,6 +1175,8 @@ function Participants() {
               className="alf-fm-participant-photo"
               src={p.photo_url}
               alt=""
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <span className="alf-fm-participant-avatar">
@@ -1061,68 +1205,28 @@ function Participants() {
           })()}
         </li>
       ))}
-      </ul>
-    </>
+    </ul>
   );
 }
 
-// ----- considering (signed in, but not RSVP'd yet) -------------------------
-
-/**
- * People who signed in with Google but haven't RSVP'd — shown as a name with a
- * question mark instead of a face. Every name, in a scrollable window, with
- * the total underneath.
- */
-function Considering() {
-  const [names, setNames] = useState<string[]>([]);
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/considering")
-      .then((r) => (r.ok ? r.json() : { considering: [], count: 0 }))
-      .then((body) => {
-        if (cancelled) return;
-        if (Array.isArray(body.considering)) setNames(body.considering);
-        if (typeof body.count === "number") setCount(body.count);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Empty covers both "not loaded yet" and "genuinely nobody" — either way
-  // there's nothing to show but the friendly line (no "0 considering" flash).
-  if (count === 0) {
-    return (
-      <p className="alf-fm-participants-empty">
-        No one yet — sign-ins land here before they RSVP.
-      </p>
-    );
-  }
-
+/** Signed in with Google but not RSVP'd — a name and a question mark, no face. */
+function ConsideringList({ names }: { names: string[] }) {
   return (
-    <div className="alf-fm-considering">
-      <ul className="alf-fm-participants alf-fm-considering-list">
-        {names.map((name, i) => (
-          <li key={`${name}-${i}`} className="alf-fm-participant">
-            <span
-              className="alf-fm-participant-avatar alf-fm-considering-avatar"
-              aria-hidden
-            >
-              ?
-            </span>
-            <span className="alf-fm-participant-name alf-fm-considering-name">
-              {name}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="alf-fm-considering-count">
-        {count === 1 ? "1 considering" : `${count} considering`}
-      </p>
-    </div>
+    <ul className="alf-fm-participants">
+      {names.map((name, i) => (
+        <li key={`${name}-${i}`} className="alf-fm-participant">
+          <span
+            className="alf-fm-participant-avatar alf-fm-considering-avatar"
+            aria-hidden
+          >
+            ?
+          </span>
+          <span className="alf-fm-participant-name alf-fm-considering-name">
+            {name}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
