@@ -1276,6 +1276,28 @@ function ClassroomView({
   // Oldest first — the earliest RSVPs sit top-left, like they logged in first.
   const tiles = [...people].reverse();
 
+  // The class runs past the fold — fade the last row while there's more below.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const update = () =>
+      setMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
+    // Measure after paint, then on every scroll and on resize (a narrower
+    // window means fewer columns, so more rows).
+    const raf = requestAnimationFrame(update);
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [tiles.length]);
+
   return (
     <div className="alf-classroom">
       <div className="alf-classroom-topbar">
@@ -1298,21 +1320,46 @@ function ClassroomView({
           <p>Every RSVP adds a face — check back as the class arrives.</p>
         </div>
       ) : (
-        <div className="alf-classroom-grid">
-          {tiles.map((p, i) => (
-            <div className="alf-tile" key={`${p.name}-${i}`}>
-              {p.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="alf-tile-photo" src={p.photo_url} alt="" />
-              ) : (
-                <div className="alf-tile-off">
-                  <span>{p.name.charAt(0)}</span>
-                </div>
-              )}
-              <span className="alf-tile-name">{p.name}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="alf-classroom-grid" ref={gridRef}>
+            {tiles.map((p, i) => (
+              <div className="alf-tile" key={`${p.name}-${i}`}>
+                {p.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="alf-tile-photo"
+                    src={p.photo_url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="alf-tile-off">
+                    <span>{p.name.charAt(0)}</span>
+                  </div>
+                )}
+                <span className="alf-tile-name">{p.name}</span>
+              </div>
+            ))}
+          </div>
+          <div
+            className={`alf-classroom-more${moreBelow ? " is-on" : ""}`}
+            aria-hidden="true"
+          >
+            <span className="alf-classroom-more-chev">
+              <svg viewBox="0 0 12 8" width="11" height="7" fill="none">
+                <path
+                  d="M1 1.5 6 6.5 11 1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </div>
+        </>
       )}
     </div>
   );
