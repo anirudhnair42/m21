@@ -2983,23 +2983,141 @@ body {
   flex: 0 0 auto;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
 }
-/* ----- "Considering": signed in, not RSVP'd yet ----- */
-.alf-fm-cd-side-h-sub { margin-top: 18px; }
-/* Scrollable window — every considering name is in here; the count sits
-   just below the scroll box. */
-.alf-fm-considering-list {
-  max-height: 240px;
+/* ----- the roster: attending + considering share one window ----- */
+/* Both lists together run past 100 names. Left unbounded they dragged the page
+   scroll far past the end of the main column, so they sit behind a segmented
+   control in a single fixed-height window instead. */
+.alf-fm-roster-tabs {
+  display: flex;
+  gap: 3px;
+  margin: 0 14px 10px;
+  padding: 3px;
+  background: #f5f2eb;
+  border: 1px solid #eeece6;
+  border-radius: 6px;
+}
+.alf-fm-roster-tab {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #6b6660;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.alf-fm-roster-tab:hover { color: #1a1a1a; }
+.alf-fm-roster-tab-on {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+.alf-fm-roster-tab-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #8a857b;
+}
+.alf-fm-roster-tab-on .alf-fm-roster-tab-n { color: #1f7ad6; }
+/* Filter box — 100+ names is more than anyone wants to eyeball. Filters the
+   tab you're on; the query survives a tab switch so you can check both. */
+.alf-fm-roster-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0 14px 8px;
+}
+.alf-fm-roster-filter-icon {
+  position: absolute;
+  left: 8px;
+  display: flex;
+  color: #a9a297;
+  pointer-events: none;
+}
+.alf-fm-roster-filter input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 22px 5px 25px;
+  border: 1px solid #eeece6;
+  border-radius: 6px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  color: #1a1a1a;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.alf-fm-roster-filter input::placeholder { color: #a9a297; }
+.alf-fm-roster-filter input:focus {
+  outline: none;
+  border-color: #bcd3ee;
+  box-shadow: 0 0 0 2px rgba(31, 122, 214, 0.12);
+}
+.alf-fm-roster-filter-clear {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a857b;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.alf-fm-roster-filter-clear:hover { background: #f0ece3; color: #1a1a1a; }
+/* "nothing here, but 2 next door" — offered as a jump, not a dead end. */
+.alf-fm-roster-jump {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-style: normal;
+  color: #1f7ad6;
+  cursor: pointer;
+}
+.alf-fm-roster-jump:hover { text-decoration: underline; }
+.alf-fm-roster-window {
+  max-height: 320px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-
-/* "x attending · y confirmed" under the Participants heading. */
-.alf-fm-participants-summary {
-  margin: -4px 0 6px;
-  padding: 0 14px;
+/* Keep the scrollbar visible so it's clear the list runs on. No
+   `scrollbar-width`/`scrollbar-color`: either one makes Chrome drop these
+   rules and fall back to the auto-hiding overlay bar. */
+.alf-fm-roster-window::-webkit-scrollbar { width: 10px; }
+.alf-fm-roster-window::-webkit-scrollbar-track { background: transparent; }
+.alf-fm-roster-window::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.16);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+.alf-fm-roster-window::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.3);
+  background-clip: content-box;
+}
+/* The tabs carry the counts, so this line carries what they mean. */
+.alf-fm-roster-foot {
+  margin: 0;
+  padding: 8px 14px 2px;
   font-size: 12px;
-  font-weight: 600;
-  color: #6b6660;
+  color: #8a857b;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   font-variant-numeric: tabular-nums;
 }
 /* A question mark instead of a face — they're interested, not confirmed. */
@@ -3012,13 +3130,6 @@ body {
 .alf-fm-considering-name {
   color: #6b6660;
   cursor: default;
-}
-.alf-fm-considering-count {
-  margin: 4px 0 0;
-  padding: 8px 14px 2px;
-  font-size: 12px;
-  color: #8a857b;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 /* ----- Forum login gate (the real ALF had one) ----- */
 .alf-login {
