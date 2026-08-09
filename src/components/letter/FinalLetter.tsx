@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { MinervaLogo } from "@/components/MinervaLogo";
@@ -25,6 +25,45 @@ import {
  * phone, and more to the point, chrome reads as irony. A last sincere ask can't
  * afford any.
  */
+
+/**
+ * Copies THIS letter's URL, not the site root — so when they open it on a
+ * laptop they land back on their own named letter with the RSVP button, rather
+ * than at the top of the desktop with the thread lost.
+ */
+function CopyLetterLink() {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const copy = async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Older mobile browsers: the hidden-textarea trick, same as MobileShell.
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 2200);
+  };
+
+  return (
+    <button type="button" className="ltr-cta-btn" onClick={copy} aria-live="polite">
+      {copied ? "Link copied ✓" : "Copy my letter link"}
+    </button>
+  );
+}
 
 type Photo = { src: string; alt: string; w: number; h: number };
 
@@ -189,12 +228,30 @@ export function FinalLetter({
             </p>
           ) : (
             <>
-              <Link className="ltr-cta-btn" href="/?open=rsvp">
-                {invite.variant === "unfinished"
-                  ? "Finish your RSVP →"
-                  : "RSVP →"}
-              </Link>
-              <p className="ltr-deadline">{RSVP_DEADLINE_LABEL}</p>
+              {/*
+                Both CTAs render; CSS shows exactly one at the SAME 700px
+                breakpoint the site uses to swap the desktop for the mobile
+                card (NARROW_QUERY in lib/useIsNarrow). Doing this in CSS
+                rather than JS avoids a hydration flash where a phone briefly
+                sees an RSVP button that would dead-end on "use a computer".
+              */}
+              <div className="ltr-cta-wide">
+                <Link className="ltr-cta-btn" href="/?open=rsvp">
+                  {invite.variant === "unfinished"
+                    ? "Finish your RSVP →"
+                    : "RSVP →"}
+                </Link>
+                <p className="ltr-deadline">{RSVP_DEADLINE_LABEL}</p>
+              </div>
+
+              <div className="ltr-cta-narrow">
+                <p className="ltr-cta-narrow-note">
+                  RSVP needs a photo and a payment, and it only works properly
+                  on a computer. Send yourself this letter and finish there.
+                </p>
+                <CopyLetterLink />
+                <p className="ltr-deadline">{RSVP_DEADLINE_LABEL}</p>
+              </div>
             </>
           )}
         </section>

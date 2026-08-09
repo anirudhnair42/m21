@@ -176,6 +176,26 @@ body:has(.ltr-page) {
 
 /* ---------- CTA ---------- */
 .ltr-cta { text-align: center; margin-bottom: 46px; }
+
+/*
+   Exactly one CTA shows. The breakpoint MUST stay in step with NARROW_QUERY
+   in src/lib/useIsNarrow.ts (max-width: 700px) — that's where "/" swaps the
+   desktop for the mobile card, which has no RSVP path at all. If these drift,
+   phones get an RSVP button that dead-ends on "please use a computer".
+*/
+.ltr-cta-narrow { display: none; }
+@media (max-width: 700px) {
+  .ltr-cta-wide { display: none; }
+  .ltr-cta-narrow { display: block; }
+}
+.ltr-cta-narrow-note {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ltr-ink-soft);
+  margin-bottom: 18px;
+  text-wrap: balance;
+}
 .ltr-cta-btn {
   display: inline-block;
   background: var(--ltr-accent);
