@@ -22,7 +22,8 @@
 // ---------------------------------------------------------------- config ----
 
 var CONFIG = {
-  SUBJECT: "from Ani, for your consideration?",
+  /** Personalised per recipient. {firstName} is substituted at send time. */
+  SUBJECT_TEMPLATE: "A letter for {firstName}",
   FROM_NAME: "Ani Nair",
   REPLY_TO: "anirudhnair42@gmail.com",
 
@@ -65,11 +66,15 @@ var CONFIG = {
  * The email is deliberately short. It is the knock on the door; the letter
  * behind the link carries the weight.
  */
+function buildSubject(firstName) {
+  return CONFIG.SUBJECT_TEMPLATE.replace("{firstName}", firstName);
+}
+
 function buildBody(firstName, letterUrl, variant) {
   var opening =
     variant === "unfinished"
-      ? "You started an RSVP a few days ago and did not finish it, which we are choosing to read as a maybe. We wrote you a letter anyway. It has your name on it, and it is the last time we will ask."
-      : "We wrote you a letter. It has your name on it, and it is the last time we will ask.";
+      ? "You started an RSVP a few days ago and did not finish it, which we are choosing to read as a maybe. We wrote you a letter anyway, and this is the last time we bother you about it."
+      : "We wrote you a letter, and this is the last time we bother you about it.";
 
   var text =
     "Dear " + firstName + ",\n\n" +
@@ -132,7 +137,7 @@ function sendTest() {
   }
   CONFIG.TEST_RECIPIENTS.forEach(function (person, i) {
     var body = buildBody(person.firstName, person.url, "default");
-    GmailApp.sendEmail(person.email, CONFIG.SUBJECT, body.text, {
+    GmailApp.sendEmail(person.email, buildSubject(person.firstName), body.text, {
       htmlBody: body.html,
       name: CONFIG.FROM_NAME,
       replyTo: CONFIG.REPLY_TO,
@@ -150,7 +155,7 @@ function sendTest() {
 function sendTestUnfinished() {
   var person = CONFIG.TEST_RECIPIENTS[0];
   var body = buildBody(person.firstName, person.url, "unfinished");
-  GmailApp.sendEmail(person.email, CONFIG.SUBJECT, body.text, {
+  GmailApp.sendEmail(person.email, buildSubject(person.firstName), body.text, {
     htmlBody: body.html,
     name: CONFIG.FROM_NAME,
     replyTo: CONFIG.REPLY_TO,
@@ -182,7 +187,7 @@ function sendAll() {
       continue;
     }
     var body = buildBody(r.firstName, r.url, r.variant);
-    GmailApp.sendEmail(r.email, CONFIG.SUBJECT, body.text, {
+    GmailApp.sendEmail(r.email, buildSubject(r.firstName), body.text, {
       htmlBody: body.html,
       name: CONFIG.FROM_NAME,
       replyTo: CONFIG.REPLY_TO,
