@@ -19,8 +19,11 @@ export type LetterBlock = {
   style?: "normal" | "emphasis";
 };
 
-/** Shown above the greeting. */
-export const LETTER_EYEBROW = "A last letter to the Class of 2021";
+/**
+ * Shown above the greeting, in uppercase with wide letterspacing — so keep it
+ * short enough not to wrap to three lines on a phone.
+ */
+export const LETTER_EYEBROW = "A final invitation · Minerva Class of 2021";
 
 /** The body. REPLACE THIS — see the banner above. */
 export const LETTER_BODY: LetterBlock[] = [
