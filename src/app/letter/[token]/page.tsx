@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { firstNameOf, isRsvpClosed, type LetterInvite } from "@/lib/letter";
-import { FinalLetter } from "@/components/letter/FinalLetter";
+import { FinalLetter, type Attendee } from "@/components/letter/FinalLetter";
 
 /**
  * One person's final-call letter, addressed by name, reachable only through an
@@ -32,10 +32,15 @@ async function getInvite(token: string): Promise<LetterInvite | null> {
   return (data as LetterInvite) ?? null;
 }
 
-/** Attendee count + a handful of faces — the most persuasive thing on the page. */
-async function getProof(): Promise<{ count: number; photos: string[] }> {
+/**
+ * Attendee count + a handful of faces — the most persuasive thing on the page.
+ * Names ride along so each face can name itself on hover. They're already
+ * public via /api/participants and the ALF participant rail, so nothing new is
+ * exposed here; emails never leave the server.
+ */
+async function getProof(): Promise<{ count: number; faces: Attendee[] }> {
   const supabase = getSupabaseAdmin();
-  if (!supabase) return { count: 0, photos: [] };
+  if (!supabase) return { count: 0, faces: [] };
 
   const [total, faces] = await Promise.all([
     supabase
@@ -44,7 +49,7 @@ async function getProof(): Promise<{ count: number; photos: string[] }> {
       .in("status", ["paid", "processing"]),
     supabase
       .from("rsvps")
-      .select("photo_url")
+      .select("name, photo_url, status")
       .in("status", ["paid", "processing"])
       .not("photo_url", "is", null)
       .order("created_at", { ascending: false })
@@ -53,9 +58,13 @@ async function getProof(): Promise<{ count: number; photos: string[] }> {
 
   return {
     count: total.count ?? 0,
-    photos: (faces.data ?? [])
-      .map((r) => r.photo_url as string)
-      .filter(Boolean),
+    faces: (faces.data ?? [])
+      .filter((r) => r.photo_url)
+      .map((r) => ({
+        name: (r.name as string) ?? "",
+        photoUrl: r.photo_url as string,
+        status: r.status as Attendee["status"],
+      })),
   };
 }
 
@@ -95,7 +104,7 @@ export default async function LetterPage({ params }: Params) {
     <FinalLetter
       invite={invite}
       count={proof.count}
-      faces={proof.photos}
+      faces={proof.faces}
       closed={isRsvpClosed()}
     />
   );

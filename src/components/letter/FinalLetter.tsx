@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { MinervaLogo } from "@/components/MinervaLogo";
+import { HoverTip } from "@/components/HoverTip";
 import {
   REUNION_DATES,
   REUNION_PLACE,
@@ -65,6 +66,108 @@ function CopyLetterLink() {
   );
 }
 
+export type Attendee = {
+  name: string;
+  photoUrl: string | null;
+  status: "paid" | "processing";
+};
+
+/**
+ * Everyone who's coming, fetched fresh when the roster is opened rather than
+ * baked into the page — the count is the thing Ani watches, so it should be
+ * true at the moment someone clicks it, not at the moment the page rendered.
+ */
+function Roster({ onClose }: { onClose: () => void }) {
+  const [people, setPeople] = useState<Attendee[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/participants", { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const body = await res.json();
+        if (cancelled) return;
+        // /api/participants already drops failed payments, but `pending`
+        // (abandoned checkout) is not actually attending. It returns snake_case.
+        type Row = { name: string; photo_url: string | null; status: string };
+        setPeople(
+          (body.participants ?? [])
+            .filter(
+              (p: Row) => p.status === "paid" || p.status === "processing",
+            )
+            .map((p: Row) => ({
+              name: p.name,
+              photoUrl: p.photo_url,
+              status: p.status as Attendee["status"],
+            })),
+        );
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="ltr-roster-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="ltr-roster"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Everyone who has RSVP'd"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="ltr-roster-head">
+          <h2 className="ltr-roster-title">
+            Coming to San Francisco
+            {people && <span className="ltr-roster-count">{people.length}</span>}
+          </h2>
+          <button
+            type="button"
+            className="ltr-roster-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="ltr-roster-list">
+          {failed && <p className="ltr-roster-empty">Couldn&apos;t load the list.</p>}
+          {!failed && !people && <p className="ltr-roster-empty">Loading…</p>}
+          {people?.map((p, i) => (
+            <div className="ltr-roster-row" key={`${p.name}-${i}`}>
+              {p.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.photoUrl} alt="" className="ltr-roster-face" />
+              ) : (
+                <span className="ltr-roster-face ltr-roster-face-blank" aria-hidden="true" />
+              )}
+              <span className="ltr-roster-name">{p.name}</span>
+              <span
+                className={`ltr-roster-dot ltr-roster-dot-${p.status}`}
+                title={
+                  p.status === "paid" ? "Confirmed attending" : "Payment clearing"
+                }
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Photo = { src: string; alt: string; w: number; h: number };
 
 /** Daylight to dark, Foundation Week to Friendsgiving, strangers to friends. */
@@ -115,11 +218,12 @@ export function FinalLetter({
 }: {
   invite: LetterInvite;
   count: number;
-  faces: string[];
+  faces: Attendee[];
   /** Computed server-side per request — the route is force-dynamic. */
   closed: boolean;
 }) {
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [rosterOpen, setRosterOpen] = useState(false);
 
   const first = firstNameOf(invite.name);
 
@@ -205,17 +309,34 @@ export function FinalLetter({
         {count > 0 && (
           <section className="ltr-proof">
             {faces.length > 0 && (
-              <div className="ltr-faces" aria-hidden="true">
-                {faces.slice(0, 10).map((src) => (
-                  // Supabase storage URLs, unoptimized to avoid a remote-pattern
-                  // config for one decorative row.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={src} src={src} alt="" className="ltr-face" />
-                ))}
+              <div className="ltr-faces">
+                {faces
+                  .filter((f) => f.photoUrl)
+                  .slice(0, 10)
+                  .map((f) => (
+                    // Supabase storage URLs, unoptimized to avoid a remote-pattern
+                    // config for one decorative row. `data-tip` is picked up by
+                    // the site's global HoverTip, rendered at the end of this file.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={f.photoUrl as string}
+                      src={f.photoUrl as string}
+                      alt={f.name}
+                      data-tip={f.name}
+                      className="ltr-face"
+                    />
+                  ))}
               </div>
             )}
             <p className="ltr-proof-text">
-              <strong>{count}</strong> of us are already in.
+              <button
+                type="button"
+                className="ltr-proof-count"
+                onClick={() => setRosterOpen(true)}
+              >
+                {count}
+              </button>{" "}
+              of us are already in.
             </p>
           </section>
         )}
@@ -257,11 +378,18 @@ export function FinalLetter({
         </section>
 
         <footer className="ltr-foot">
-          <Link href="/" className="ltr-foot-link">
-            There&apos;s a whole desktop if you want to wander →
+          {/* `?open=alf` is the deep link added in Desktop.tsx — it skips the
+              scripted intro and opens ALF directly. */}
+          <Link href="/?open=alf" className="ltr-foot-link">
+            Back to ALF →
           </Link>
         </footer>
       </div>
+
+      {rosterOpen && <Roster onClose={() => setRosterOpen(false)} />}
+
+      {/* The site's global tooltip — powers the names on face hover. */}
+      <HoverTip />
 
       {lightbox !== null && (
         <div

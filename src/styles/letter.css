@@ -171,8 +171,117 @@ body:has(.ltr-page) {
   background: #e8e4dc;
 }
 .ltr-face:first-child { margin-left: 0; }
+/* Lift the hovered face clear of its neighbours so the tooltip has a target. */
+.ltr-face:hover {
+  z-index: 1;
+  position: relative;
+  transform: translateY(-2px);
+  transition: transform 140ms ease;
+}
 .ltr-proof-text { font-size: 15px; color: var(--ltr-ink-soft); }
-.ltr-proof-text strong { color: var(--ltr-ink); font-weight: 600; }
+
+.ltr-proof-count {
+  font: inherit;
+  color: var(--ltr-ink);
+  font-weight: 600;
+  background: none;
+  border: 0;
+  padding: 0 1px;
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+}
+.ltr-proof-count:hover { color: var(--ltr-accent); }
+
+/* ---------- roster ---------- */
+.ltr-roster-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(20, 18, 16, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ltr-roster {
+  background: #fff;
+  border-radius: 8px;
+  width: min(420px, 100%);
+  max-height: min(70vh, 620px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+.ltr-roster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--ltr-rule);
+}
+.ltr-roster-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ltr-roster-count {
+  font-family: var(--font-sys);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ltr-ink-soft);
+  background: #f2efe8;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.ltr-roster-close {
+  background: none;
+  border: 0;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ltr-ink-soft);
+}
+.ltr-roster-close:hover { color: var(--ltr-ink); }
+.ltr-roster-list { overflow-y: auto; padding: 6px 0; }
+.ltr-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 18px;
+}
+.ltr-roster-row:hover { background: #faf8f4; }
+.ltr-roster-face {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e8e4dc;
+  flex: 0 0 auto;
+}
+.ltr-roster-face-blank { display: block; }
+.ltr-roster-name { flex: 1 1 auto; font-size: 14px; }
+.ltr-roster-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+/* Matches the ALF participant rail: green = paid, yellow = still clearing. */
+.ltr-roster-dot-paid { background: #2fa84f; }
+.ltr-roster-dot-processing { background: #e8b53a; }
+.ltr-roster-empty {
+  padding: 22px 18px;
+  font-size: 14px;
+  color: var(--ltr-ink-soft);
+  text-align: center;
+}
 
 /* ---------- CTA ---------- */
 .ltr-cta { text-align: center; margin-bottom: 46px; }
