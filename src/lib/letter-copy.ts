@@ -29,7 +29,7 @@ export const LETTER_EYEBROW = "Minerva Class of 2021 · The Reunion";
 
 export const LETTER_BODY: LetterBlock[] = [
   {
-    text: "Since the day I put this website up, I wake up and go straight to it. I open the fake ALF, I look at the fake class list, and some mornings I am happy because there are new confirmed names. Then I scroll down to the considering list, and I find yours, and I keep scrolling to see whether anything changed. Obsessively. (Not like the movie though.)",
+    text: "Since the day I put this website up, I wake up and go straight to it. I open the fake ALF, I look at the fake class list, and some mornings I am happy because there are new confirmed names. Then I scroll down to the considering list and find yours, and the next morning I hope that name has converted into an RSVP. I repeat this cycle obsessively. (No, not like the movie though.)",
   },
   {
     text: "The six of us have been giving our evenings and weekends to this for months. Not because a reunion needs a fake operating system, but because we wanted the asking to be worth your attention, and because we wanted the weekend to be worth your flight.",
