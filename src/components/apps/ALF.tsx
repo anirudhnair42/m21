@@ -11,6 +11,7 @@ import {
 } from "@/lib/reunion-course";
 import { useMyRsvp, type MyRsvp } from "@/lib/myRsvp";
 import { useAuth, getAccessToken } from "@/lib/auth";
+import { RSVP_DEADLINE_LABEL, RSVP_DEADLINE_SHORT } from "@/lib/letter";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -1947,15 +1948,15 @@ function SyllabusGraderView({
             </p>
 
             <p>
-              For now: please RSVP. The deposit is $100, refundable through
-              August 1. It holds your spot, helps us plan, and pins your face
-              to the wall.
+              For now: please RSVP. The deposit is $100. It holds your spot,
+              helps us plan, and pins your face to the wall. RSVP closes{" "}
+              {RSVP_DEADLINE_LABEL}, so we can give the venue a real number.
             </p>
 
             <div className="alf-doc-cta">
               <div className="alf-doc-cta-text">
                 <strong>Submit your decision</strong>
-                <span>RSVP + $100 deposit · Refundable through Aug 1</span>
+                <span>RSVP + $100 deposit · {RSVP_DEADLINE_SHORT}</span>
               </div>
               <button className="alf-doc-cta-btn" onClick={onMarkComplete}>
                 Review the coursework →

@@ -1,0 +1,408 @@
+/* ============================================================
+   The final-call letter — /letter/[token]
+
+   A standalone, scrolling, responsive page. reunion.css locks
+   html/body to `height:100%; overflow:hidden; user-select:none`
+   for the desktop illusion, which would break a letter, so the
+   first block below unlocks it — scoped with :has() so the
+   desktop at "/" is untouched.
+   ============================================================ */
+
+html:has(.ltr-page),
+body:has(.ltr-page) {
+  height: auto;
+  overflow: visible;
+  overflow-x: hidden;
+  user-select: text;
+  background: var(--ltr-paper);
+}
+
+.ltr-page {
+  --ltr-paper: #fbfaf7;         /* --minerva-paper */
+  --ltr-ink: #1f1d1a;
+  --ltr-ink-soft: #56514b;
+  --ltr-rule: #ddd8cc;
+  --ltr-accent: #f15923;        /* the ALF orange used across the site */
+
+  min-height: 100%;
+  background: var(--ltr-paper);
+  color: var(--ltr-ink);
+  font-family: var(--font-sys);
+  font-size: 16px;
+  padding: 0 20px 72px;
+}
+
+.ltr-sheet {
+  max-width: 620px;
+  margin: 0 auto;
+  padding-top: 56px;
+}
+
+/* ---------- header ---------- */
+.ltr-head { text-align: center; margin-bottom: 40px; }
+.ltr-eyebrow {
+  margin-top: 18px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 600;
+  color: var(--ltr-accent);
+}
+
+/* ---------- greeting ---------- */
+.ltr-greeting {
+  font-family: var(--font-serif);
+  font-size: clamp(34px, 8vw, 46px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-align: center;
+  margin-bottom: 40px;
+  animation: ltr-rise 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes ltr-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ltr-greeting { animation: none; }
+}
+
+/* Introduces the strip below the signature. Set quiet, like a P.S. */
+.ltr-photo-note {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--ltr-ink-soft);
+  margin-bottom: 14px;
+}
+
+/* ---------- photo strip ---------- */
+/*
+   Sits BELOW the letter and stays small: a postscript, not an argument. Three
+   across on wider screens, a compact scrolling row on phones.
+*/
+.ltr-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 40vw;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 8px;
+  margin: 0 -20px 40px;
+  padding-inline: 20px;
+  scrollbar-width: thin;
+}
+.ltr-strip-item {
+  scroll-snap-align: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.07);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.ltr-strip-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+.ltr-strip-item img { display: block; width: 100%; height: auto; }
+
+@media (min-width: 700px) {
+  .ltr-strip {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-columns: auto;
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+    gap: 10px;
+  }
+}
+
+/* ---------- the letter ---------- */
+.ltr-body {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.72;
+  color: var(--ltr-ink);
+  margin-bottom: 44px;
+}
+.ltr-p { margin-bottom: 1.15em; }
+.ltr-p-emphasis {
+  font-style: italic;
+  font-size: 19px;
+  color: #2c2925;
+}
+.ltr-signoff { margin-top: 1.8em; font-style: italic; color: var(--ltr-ink-soft); }
+.ltr-signature {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-style: italic;
+  margin-top: 0.2em;
+}
+
+/* ---------- event card ---------- */
+.ltr-event {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 20px 24px;
+  border: 1px solid var(--ltr-rule);
+  border-radius: 6px;
+  background: #fff;
+  margin-bottom: 34px;
+}
+.ltr-event-when,
+.ltr-event-where { display: flex; flex-direction: column; gap: 4px; }
+.ltr-event-divider { width: 1px; align-self: stretch; background: var(--ltr-rule); }
+.ltr-event-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ltr-ink-soft);
+  font-weight: 600;
+}
+.ltr-event-value { font-family: var(--font-serif); font-size: 18px; }
+
+/* ---------- live proof ---------- */
+.ltr-proof { text-align: center; margin-bottom: 34px; }
+.ltr-faces {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.ltr-face {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--ltr-paper);
+  margin-left: -10px;
+  background: #e8e4dc;
+}
+.ltr-face:first-child { margin-left: 0; }
+/* Lift the hovered face clear of its neighbours so the tooltip has a target. */
+.ltr-face:hover {
+  z-index: 1;
+  position: relative;
+  transform: translateY(-2px);
+  transition: transform 140ms ease;
+}
+.ltr-proof-text { font-size: 15px; color: var(--ltr-ink-soft); }
+
+.ltr-proof-count {
+  font: inherit;
+  color: var(--ltr-ink);
+  font-weight: 600;
+  background: none;
+  border: 0;
+  padding: 0 1px;
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+}
+.ltr-proof-count:hover { color: var(--ltr-accent); }
+
+/* ---------- roster ---------- */
+.ltr-roster-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(20, 18, 16, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ltr-roster {
+  background: #fff;
+  border-radius: 8px;
+  width: min(420px, 100%);
+  max-height: min(70vh, 620px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+.ltr-roster-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--ltr-rule);
+}
+.ltr-roster-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ltr-roster-count {
+  font-family: var(--font-sys);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ltr-ink-soft);
+  background: #f2efe8;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.ltr-roster-close {
+  background: none;
+  border: 0;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ltr-ink-soft);
+}
+.ltr-roster-close:hover { color: var(--ltr-ink); }
+.ltr-roster-list { overflow-y: auto; padding: 6px 0; }
+.ltr-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 18px;
+}
+.ltr-roster-row:hover { background: #faf8f4; }
+.ltr-roster-face {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e8e4dc;
+  flex: 0 0 auto;
+}
+.ltr-roster-face-blank { display: block; }
+.ltr-roster-name { flex: 1 1 auto; font-size: 14px; }
+.ltr-roster-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+/* Matches the ALF participant rail: green = paid, yellow = still clearing. */
+.ltr-roster-dot-paid { background: #2fa84f; }
+.ltr-roster-dot-processing { background: #e8b53a; }
+.ltr-roster-empty {
+  padding: 22px 18px;
+  font-size: 14px;
+  color: var(--ltr-ink-soft);
+  text-align: center;
+}
+
+/* ---------- CTA ---------- */
+.ltr-cta { text-align: center; margin-bottom: 46px; }
+
+/*
+   Exactly one CTA shows. The breakpoint MUST stay in step with NARROW_QUERY
+   in src/lib/useIsNarrow.ts (max-width: 700px) — that's where "/" swaps the
+   desktop for the mobile card, which has no RSVP path at all. If these drift,
+   phones get an RSVP button that dead-ends on "please use a computer".
+*/
+.ltr-cta-narrow { display: none; }
+@media (max-width: 700px) {
+  .ltr-cta-wide { display: none; }
+  .ltr-cta-narrow { display: block; }
+}
+.ltr-cta-narrow-note {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ltr-ink-soft);
+  margin-bottom: 18px;
+  text-wrap: balance;
+}
+.ltr-cta-btn {
+  display: inline-block;
+  background: var(--ltr-accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 14px 30px;
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: filter 160ms ease, transform 160ms ease;
+}
+.ltr-cta-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.ltr-deadline {
+  margin-top: 12px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--ltr-ink-soft);
+}
+.ltr-deadline-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  color: #8a837a;
+}
+.ltr-closed {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-style: italic;
+  color: var(--ltr-ink-soft);
+}
+
+/* ---------- foot ---------- */
+.ltr-foot { text-align: center; border-top: 1px solid var(--ltr-rule); padding-top: 22px; }
+.ltr-foot-link {
+  font-size: 13px;
+  color: var(--ltr-ink-soft);
+  text-decoration: none;
+}
+.ltr-foot-link:hover { color: var(--ltr-accent); }
+
+/* ---------- lightbox ---------- */
+.ltr-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(12, 11, 10, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.ltr-lb-figure { max-width: 92vw; max-height: 88vh; }
+.ltr-lb-figure img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 92vw;
+  max-height: 78vh;
+  border-radius: 3px;
+}
+.ltr-lb-close,
+.ltr-lb-nav {
+  position: absolute;
+  background: none;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0.75;
+  transition: opacity 150ms ease;
+}
+.ltr-lb-close:hover,
+.ltr-lb-nav:hover { opacity: 1; }
+.ltr-lb-close { top: 16px; right: 20px; font-size: 40px; }
+.ltr-lb-nav { top: 50%; transform: translateY(-50%); font-size: 56px; padding: 0 16px; }
+.ltr-lb-prev { left: 4px; }
+.ltr-lb-next { right: 4px; }
+
+@media (max-width: 560px) {
+  .ltr-lb-nav { font-size: 40px; padding: 0 8px; }
+  .ltr-event { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .ltr-event-divider { display: none; }
+}

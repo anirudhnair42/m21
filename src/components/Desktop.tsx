@@ -57,35 +57,55 @@ export function Desktop() {
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("auth") === "alf",
   );
+  // Deep link from the emailed letter: `/?open=rsvp` skips the intro and opens
+  // that window straight away. Without this the CTA would replay the whole
+  // scripted sequence and never surface the RSVP form.
+  const [deepLink] = useState<AppId | null>(() => {
+    if (typeof window === "undefined") return null;
+    const value = new URLSearchParams(window.location.search).get("open");
+    return value && value in APPS ? (value as AppId) : null;
+  });
   useEffect(() => {
     // Strip the return params so a reload doesn't replay the state.
     if (paymentReturn) clearPaymentReturn();
+    if (deepLink) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("open");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
     if (authReturn) {
       // Keep url.hash + the ?code param — Supabase may still be reading them.
       const url = new URL(window.location.href);
       url.searchParams.delete("auth");
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     }
-  }, [paymentReturn, authReturn]);
+  }, [paymentReturn, authReturn, deepLink]);
 
   const [windows, setWindows] = useState<WindowsMap>(() => {
     const map = emptyWindows();
-    if (paymentReturn) {
-      map.rsvp = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
-    } else if (authReturn) {
-      map.alf = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
+    const initial: AppId | null = paymentReturn
+      ? "rsvp"
+      : deepLink
+        ? deepLink
+        : authReturn
+          ? "alf"
+          : null;
+    if (initial) {
+      map[initial] = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
     }
     return map;
   });
-  const [topZ, setTopZ] = useState(paymentReturn || authReturn ? 2 : 1);
+  const [topZ, setTopZ] = useState(
+    paymentReturn || authReturn || deepLink ? 2 : 1,
+  );
   const [activeId, setActiveId] = useState<AppId | null>(
-    paymentReturn ? "rsvp" : authReturn ? "alf" : null,
+    paymentReturn ? "rsvp" : deepLink ? deepLink : authReturn ? "alf" : null,
   );
 
   // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
   // and the "Turn back time" gate).
   const flow = useReunionFlow({
-    skipIntro: paymentReturn !== null || authReturn,
+    skipIntro: paymentReturn !== null || authReturn || deepLink !== null,
   });
   const {
     now,
