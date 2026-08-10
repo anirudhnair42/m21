@@ -50,6 +50,16 @@ const isStaffDomain = (email) => /@minerva\.edu$/i.test(email);
  */
 const ALIASES_OF_ATTENDEES = ["hrsong99@gmail.com"];
 
+/**
+ * Told an organizer directly that they can't make it. They never RSVP'd, so
+ * nothing in the database marks them as answered, and without this they would
+ * keep receiving "you still haven't RSVP'd" mail after already saying no.
+ *
+ * Abdul Rafey <rafey@…>, not Abdul Qadir Uneeb <abdul.qadir@…>, who is still
+ * on the list. Both are "Abdul" in a greeting, so match on the address.
+ */
+const DECLINED = ["rafey@uni.minerva.edu"];
+
 /** Strip accents, punctuation and case so "José Alvarez" == "jose alvarez". */
 export function normalize(s) {
   return (s ?? "")
@@ -105,7 +115,7 @@ export async function buildFollowupList() {
     attending.map((r) => firstLast(r.name)).filter(Boolean),
   );
 
-  const dropped = { rsvpedEmail: [], rsvpedName: [], self: [], staff: [], alias: [], duplicate: [] };
+  const dropped = { rsvpedEmail: [], rsvpedName: [], self: [], staff: [], alias: [], declined: [], duplicate: [] };
   const kept = [];
 
   for (const c of considering.data ?? []) {
@@ -123,6 +133,8 @@ export async function buildFollowupList() {
       dropped.staff.push(c);
     } else if (ALIASES_OF_ATTENDEES.includes(email)) {
       dropped.alias.push(c);
+    } else if (DECLINED.includes(email)) {
+      dropped.declined.push(c);
     } else {
       kept.push(c);
     }
@@ -194,6 +206,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     show("Ani himself", dropped.self);
     show("Minerva staff, not Class of 2021", dropped.staff);
     show("alias of someone who RSVP'd", dropped.alias);
+    show("already said they can't make it", dropped.declined);
     show("duplicate Google account", dropped.duplicate);
 
     console.log(`\n${counts.followup} people:\n`);

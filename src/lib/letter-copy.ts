@@ -35,13 +35,16 @@ export const LETTER_BODY: LetterBlock[] = [
     text: "A group of us, Amal, Dulce, Ani, Nathan, Mau and Anna, plus Branden and Eungjun from Minerva, have been giving our evenings and weekends to this for months. We have been working on it because we want this weekend to be worth your time and your flight.",
   },
   {
-    text: "We also know San Francisco is expensive, and that an amount which is manageable in one economy is serious money in another. For some of us that is the actual reason this has stayed in the considering column instead of moving out of it. That is why the aid exists. Please be open to using it.",
-  },
-  {
     text: "There will be dinners and games and a few things we are still keeping quiet about. But the structure is loose on purpose. Enough shape that you are never standing around wondering what happens next, and enough air that you and your favorite people can slip away and go find your old places in the city. So talk your friends into it. Make a group. Come together and take the city apart again.",
   },
+  // Branden's reorder: the two paragraphs about what things cost now sit
+  // together, so nobody reads the money one, relaxes, then hits housing again
+  // two paragraphs later.
   {
-    text: "For those of you who want it, there are subsidized rooms at the Minerva Res Hall on Van Ness, and you can ask for one when you RSVP. You show up with a suitcase, you knock on doors, you find out who is around and what they are doing that night. When we first got here at eighteen that same suitcase came with a head full of dreams. Some of those have happened since. Some have gone quiet. Coming back to this city with the people you started with, that fire might catch again, and this time you have the skill and the access to do something with it.",
+    text: "We also know San Francisco is expensive, and that an amount which is manageable in one economy is serious money in another. For some of us that is the actual reason this has stayed in the considering column instead of moving out of it. That is why the aid exists. Please be open to using it. There are also subsidized rooms at the Minerva Res Hall on Van Ness, and you can ask for one when you RSVP.",
+  },
+  {
+    text: "When we first got here at eighteen our suitcases were packed full of dreams. Some of those have happened. Some have gone quiet. Coming back to this city with the people you started with, that fire might catch again, and this time you have the skill and the access to do something with it.",
   },
   {
     text: "We are still building this. We would very much like you to be in it.",
