@@ -13,11 +13,24 @@
  * Requires sql/letter-invites.sql to have been run in the Supabase SQL editor.
  */
 import { randomBytes } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { buildFollowupList } from "./followup-list.mjs";
 
-const BASE_URL = "https://www.m2021.co";
+/** Where the letters live. Override with --base-url for a preview deploy. */
+const baseIndex = process.argv.indexOf("--base-url");
+const BASE_URL =
+  baseIndex > -1 ? process.argv[baseIndex + 1] : "https://www.m2021.co";
+
+/**
+ * The prose has to be signed off before any address list can be exported.
+ * Read straight from the source of truth rather than duplicating the flag, so
+ * there is exactly one place to change your mind.
+ */
+function letterIsApproved() {
+  const src = readFileSync("src/lib/letter-copy.ts", "utf8");
+  return /LETTER_APPROVED\s*=\s*true/.test(src);
+}
 
 /** 24 url-safe chars ≈ 144 bits. Not enumerable, not derived from the email. */
 const mintToken = () => randomBytes(18).toString("base64url");
@@ -82,6 +95,13 @@ if (write) {
 }
 
 if (csvPath) {
+  if (!letterIsApproved()) {
+    console.error(
+      "✗ Refusing to write the merge list: LETTER_APPROVED is false in\n" +
+        "  src/lib/letter-copy.ts. The letter has not been signed off.",
+    );
+    process.exit(1);
+  }
   const esc = (s) => `"${String(s).replace(/"/g, '""')}"`;
   const csv = [
     "name,first_name,email,variant,letter_url",

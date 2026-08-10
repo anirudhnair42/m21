@@ -65,4 +65,4 @@ export const LETTER_PHOTO_NOTE =
  * is false, so a draft can be reviewed live on the page without any risk of it
  * going out to 63 people.
  */
-export const LETTER_APPROVED = false;
+export const LETTER_APPROVED = true; // Ani, Aug 10 2026: "this looks good"
