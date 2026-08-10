@@ -256,27 +256,6 @@ export function FinalLetter({
 
         <h1 className="ltr-greeting">Dear {first},</h1>
 
-        <section className="ltr-strip" aria-label="Photographs from our four years">
-          {PHOTOS.map((p, i) => (
-            <button
-              key={p.src}
-              type="button"
-              className="ltr-strip-item"
-              onClick={() => setLightbox(i)}
-              aria-label={`Open photograph ${i + 1} of ${PHOTOS.length}`}
-            >
-              <Image
-                src={p.src}
-                alt={p.alt}
-                width={p.w}
-                height={p.h}
-                sizes="(max-width: 700px) 78vw, 340px"
-                priority={i < 2}
-              />
-            </button>
-          ))}
-        </section>
-
         <article className="ltr-body">
           {LETTER_BODY.map((block, i) => (
             <p
@@ -294,6 +273,29 @@ export function FinalLetter({
           <p className="ltr-signoff">{LETTER_SIGNOFF}</p>
           <p className="ltr-signature">{LETTER_SIGNATURE}</p>
         </article>
+
+        {/* Below the letter, and deliberately small. The paragraph that
+            introduced them is gone, so they read as a postscript rather than
+            an argument. Click any one to see it full size. */}
+        <section className="ltr-strip" aria-label="Photographs from our four years">
+          {PHOTOS.map((p, i) => (
+            <button
+              key={p.src}
+              type="button"
+              className="ltr-strip-item"
+              onClick={() => setLightbox(i)}
+              aria-label={`Open photograph ${i + 1} of ${PHOTOS.length}`}
+            >
+              <Image
+                src={p.src}
+                alt={p.alt}
+                width={p.w}
+                height={p.h}
+                sizes="(max-width: 700px) 40vw, 190px"
+              />
+            </button>
+          ))}
+        </section>
 
         <section className="ltr-event">
           <div className="ltr-event-when">

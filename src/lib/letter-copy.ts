@@ -29,9 +29,6 @@ export const LETTER_EYEBROW = "Minerva Class of 2021 · The Reunion";
 
 export const LETTER_BODY: LetterBlock[] = [
   {
-    text: "I keep coming back to these photos. Nothing happening in them was a big deal at the time, which is exactly the part that gets me. That was just a Tuesday, or somebody's Friendsgiving, and none of us knew we were living through the bit we would keep. What I miss is not the cities or the buildings. It is the energy in those rooms, and the people we were inside them, slightly out of our depth and far too curious to notice. I miss that version of us. I am also very curious about who you all turned into.",
-  },
-  {
     text: "Since the day I put this website up, I wake up and go straight to it. I open the fake ALF, I look at the fake class list, and some mornings I am happy because there are new confirmed names. Then I scroll down to the considering list, and I find yours, and I keep scrolling to see whether anything changed. Obsessively. (Not like the movie though.)",
   },
   {
@@ -44,7 +41,7 @@ export const LETTER_BODY: LetterBlock[] = [
     text: "There will be dinners and games and a few things we are still keeping quiet about. But the structure is loose on purpose. Enough shape that you are never standing around wondering what happens next, and enough air that you and four other people can slip away and go find your old places in the city. So talk your friends into it. Make a group. Come together and take the city apart again.",
   },
   {
-    text: "We are putting people up the way we lived at Minerva, in a residence hall, which we suspect will be disorienting in the best possible way. You arrive with a suitcase and no plan, roughly the way you did at eighteen, except this time you already know everyone in the building, and you are carrying five years of access and ability you did not have then. We think something gets rekindled in that. We would quite like to be in the room when it does.",
+    text: "We are putting everyone up in a residence hall, the way we lived at Minerva. You show up with a suitcase, you knock on doors, you find out who is around and what they are doing that night. That was the whole method at eighteen and it still works. The difference is that you are all carrying five years of skill and access now, so whatever starts that weekend can actually go somewhere.",
   },
   {
     text: "We are still building this. We would very much like you to be in it.",
