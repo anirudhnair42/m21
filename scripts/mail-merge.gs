@@ -10,25 +10,39 @@
  *  3. Add a 6th column with the header `sent_at` (leave the cells empty)
  *  4. Extensions → Apps Script, paste this file, Save
  *  5. Run `sendTest` first. Authorise when prompted.
- *  6. Check the five test inboxes, then run `sendAll`.
+ *  6. Check the cohost inboxes, then run `sendAll`.
  *
  * SAFETY
  *  - `sendTest` only mails addresses in TEST_RECIPIENTS, ignoring the sheet.
  *  - `sendAll` skips any row that already has a `sent_at`, so if it dies
  *    halfway you just run it again. Nobody gets two copies.
- *  - Consumer Gmail allows ~500 recipients/day. This send is 63.
+ *  - Consumer Gmail allows ~500 recipients/day. This send is 61 and shrinking.
  */
 
 // ---------------------------------------------------------------- config ----
 
 var CONFIG = {
-  SUBJECT: "one last invitation",
+  SUBJECT: "from Ani, for your consideration?",
   FROM_NAME: "Ani Nair",
   REPLY_TO: "anirudhnair42@gmail.com",
 
-  /** Only used by sendTest(). Ani's five addresses go here. */
+  /**
+   * Only used by sendTest(). The cohosts, each with their OWN preview letter
+   * rather than a real recipient's link, so clicking through doesn't stamp
+   * opened_at on someone who is actually being asked to RSVP.
+   */
   TEST_RECIPIENTS: [
-    // "someone@example.com",
+    { email: "nathanjohntorento@gmail.com", firstName: "Nathan", url: "https://www.m2021.co/letter/cohostZKy55glaEGu5CMAd" },
+    { email: "mamalanand3@gmail.com", firstName: "Amal", url: "https://www.m2021.co/letter/cohost39lOFeQs49BU4rHR" },
+    // TODO Ani: confirm the first name on akim@minerva.edu — guessed from
+    // "Branden and Eungjun from Minerva". Not in considering or rsvps.
+    { email: "akim@minerva.edu", firstName: "Eungjun", url: "https://www.m2021.co/letter/cohostgmJe24PvTMlST4VI" },
+    { email: "itsannagraves@gmail.com", firstName: "Anna", url: "https://www.m2021.co/letter/cohost9zKJtpM40WZoageR" },
+    { email: "mauurdanetaur@gmail.com", firstName: "Mau", url: "https://www.m2021.co/letter/cohostLIWq7q_ZjWCYjZC4" },
+    { email: "dulce@uni.minerva.edu", firstName: "Dulce", url: "https://www.m2021.co/letter/cohost8xo-mlzk8DCXWLmB" },
+    { email: "branden@minerva.edu", firstName: "Branden", url: "https://www.m2021.co/letter/cohostSG9qRCM1TSsO3fxh" },
+    { email: "anna.graves@verse.inc", firstName: "Anna", url: "https://www.m2021.co/letter/cohosthNfFGpgp78ZlMXZE" },
+    { email: "hi@mauur.com", firstName: "Mau", url: "https://www.m2021.co/letter/cohostULrxq7-745f1-J0P" },
   ],
 
   /** Pause between sends, milliseconds. Gentle on the quota, looks less bulk. */
@@ -61,7 +75,7 @@ function buildBody(firstName, letterUrl, variant) {
     "Dear " + firstName + ",\n\n" +
     opening + "\n\n" +
     letterUrl + "\n\n" +
-    "RSVP closes tonight at 11:00 PM Pacific. Ani would like it noted that " +
+    "RSVP closes Tuesday at 11:00 PM Pacific. Ani would like it noted that " +
     "ALF only counted an extension if you submitted after the 7th minute, so " +
     "in practice you have until 11:07. He knows this from experience.\n\n" +
     "Amal, Dulce, Ani, Nathan, Mau and Anna";
@@ -80,7 +94,7 @@ function buildBody(firstName, letterUrl, variant) {
     'padding:13px 26px;border-radius:4px;display:inline-block;">' +
     "Read the letter &rarr;</a></p>" +
     '<p style="font-size:15px;color:#56514b;">' +
-    "RSVP closes tonight at 11:00 PM Pacific. Ani would like it noted that ALF " +
+    "RSVP closes Tuesday at 11:00 PM Pacific. Ani would like it noted that ALF " +
     "only counted an extension if you submitted after the 7th minute, so in " +
     "practice you have until 11:07. He knows this from experience.</p>" +
     '<p style="margin-top:26px;">Amal, Dulce, Ani, Nathan, Mau and Anna</p>' +
@@ -101,28 +115,47 @@ function escapeHtml(s) {
 
 // ----------------------------------------------------------------- sends ----
 
-/** Mails ONLY CONFIG.TEST_RECIPIENTS, using the first sheet row as sample data. */
+/**
+ * Mails ONLY CONFIG.TEST_RECIPIENTS. Does not read the sheet at all, so there
+ * is no path by which a real recipient can be mailed by a test run.
+ *
+ * Each cohost gets their own name and their own preview letter, so what lands
+ * in their inbox is exactly what a classmate will see, and clicking through
+ * cannot stamp opened_at on someone who is actually being asked to RSVP.
+ *
+ * No [TEST] prefix on the subject: the subject line is one of the things being
+ * reviewed, and it cannot be judged with a tag stapled to the front of it.
+ */
 function sendTest() {
   if (!CONFIG.TEST_RECIPIENTS.length) {
     throw new Error("Add addresses to CONFIG.TEST_RECIPIENTS first.");
   }
-  var rows = readSheet();
-  if (!rows.length) throw new Error("No rows found in the sheet.");
-  var sample = rows[0];
-
-  CONFIG.TEST_RECIPIENTS.forEach(function (address, i) {
-    // Address the test to the tester, but keep a real letter link so the whole
-    // path gets exercised: click through, sign in, reach the RSVP form.
-    var body = buildBody(sample.firstName, sample.url, sample.variant);
-    GmailApp.sendEmail(address, "[TEST] " + CONFIG.SUBJECT, body.text, {
+  CONFIG.TEST_RECIPIENTS.forEach(function (person, i) {
+    var body = buildBody(person.firstName, person.url, "default");
+    GmailApp.sendEmail(person.email, CONFIG.SUBJECT, body.text, {
       htmlBody: body.html,
       name: CONFIG.FROM_NAME,
       replyTo: CONFIG.REPLY_TO,
     });
-    Logger.log("test sent to " + address);
+    Logger.log("test sent to " + person.email + " as " + person.firstName);
     if (i < CONFIG.TEST_RECIPIENTS.length - 1) Utilities.sleep(CONFIG.THROTTLE_MS);
   });
   Logger.log("Done. " + CONFIG.TEST_RECIPIENTS.length + " test emails sent.");
+}
+
+/**
+ * The "unfinished" variant, so someone can eyeball Wesley's version too.
+ * Sends only to the first test recipient.
+ */
+function sendTestUnfinished() {
+  var person = CONFIG.TEST_RECIPIENTS[0];
+  var body = buildBody(person.firstName, person.url, "unfinished");
+  GmailApp.sendEmail(person.email, CONFIG.SUBJECT, body.text, {
+    htmlBody: body.html,
+    name: CONFIG.FROM_NAME,
+    replyTo: CONFIG.REPLY_TO,
+  });
+  Logger.log("unfinished-variant test sent to " + person.email);
 }
 
 /** The real send. Resumable: rows with a sent_at are skipped. */
