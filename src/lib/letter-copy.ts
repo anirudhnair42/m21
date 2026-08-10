@@ -56,6 +56,10 @@ export const UNFINISHED_NOTE =
 export const LETTER_SIGNOFF = "Hoping to see you all in September,";
 export const LETTER_SIGNATURE = "Amal, Dulce, Ani, Nathan, Mau and Anna";
 
+/** Introduces the photo strip, which sits below the signature as a postscript. */
+export const LETTER_PHOTO_NOTE =
+  "Here are some photos from our freshman year, to up the nostalgia factor.";
+
 /**
  * Ani's sign off on the prose above. The mail merge refuses to send while this
  * is false, so a draft can be reviewed live on the page without any risk of it

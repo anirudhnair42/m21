@@ -69,6 +69,15 @@ body:has(.ltr-page) {
   .ltr-greeting { animation: none; }
 }
 
+/* Introduces the strip below the signature. Set quiet, like a P.S. */
+.ltr-photo-note {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--ltr-ink-soft);
+  margin-bottom: 14px;
+}
+
 /* ---------- photo strip ---------- */
 /*
    Sits BELOW the letter and stays small: a postscript, not an argument. Three

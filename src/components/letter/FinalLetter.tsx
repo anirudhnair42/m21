@@ -16,6 +16,7 @@ import {
 import {
   LETTER_BODY,
   LETTER_EYEBROW,
+  LETTER_PHOTO_NOTE,
   LETTER_SIGNATURE,
   LETTER_SIGNOFF,
   UNFINISHED_NOTE,
@@ -274,10 +275,10 @@ export function FinalLetter({
           <p className="ltr-signature">{LETTER_SIGNATURE}</p>
         </article>
 
-        {/* Below the letter, and deliberately small. The paragraph that
-            introduced them is gone, so they read as a postscript rather than
+        {/* Below the letter, and deliberately small — a postscript rather than
             an argument. Click any one to see it full size. */}
-        <section className="ltr-strip" aria-label="Photographs from our four years">
+        <p className="ltr-photo-note">{LETTER_PHOTO_NOTE}</p>
+        <section className="ltr-strip" aria-label="Photographs from our freshman year">
           {PHOTOS.map((p, i) => (
             <button
               key={p.src}
