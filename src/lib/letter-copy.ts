@@ -1,17 +1,22 @@
 /**
- * ┌──────────────────────────────────────────────────────────────────────┐
- * │  PLACEHOLDER PROSE — ANI IS WRITING THE REAL LETTER.                 │
- * │                                                                      │
- * │  The text below is stand-in copy at roughly the right length and     │
- * │  rhythm so the page can be judged as a finished thing. It is NOT     │
- * │  for sending. `LETTER_IS_PLACEHOLDER` stays true until the sentinel  │
- * │  line at the end of LETTER_BODY is removed, and the send script      │
- * │  refuses to run while it is true.                                    │
- * └──────────────────────────────────────────────────────────────────────┘
+ * The letter shown at /letter/[token].
+ *
+ * DRAFT — written from Ani's flow, in Ani's voice, awaiting his sign off.
+ * `LETTER_APPROVED` below stays false until he says go, and the send script
+ * refuses to run while it is false. Flip it there, not here in passing.
+ *
+ * Voice notes, so edits stay in key: plain words, habits rather than feelings,
+ * and a joke immediately after anything sincere. No em dashes and no hyphens,
+ * by Ani's instruction.
  *
  * The prose lives here, apart from the JSX, so it can be edited without
  * touching layout. Each block renders as one paragraph; `emphasis` blocks are
  * set italic and slightly larger, the way a raised voice reads on paper.
+ *
+ * What sits around it on the page, so none of this needs restating: six photos
+ * directly above, then the event card (September 11 to 13, San Francisco), the
+ * live attendee count, and the deadline. The letter is free to do the thing
+ * only Ani can do.
  */
 
 export type LetterBlock = {
@@ -19,43 +24,44 @@ export type LetterBlock = {
   style?: "normal" | "emphasis";
 };
 
-/**
- * Shown above the greeting, in uppercase with wide letterspacing — so keep it
- * short enough not to wrap to three lines on a phone.
- */
+/** Shown above the greeting, uppercase with wide letterspacing. Keep it short. */
 export const LETTER_EYEBROW = "Minerva Class of 2021 · The Reunion";
 
-/** The body. REPLACE THIS — see the banner above. */
 export const LETTER_BODY: LetterBlock[] = [
   {
-    text: "There is a version of this weekend where you are there, and a version where you are not, and the difference between them is a form that takes about four minutes to fill out.",
+    text: "I keep coming back to these photos. Nothing happening in them was a big deal at the time, which is exactly the part that gets me. That was just a Tuesday, or somebody's Friendsgiving, and none of us knew we were living through the bit we would keep. What I miss is not the cities or the buildings. It is the energy in those rooms, and the people we were inside them, slightly out of our depth and far too curious to notice. I miss that version of us. I am also very curious about who you all turned into.",
   },
   {
-    text: "I have thought about which photographs to put at the top of this page longer than I would like to admit. The ones above are from the beginning and from one of the good nights in the middle. What strikes me about them now is how ordinary they looked at the time. Nobody in those rooms knew they were living through the part they would keep.",
+    text: "Since the day I put this website up, I wake up and go straight to it. I open the fake ALF, I look at the fake class list, and some mornings I am happy because there are new confirmed names. Then I scroll down to the considering list, and I find yours, and I keep scrolling to see whether anything changed. Obsessively. (Not like the movie though.)",
   },
   {
-    text: "That is most of the reason I have spent my evenings building a fake operating system instead of sleeping. Not for the joke, though the joke is fun. Because it turns out the only way to get a hundred and something people who live on five continents into one room is to make the asking feel like something.",
+    text: "The six of us have been giving our evenings and weekends to this for months. Not because a reunion needs a fake operating system, but because we wanted the asking to be worth your attention, and because we wanted the weekend to be worth your flight.",
   },
   {
-    text: "September 11th to 13th. A dinner on Friday. A Saturday we are deliberately leaving mostly empty. A slow Sunday, and then everyone scatters again, probably for another five years.",
+    text: "We also know San Francisco is not a cheap place to be summoned to, and that for some of you the money is the actual reason this has stayed in the considering column rather than moving out of it. That is a real reason, and we planned for it. Nobody is turned away for financial reasons. There is aid for the fee, for housing, and for travel, the request is confidential, there is no income check, and you do not owe anyone an explanation to ask for it.",
   },
   {
-    text: "I would really like you to be there.",
+    text: "There will be dinners and games and a few things we are still keeping quiet about. But the structure is loose on purpose. Enough shape that you are never standing around wondering what happens next, and enough air that you and four other people can slip away and go find your old places in the city. So talk your friends into it. Make a group. Come together and take the city apart again.",
+  },
+  {
+    text: "We are putting people up the way we lived at Minerva, in a residence hall, which we suspect will be disorienting in the best possible way. You arrive with a suitcase and no plan, roughly the way you did at eighteen, except this time you already know everyone in the building, and you are carrying five years of access and ability you did not have then. We think something gets rekindled in that. We would quite like to be in the room when it does.",
+  },
+  {
+    text: "We are still building this. We would very much like you to be in it.",
     style: "emphasis",
-  },
-  {
-    text: "[PLACEHOLDER — replace this whole file before sending.]",
   },
 ];
 
 /** For the person who started checkout and never finished. */
 export const UNFINISHED_NOTE =
-  "You already started this once. Your spot is still half-held, and finishing takes about a minute.";
+  "You already started this once. Your spot is still half held, and finishing takes about a minute.";
 
-export const LETTER_SIGNOFF = "See you in September,";
-export const LETTER_SIGNATURE = "Ani";
+export const LETTER_SIGNOFF = "Hoping to see you all in September,";
+export const LETTER_SIGNATURE = "Amal, Dulce, Ani, Nathan, Mau and Anna";
 
-/** True while stand-in copy is still in place — the send script checks this. */
-export const LETTER_IS_PLACEHOLDER = LETTER_BODY.some((b) =>
-  b.text.includes("[PLACEHOLDER"),
-);
+/**
+ * Ani's sign off on the prose above. The mail merge refuses to send while this
+ * is false, so a draft can be reviewed live on the page without any risk of it
+ * going out to 63 people.
+ */
+export const LETTER_APPROVED = false;
