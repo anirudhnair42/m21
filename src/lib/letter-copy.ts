@@ -35,7 +35,7 @@ export const LETTER_BODY: LetterBlock[] = [
     text: "A group of us, Amal, Dulce, Ani, Nathan, Mau and Anna, plus Branden and Eungjun from Minerva, have been giving our evenings and weekends to this for months. We have been working on it because we want this weekend to be worth your time and your flight.",
   },
   {
-    text: "We also know San Francisco is not a cheap place to be summoned to, and that for some of you the money is the actual reason this has stayed in the considering column rather than moving out of it. That is a real reason, and we planned for it. Nobody is turned away for financial reasons. There is aid for the fee, for housing, and for travel, the request is confidential, there is no income check, and you do not owe anyone an explanation to ask for it.",
+    text: "We also know San Francisco is expensive, and that an amount which is manageable in one economy is serious money in another. For some of us that is the actual reason this has stayed in the considering column instead of moving out of it. It is a real reason and we planned for it. Nobody is turned away for financial reasons. There is aid for the registration fee, for housing, and for travel. The request is confidential, there is no income check, and you do not owe anyone an explanation to ask for it.",
   },
   {
     text: "There will be dinners and games and a few things we are still keeping quiet about. But the structure is loose on purpose. Enough shape that you are never standing around wondering what happens next, and enough air that you and four other people can slip away and go find your old places in the city. So talk your friends into it. Make a group. Come together and take the city apart again.",
