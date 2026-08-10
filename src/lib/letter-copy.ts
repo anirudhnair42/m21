@@ -32,7 +32,7 @@ export const LETTER_BODY: LetterBlock[] = [
     text: "Since the day I put this website up, I wake up and go straight to it. I open the fake ALF, I look at the fake class list, and some mornings I am happy because there are new confirmed names. Then I scroll down to the considering list and find yours, and the next morning I hope that name has converted into an RSVP. I repeat this cycle obsessively. (No, not like the movie though.)",
   },
   {
-    text: "The six of us have been giving our evenings and weekends to this for months. Not because a reunion needs a fake operating system, but because we wanted the asking to be worth your attention, and because we wanted the weekend to be worth your flight.",
+    text: "A group of us, Amal, Dulce, Ani, Nathan, Mau and Anna, plus Branden and Eungjun from Minerva, have been giving our evenings and weekends to this for months. We have been working on it because we want this weekend to be worth your time and your flight.",
   },
   {
     text: "We also know San Francisco is not a cheap place to be summoned to, and that for some of you the money is the actual reason this has stayed in the considering column rather than moving out of it. That is a real reason, and we planned for it. Nobody is turned away for financial reasons. There is aid for the fee, for housing, and for travel, the request is confidential, there is no income check, and you do not owe anyone an explanation to ask for it.",
