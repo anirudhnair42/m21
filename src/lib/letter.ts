@@ -16,6 +16,13 @@ export const RSVP_DEADLINE_LABEL = "Tuesday, August 11 · 11:00 PM PT";
 /** Short form for tight spaces (CTA badges). */
 export const RSVP_DEADLINE_SHORT = "RSVP closes Tue, Aug 11 · 11:00 PM PT";
 
+/**
+ * Sits under the deadline. The site holds the hard line — which is exactly
+ * what makes the email's "actually it's 11:07, ALF only counted an extension
+ * after the 7th minute" land as a wink rather than a contradiction.
+ */
+export const RSVP_DEADLINE_NOTE = "No extensions.";
+
 /** The reunion itself. */
 export const REUNION_DATES = "September 11–13, 2026";
 export const REUNION_PLACE = "San Francisco";

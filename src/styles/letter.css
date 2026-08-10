@@ -324,6 +324,14 @@ body:has(.ltr-page) {
   letter-spacing: 0.02em;
   color: var(--ltr-ink-soft);
 }
+.ltr-deadline-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  color: #8a837a;
+}
 .ltr-closed {
   font-family: var(--font-serif);
   font-size: 17px;
@@ -359,15 +367,6 @@ body:has(.ltr-page) {
   max-width: 92vw;
   max-height: 78vh;
   border-radius: 3px;
-}
-.ltr-lb-caption {
-  margin-top: 12px;
-  color: #cfc9c0;
-  font-size: 13px;
-  line-height: 1.5;
-  text-align: center;
-  max-width: 60ch;
-  margin-inline: auto;
 }
 .ltr-lb-close,
 .ltr-lb-nav {

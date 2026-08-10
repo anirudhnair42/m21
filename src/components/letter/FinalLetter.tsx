@@ -9,6 +9,7 @@ import {
   REUNION_DATES,
   REUNION_PLACE,
   RSVP_DEADLINE_LABEL,
+  RSVP_DEADLINE_NOTE,
   firstNameOf,
   type LetterInvite,
 } from "@/lib/letter";
@@ -362,7 +363,10 @@ export function FinalLetter({
                     ? "Finish your RSVP →"
                     : "RSVP →"}
                 </Link>
-                <p className="ltr-deadline">{RSVP_DEADLINE_LABEL}</p>
+                <p className="ltr-deadline">
+                  {RSVP_DEADLINE_LABEL}
+                  <span className="ltr-deadline-note">{RSVP_DEADLINE_NOTE}</span>
+                </p>
               </div>
 
               <div className="ltr-cta-narrow">
@@ -371,7 +375,10 @@ export function FinalLetter({
                   on a computer. Send yourself this letter and finish there.
                 </p>
                 <CopyLetterLink />
-                <p className="ltr-deadline">{RSVP_DEADLINE_LABEL}</p>
+                <p className="ltr-deadline">
+                  {RSVP_DEADLINE_LABEL}
+                  <span className="ltr-deadline-note">{RSVP_DEADLINE_NOTE}</span>
+                </p>
               </div>
             </>
           )}
@@ -413,6 +420,9 @@ export function FinalLetter({
           >
             ‹
           </button>
+          {/* No visible caption — the photographs speak for themselves, and a
+              description under each one reads like a museum placard. `alt` is
+              kept for screen readers. */}
           <figure className="ltr-lb-figure" onClick={(e) => e.stopPropagation()}>
             <Image
               src={PHOTOS[lightbox].src}
@@ -421,7 +431,6 @@ export function FinalLetter({
               height={PHOTOS[lightbox].h}
               sizes="92vw"
             />
-            <figcaption className="ltr-lb-caption">{PHOTOS[lightbox].alt}</figcaption>
           </figure>
           <button
             type="button"
