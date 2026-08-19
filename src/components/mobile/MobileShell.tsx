@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { MinervaWordmark } from "@/components/MinervaLogo";
+import { MobileHotel } from "@/components/mobile/MobileHotel";
 
 const HOUSING_PAYMENT_URL =
   "https://pro.gofundme.com/event/m21-reunion-minerva-housing/e833521";
@@ -14,12 +15,17 @@ const HOUSING_PAYMENT_URL =
  * who just wants a room shouldn't need a computer to book one.
  */
 export function MobileShell() {
-  const [wantsHousing] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("open") === "stay";
+  const [housingMode] = useState<"none" | "card" | "proto">(() => {
+    if (typeof window === "undefined") return "none";
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("open") !== "stay") return "none";
+    // &proto=1 previews the Google Hotels-style page; plain ?open=stay stays
+    // on the simple card until the prototype is promoted.
+    return params.get("proto") === "1" ? "proto" : "card";
   });
 
-  if (wantsHousing) return <MobileHousing />;
+  if (housingMode === "proto") return <MobileHotel />;
+  if (housingMode === "card") return <MobileHousing />;
 
   return (
     <div
