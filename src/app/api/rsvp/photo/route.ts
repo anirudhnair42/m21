@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
 
 /**
  * Replace the RSVP photo (people deserve a retake). Authorized by possession
@@ -6,6 +7,13 @@ import { getSupabaseAdmin } from "@/lib/supabase-server";
  * Google session is present and the row is owned, the emails must match.
  */
 export async function POST(request: Request) {
+  if (RSVP_CLOSED) {
+    return Response.json(
+      { error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.` },
+      { status: 410 },
+    );
+  }
+
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return Response.json({ error: "Backend not configured." }, { status: 503 });

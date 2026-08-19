@@ -348,8 +348,8 @@ export function FinalLetter({
         <section className="ltr-cta">
           {closed ? (
             <p className="ltr-closed">
-              RSVP closed on {RSVP_DEADLINE_LABEL}. If you still want to come,
-              write to Ani — there may be room.
+              The RSVP deadline ended on {RSVP_DEADLINE_LABEL}. Registration
+              and payments are now closed.
             </p>
           ) : (
             <>

@@ -59,6 +59,27 @@ export function AppIconVisual({ app, size = 56 }: Props) {
     return <ImgIcon src="/assets/icon-safari.png" alt="Safari" size={size} />;
   }
 
+  if (app.icon === "google-hotels") {
+    const logo = Math.round(size * 0.66);
+    return (
+      <div
+        className="icon-app icon-google-travel"
+        style={{ width: size, height: size, borderRadius: radius }}
+        aria-label="Google Hotels"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/icon-google-travel.png"
+          alt=""
+          width={logo}
+          height={logo}
+          draggable={false}
+          style={{ width: logo, height: logo, display: "block", objectFit: "contain", userSelect: "none" }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className="icon-app"

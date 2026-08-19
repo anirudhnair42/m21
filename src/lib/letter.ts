@@ -7,28 +7,32 @@
  * "fix" one to match the other.
  */
 
-/** Tuesday, August 11, 2026 at 11:00 PM Pacific (PDT, UTC-7). */
-export const RSVP_DEADLINE = new Date("2026-08-11T23:00:00-07:00");
+/** Registration is manually closed. Keep this explicit so a clock or timezone
+ * change can never reopen checkout after the organizers have called time. */
+export const RSVP_CLOSED = true;
+
+/** The final deadline language requested by the organizers. */
+export const RSVP_DEADLINE = new Date("2026-08-12T23:00:00-07:00");
 
 /** Deadline as shown to guests. */
-export const RSVP_DEADLINE_LABEL = "Tuesday, August 11 · 11:00 PM PT";
+export const RSVP_DEADLINE_LABEL = "Tuesday, August 12";
 
 /** Short form for tight spaces (CTA badges). */
-export const RSVP_DEADLINE_SHORT = "RSVP closes Tue, Aug 11 · 11:00 PM PT";
+export const RSVP_DEADLINE_SHORT = "Deadline ended Tue, Aug 12";
 
 /**
  * Sits under the deadline. The site holds the hard line — which is exactly
  * what makes the email's "actually it's 11:07, ALF only counted an extension
  * after the 7th minute" land as a wink rather than a contradiction.
  */
-export const RSVP_DEADLINE_NOTE = "No extensions.";
+export const RSVP_DEADLINE_NOTE = "Registration and payments are closed.";
 
 /** The reunion itself. */
 export const REUNION_DATES = "September 11–13, 2026";
 export const REUNION_PLACE = "San Francisco";
 
-export function isRsvpClosed(now: Date = new Date()): boolean {
-  return now.getTime() > RSVP_DEADLINE.getTime();
+export function isRsvpClosed(): boolean {
+  return RSVP_CLOSED;
 }
 
 export type LetterInvite = {

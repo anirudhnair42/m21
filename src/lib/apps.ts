@@ -16,7 +16,7 @@ export type AppDef = {
   id: AppId;
   name: string;
   title: string;
-  /** Either a single-character glyph or a named visual ("alf" | "calendar" | "mail" | "safari"). */
+  /** Either a single-character glyph or a named visual. */
   icon: string;
   color: string;
   description: string;
@@ -48,11 +48,11 @@ export const APPS: Record<AppId, AppDef> = {
   rsvp: {
     id: "rsvp",
     name: "RSVP",
-    title: "RSVP + Deposit",
+    title: "RSVP — Closed",
     icon: "✉",
     color: "#F15923",
     description:
-      "Stripe Checkout for a $100 deposit. Collects name, grad city, and a current photo for the wall.",
+      "Registration closed after the August 12 deadline.",
     defaultRect: () => ({ x: 220, y: 140, width: 560, height: 560 }),
   },
   itinerary: {
@@ -77,13 +77,17 @@ export const APPS: Record<AppId, AppDef> = {
   },
   stay: {
     id: "stay",
-    name: "Stay",
-    title: "Stay",
-    icon: "🛏",
-    color: "#6890c8",
+    name: "Hotels",
+    title: "Google Hotels — Reunion Stay",
+    icon: "google-hotels",
+    color: "#ffffff",
     description:
-      "Curated hotel options near the venue, with notes on price band and walkability.",
-    defaultRect: () => ({ x: 300, y: 200, width: 640, height: 540 }),
+      "Book the subsidized Minerva Residence Hall for reunion weekend.",
+    defaultRect: () => {
+      const W = Math.min(1180, window.innerWidth - 48);
+      const H = Math.min(720, window.innerHeight - 110);
+      return center(W, H, -10);
+    },
   },
   checklist: {
     id: "checklist",
@@ -152,11 +156,12 @@ export const APPS: Record<AppId, AppDef> = {
   },
 };
 
-/** The dock only shows ALF, Mail, and Safari. Finder + Trash are rendered
+/** The dock shows the live reunion apps. Finder + Trash are rendered
  * separately by Desktop.tsx as bookends. The other apps still exist as types
  * and can be launched programmatically — they just don't get a dock icon. */
 export const DOCK_ORDER: AppId[] = [
   "alf",
+  "stay",
   "mail",
   "browser",
 ];

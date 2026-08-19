@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
 
 /**
  * The "Considering" list: people who've signed in with Google but haven't
@@ -13,6 +14,13 @@ import { getSupabaseAdmin } from "@/lib/supabase-server";
  * can't be spoofed. Idempotent — re-signing in just refreshes the row.
  */
 export async function POST(request: Request) {
+  if (RSVP_CLOSED) {
+    return Response.json(
+      { error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.` },
+      { status: 410 },
+    );
+  }
+
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ ok: false }, { status: 503 });
 

@@ -1,8 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 
 /**
- * The class list + live RSVP count: everyone who has RSVP'd (minus failed
- * payments), newest first. Powers the Participants rail in the ALF course
+ * The final class list + count: paid attendees and payments still clearing,
+ * newest first. Pending/abandoned checkouts are not confirmed RSVPs. Powers the Participants rail in the ALF course
  * page and the menu-bar counter. When the backend isn't configured, returns
  * an empty list and a null count so the UI hides the live bits gracefully.
  */
@@ -14,13 +14,13 @@ export async function GET() {
     supabase
       .from("rsvps")
       .select("name, photo_url, voice_url, status")
-      .neq("status", "failed")
+      .in("status", ["paid", "processing"])
       .order("created_at", { ascending: false })
       .limit(200),
     supabase
       .from("rsvps")
       .select("id", { count: "exact", head: true })
-      .neq("status", "failed"),
+      .in("status", ["paid", "processing"]),
   ]);
   if (list.error || total.error) {
     console.error(
