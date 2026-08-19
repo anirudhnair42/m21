@@ -1,26 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "@vercel/analytics";
+import { HOTEL_PHOTOS as PHOTOS } from "@/lib/hotel";
 
 /**
- * PROTOTYPE — Google Hotels-style mobile page for the Minerva Res Hall.
- * Reached only via /?open=stay&proto=1 on a phone; the plain /?open=stay
- * mobile card stays the hot path until this is promoted. Self-contained on
- * purpose (photo list duplicated from HotelApp) so it touches nothing live.
+ * Google Hotels-style mobile page for the Minerva Res Hall — what phones get
+ * for the /?open=stay housing deeplink. Booking goes straight to the GoFundMe
+ * event page; the desktop keeps the full HotelApp window.
  */
 
 const HOUSING_PAYMENT_URL =
   "https://pro.gofundme.com/event/m21-reunion-minerva-housing/e833521";
 const MAPS_QUERY = "2550 Van Ness Ave, San Francisco, CA 94109";
-
-const PHOTOS = [
-  { src: "/assets/hotel/2550-van-ness-exterior.webp", alt: "2550 Van Ness courtyard and San Francisco skyline at sunset" },
-  { src: "/assets/hotel/2550-van-ness-room-1.webp", alt: "Furnished shared room with beds, desks, and wardrobes" },
-  { src: "/assets/hotel/2550-van-ness-room-2.webp", alt: "Furnished double room with a large window" },
-  { src: "/assets/hotel/2550-van-ness-room-3.webp", alt: "Furnished double room with desks and city-facing window" },
-  { src: "/assets/hotel/2550-van-ness-room-4.webp", alt: "Furnished single room with bed and desk" },
-  { src: "/assets/hotel/2550-van-ness-room-5.webp", alt: "Large furnished shared room" },
-];
 
 function GoogleG() {
   return (
@@ -36,6 +28,10 @@ function GoogleG() {
 export function MobileHotel() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
+
+  useEffect(() => {
+    track("housing_deeplink_opened", { surface: "mobile" });
+  }, []);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -103,7 +99,13 @@ export function MobileHotel() {
             <strong className="mhotel-price">$200 <small>flat</small></strong>
             <span className="mhotel-price-sub">whole stay, one price</span>
           </div>
-          <a className="mhotel-book" href={HOUSING_PAYMENT_URL}>Book room</a>
+          <a
+            className="mhotel-book"
+            href={HOUSING_PAYMENT_URL}
+            onClick={() => track("housing_book_clicked", { surface: "mobile", placement: "card" })}
+          >
+            Book room
+          </a>
         </div>
         <p className="mhotel-fineprint">Bookings handled on GoFundMe · Financial aid can cover this — ask via the RSVP aid form</p>
       </section>
@@ -158,7 +160,13 @@ export function MobileHotel() {
           <strong>$200 flat</strong>
           <span>Fri, Sep 11 – Mon, Sep 14</span>
         </div>
-        <a className="mhotel-book" href={HOUSING_PAYMENT_URL}>Book room</a>
+        <a
+          className="mhotel-book"
+          href={HOUSING_PAYMENT_URL}
+          onClick={() => track("housing_book_clicked", { surface: "mobile", placement: "sticky" })}
+        >
+          Book room
+        </a>
       </div>
     </div>
   );

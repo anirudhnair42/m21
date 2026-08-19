@@ -1,37 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { track } from "@vercel/analytics";
 import { getAccessToken, useAuth } from "@/lib/auth";
-import type { HotelReturn } from "@/lib/hotel";
+import { HOTEL_PHOTOS, type HotelReturn } from "@/lib/hotel";
 
 type BookingState = "checking" | "signed-out" | "eligible" | "ineligible" | "booked";
-
-const HOTEL_PHOTOS = [
-  {
-    src: "/assets/hotel/2550-van-ness-exterior.webp",
-    alt: "2550 Van Ness courtyard and San Francisco skyline at sunset",
-  },
-  {
-    src: "/assets/hotel/2550-van-ness-room-1.webp",
-    alt: "Furnished shared room at 2550 Van Ness with beds, desks, and wardrobes",
-  },
-  {
-    src: "/assets/hotel/2550-van-ness-room-2.webp",
-    alt: "Furnished double room at 2550 Van Ness with a large window",
-  },
-  {
-    src: "/assets/hotel/2550-van-ness-room-3.webp",
-    alt: "Furnished double room at 2550 Van Ness with desks and city-facing window",
-  },
-  {
-    src: "/assets/hotel/2550-van-ness-room-4.webp",
-    alt: "Furnished single room at 2550 Van Ness with bed and desk",
-  },
-  {
-    src: "/assets/hotel/2550-van-ness-room-5.webp",
-    alt: "Large furnished shared room at 2550 Van Ness",
-  },
-];
 
 // Terms from Minerva's housing email: flat $200 for Fri Sep 11 – Mon Sep 14,
 // 9 double rooms, solo occupancy possible if requests come in under 9.
@@ -112,6 +86,7 @@ export function HotelApp({ initialReturn }: { initialReturn?: HotelReturn | null
   }, [checkBooking]);
 
   const startBooking = async () => {
+    track("housing_book_clicked", { surface: "desktop" });
     setBooking(true);
     setError(null);
     try {
