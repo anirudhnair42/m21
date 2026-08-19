@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { track } from "@vercel/analytics";
 import { APPS, DOCK_ORDER, type AppId } from "@/lib/apps";
 import { Window } from "@/components/Window";
 import { MenuBar } from "@/components/MenuBar";
@@ -73,6 +74,7 @@ export function Desktop() {
     if (paymentReturn) clearPaymentReturn();
     if (hotelReturn) clearHotelReturn();
     if (deepLink) {
+      if (deepLink === "stay") track("housing_deeplink_opened", { surface: "desktop" });
       const url = new URL(window.location.href);
       url.searchParams.delete("open");
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
