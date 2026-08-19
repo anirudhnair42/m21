@@ -1,10 +1,18 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
 
 /**
  * Confidential financial-aid requests → aid_requests table. Reviewed by the
  * organizing committee straight from the Supabase table editor.
  */
 export async function POST(request: Request) {
+  if (RSVP_CLOSED) {
+    return Response.json(
+      { error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.` },
+      { status: 410 },
+    );
+  }
+
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return Response.json(

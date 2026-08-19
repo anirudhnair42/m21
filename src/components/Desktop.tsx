@@ -16,6 +16,7 @@ import { Inbox } from "@/components/apps/Inbox";
 import { CalendarApp } from "@/components/apps/CalendarApp";
 import { BrowserApp } from "@/components/apps/BrowserApp";
 import { RSVPApp } from "@/components/apps/RSVPApp";
+import { HotelApp } from "@/components/apps/HotelApp";
 import { AppStub } from "@/components/apps/AppStub";
 import { IntroDialog } from "@/components/IntroDialog";
 import { useReunionFlow, REUNION_TIMINGS } from "@/lib/useReunionFlow";
@@ -24,6 +25,7 @@ import {
   clearPaymentReturn,
   type PaymentReturn,
 } from "@/lib/payments";
+import { clearHotelReturn, readHotelReturn, type HotelReturn } from "@/lib/hotel";
 
 type WindowState = {
   open: boolean;
@@ -52,11 +54,12 @@ export function Desktop() {
   const [paymentReturn] = useState<PaymentReturn | null>(() =>
     readPaymentReturn(),
   );
-  const [authReturn] = useState<boolean>(
-    () =>
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("auth") === "alf",
-  );
+  const [authReturn] = useState<AppId | null>(() => {
+    if (typeof window === "undefined") return null;
+    const value = new URLSearchParams(window.location.search).get("auth");
+    return value === "alf" || value === "stay" ? value : null;
+  });
+  const [hotelReturn] = useState<HotelReturn | null>(() => readHotelReturn());
   // Deep link from the emailed letter: `/?open=rsvp` skips the intro and opens
   // that window straight away. Without this the CTA would replay the whole
   // scripted sequence and never surface the RSVP form.
@@ -68,6 +71,7 @@ export function Desktop() {
   useEffect(() => {
     // Strip the return params so a reload doesn't replay the state.
     if (paymentReturn) clearPaymentReturn();
+    if (hotelReturn) clearHotelReturn();
     if (deepLink) {
       const url = new URL(window.location.href);
       url.searchParams.delete("open");
@@ -79,16 +83,18 @@ export function Desktop() {
       url.searchParams.delete("auth");
       window.history.replaceState({}, "", url.pathname + url.search + url.hash);
     }
-  }, [paymentReturn, authReturn, deepLink]);
+  }, [paymentReturn, hotelReturn, authReturn, deepLink]);
 
   const [windows, setWindows] = useState<WindowsMap>(() => {
     const map = emptyWindows();
     const initial: AppId | null = paymentReturn
       ? "rsvp"
+      : hotelReturn
+        ? "stay"
       : deepLink
         ? deepLink
         : authReturn
-          ? "alf"
+          ? authReturn
           : null;
     if (initial) {
       map[initial] = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
@@ -96,16 +102,20 @@ export function Desktop() {
     return map;
   });
   const [topZ, setTopZ] = useState(
-    paymentReturn || authReturn || deepLink ? 2 : 1,
+    paymentReturn || hotelReturn || authReturn || deepLink ? 2 : 1,
   );
   const [activeId, setActiveId] = useState<AppId | null>(
-    paymentReturn ? "rsvp" : deepLink ? deepLink : authReturn ? "alf" : null,
+    paymentReturn ? "rsvp" : hotelReturn ? "stay" : deepLink ? deepLink : authReturn,
   );
 
   // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
   // and the "Turn back time" gate).
   const flow = useReunionFlow({
-    skipIntro: paymentReturn !== null || authReturn || deepLink !== null,
+    skipIntro:
+      paymentReturn !== null ||
+      hotelReturn !== null ||
+      authReturn !== null ||
+      deepLink !== null,
   });
   const {
     now,
@@ -278,6 +288,8 @@ export function Desktop() {
                 onOpenALF={() => openAlfAt("home")}
                 onClose={() => closeApp("rsvp")}
               />
+            ) : id === "stay" ? (
+              <HotelApp initialReturn={hotelReturn} />
             ) : (
               <AppStub app={app} />
             )}

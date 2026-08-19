@@ -11,7 +11,11 @@ import {
 } from "@/lib/reunion-course";
 import { useMyRsvp, type MyRsvp } from "@/lib/myRsvp";
 import { useAuth, getAccessToken } from "@/lib/auth";
-import { RSVP_DEADLINE_LABEL, RSVP_DEADLINE_SHORT } from "@/lib/letter";
+import {
+  RSVP_CLOSED,
+  RSVP_DEADLINE_LABEL,
+  RSVP_DEADLINE_SHORT,
+} from "@/lib/letter";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -146,6 +150,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
   // per signed-in email; the server verifies the token and pulls the name.
   const consideringSaved = useRef<string | null>(null);
   useEffect(() => {
+    if (RSVP_CLOSED) return;
     const email = auth.user?.email;
     if (!email || consideringSaved.current === email) return;
     consideringSaved.current = email;
@@ -474,7 +479,9 @@ function ForumBanner({
   let title = firstName ? `Welcome, ${firstName}` : "Welcome back";
   let sub = joined
     ? "You're in — one reflection due before September 11."
-    : "One course this fall, one thing due — your RSVP.";
+    : RSVP_CLOSED
+      ? `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.`
+      : "One course this fall, one thing due — your RSVP.";
 
   if (view.kind === "course") {
     title = `${course.code} – ${course.sectionTitle} (${course.term})`;
@@ -614,12 +621,14 @@ function ForumHome({
                     <a className="alf-link">
                       {course.code} — RSVP to The Reunion
                     </a>
-                    {!pendingPayment && (
+                    {!pendingPayment && !RSVP_CLOSED && (
                       <span className="guide-chip">Due this week</span>
                     )}
                   </td>
                   <td className="alf-graded-result">
-                    {pendingPayment ? (
+                    {RSVP_CLOSED ? (
+                      <span className="alf-status-muted">Closed · Aug 12</span>
+                    ) : pendingPayment ? (
                       <span className="alf-status-pending">Payment pending</span>
                     ) : (
                       "Not started"
@@ -742,7 +751,7 @@ function CourseDetail({
                 >
                   <td className="alf-graded-title">
                     <a className="alf-link">RSVP to The Reunion</a>
-                    {!joined && my.status !== "pending" && (
+                    {!joined && my.status !== "pending" && !RSVP_CLOSED && (
                       <span className="guide-chip">Due this week</span>
                     )}
                   </td>
@@ -750,6 +759,8 @@ function CourseDetail({
                   <td>
                     {joined ? (
                       <span className="alf-graded-result-done">Submitted</span>
+                    ) : RSVP_CLOSED ? (
+                      <span className="alf-status-muted">Closed · Aug 12</span>
                     ) : my.status === "pending" ? (
                       <span className="alf-status-pending">Payment pending</span>
                     ) : (
@@ -900,6 +911,17 @@ function CourseDetail({
                 Class is in session
               </span>
             )}
+          </div>
+        ) : RSVP_CLOSED ? (
+          <div className="alf-fm-pendingcard">
+            <span className="alf-fm-pendingcard-eyebrow">RSVP closed</span>
+            <p className="alf-fm-pendingcard-body">
+              The deadline ended on {RSVP_DEADLINE_LABEL}. Registration and
+              deposits are no longer being accepted.
+            </p>
+            <button className="alf-fm-pendingcard-link" onClick={onOpenRSVP}>
+              View deadline notice →
+            </button>
           </div>
         ) : my.status === "pending" ? (
           <div className="alf-fm-pendingcard">
@@ -1948,18 +1970,18 @@ function SyllabusGraderView({
             </p>
 
             <p>
-              For now: please RSVP. The deposit is $100. It holds your spot,
-              helps us plan, and pins your face to the wall. RSVP closes{" "}
-              {RSVP_DEADLINE_LABEL}, so we can give the venue a real number.
+              The RSVP deadline ended on {RSVP_DEADLINE_LABEL}. Registration
+              and deposit payments are now closed, and the final class list is
+              being prepared for the venue.
             </p>
 
             <div className="alf-doc-cta">
               <div className="alf-doc-cta-text">
-                <strong>Submit your decision</strong>
-                <span>RSVP + $100 deposit · {RSVP_DEADLINE_SHORT}</span>
+                <strong>Registration is closed</strong>
+                <span>{RSVP_DEADLINE_SHORT} · payments disabled</span>
               </div>
               <button className="alf-doc-cta-btn" onClick={onMarkComplete}>
-                Review the coursework →
+                View the deadline notice →
               </button>
             </div>
 
@@ -2054,4 +2076,3 @@ function PaperclipIcon() {
     </svg>
   );
 }
-

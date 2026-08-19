@@ -76,7 +76,7 @@ export function useAuth() {
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 
-  const signIn = useCallback(async () => {
+  const signInTo = useCallback(async (destination: "alf" | "stay") => {
     setError(null);
     if (!supabase) {
       // Used to fail silently — surface it so the dead button is explained.
@@ -90,7 +90,7 @@ export function useAuth() {
       provider: "google",
       options: {
         // Land back on the desktop with ALF reopened, no intro replay.
-        redirectTo: `${window.location.origin}/?auth=alf`,
+        redirectTo: `${window.location.origin}/?auth=${destination}`,
         queryParams: OPEN_TO_ALL
           ? { prompt: "select_account" }
           : { hd: ALLOWED_DOMAINS[0], prompt: "select_account" },
@@ -104,11 +104,13 @@ export function useAuth() {
     }
   }, [supabase, notify]);
 
+  const signIn = useCallback(async () => signInTo("alf"), [signInTo]);
+
   const signOut = useCallback(() => {
     supabase?.auth.signOut();
   }, [supabase]);
 
-  return { configured, user, blockedEmail, error, signIn, signOut };
+  return { configured, user, blockedEmail, error, signIn, signInTo, signOut };
 }
 
 /** Current access token, for Authorization headers on API calls. */

@@ -6,6 +6,7 @@ import {
   RETURN_PARAM,
   type PaymentMethod,
 } from "@/lib/payments";
+import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
 
 /**
  * RSVP submit: upload the photo, insert a `pending` row, create a Stripe
@@ -13,6 +14,15 @@ import {
  * The row exists before the redirect, so unpaid RSVPs are still captured.
  */
 export async function POST(request: Request) {
+  if (RSVP_CLOSED) {
+    return Response.json(
+      {
+        error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}. Registration and payments are closed.`,
+      },
+      { status: 410 },
+    );
+  }
+
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   const supabase = getSupabaseAdmin();
   if (!stripeKey || !supabase) {
