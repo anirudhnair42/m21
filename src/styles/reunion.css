@@ -4840,6 +4840,8 @@ body {
    MOBILE INVITATION CARD — copy-the-link button
    ============================================================ */
 .invite-copy {
+  display: inline-block;
+  text-decoration: none;
   font-family: var(--sans-font-family);
   font-size: 15px;
   font-weight: 700;
