@@ -1,6 +1,7 @@
 export type AppId =
   | "alf"
   | "rsvp"
+  | "aid"
   | "itinerary"
   | "travel"
   | "stay"
@@ -54,6 +55,16 @@ export const APPS: Record<AppId, AppDef> = {
     description:
       "Registration closed after the August 12 deadline.",
     defaultRect: () => ({ x: 220, y: 140, width: 560, height: 560 }),
+  },
+  aid: {
+    id: "aid",
+    name: "Financial Aid",
+    title: "Financial Aid Request",
+    icon: "✚",
+    color: "#1463b0",
+    description:
+      "Confidential financial-aid request. Unlisted — reachable only via the ?open=aid link, so registration stays closed for everyone else.",
+    defaultRect: () => ({ x: 220, y: 120, width: 560, height: 640 }),
   },
   itinerary: {
     id: "itinerary",

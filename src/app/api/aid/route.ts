@@ -1,18 +1,15 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
-import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
 
 /**
  * Confidential financial-aid requests → aid_requests table. Reviewed by the
  * organizing committee straight from the Supabase table editor.
+ *
+ * Intentionally NOT gated by RSVP_CLOSED. Registration and payments stay
+ * closed, but aid requests remain open — reachable only through the unlisted
+ * `?open=aid` deep link (no dock icon, no on-site link), so a classmate who
+ * still needs help with the fee, housing, or travel can ask after the deadline.
  */
 export async function POST(request: Request) {
-  if (RSVP_CLOSED) {
-    return Response.json(
-      { error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.` },
-      { status: 410 },
-    );
-  }
-
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return Response.json(

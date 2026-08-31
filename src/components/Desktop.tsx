@@ -17,6 +17,7 @@ import { Inbox } from "@/components/apps/Inbox";
 import { CalendarApp } from "@/components/apps/CalendarApp";
 import { BrowserApp } from "@/components/apps/BrowserApp";
 import { RSVPApp } from "@/components/apps/RSVPApp";
+import { AidApp } from "@/components/apps/AidApp";
 import { HotelApp } from "@/components/apps/HotelApp";
 import { AppStub } from "@/components/apps/AppStub";
 import { IntroDialog } from "@/components/IntroDialog";
@@ -292,6 +293,8 @@ export function Desktop() {
               />
             ) : id === "stay" ? (
               <HotelApp initialReturn={hotelReturn} />
+            ) : id === "aid" ? (
+              <AidApp />
             ) : (
               <AppStub app={app} />
             )}
