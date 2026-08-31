@@ -3,21 +3,31 @@
 import { useRef, useState } from "react";
 import { MinervaWordmark } from "@/components/MinervaLogo";
 import { MobileHotel } from "@/components/mobile/MobileHotel";
+import { AidApp } from "@/components/apps/AidApp";
 
 /**
  * Mobile is intentionally minimal: the scripted iOS experience only shines on a
  * desktop, so phones get a single tasteful invitation card that points people
  * there rather than a degraded version of the full flow. The one exception is
  * the housing deeplink (/?open=stay) from Branden's email: someone on a phone
- * who just wants a room shouldn't need a computer to book one.
+ * who just wants a room shouldn't need a computer to book one. The unlisted
+ * financial-aid link (/?open=aid) is the same idea: someone asking for help is
+ * likely doing it from a phone, so the form works here too.
  */
 export function MobileShell() {
-  const [wantsHousing] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("open") === "stay";
+  const [openParam] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("open");
   });
 
-  if (wantsHousing) return <MobileHotel />;
+  if (openParam === "stay") return <MobileHotel />;
+  if (openParam === "aid") {
+    return (
+      <div style={{ minHeight: "100dvh", background: "var(--minerva-paper)" }}>
+        <AidApp />
+      </div>
+    );
+  }
 
   return (
     <div
