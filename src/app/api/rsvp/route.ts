@@ -7,22 +7,18 @@ import {
   type PaymentMethod,
 } from "@/lib/payments";
 import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
+import { hasLateInvite } from "@/lib/lateInviteServer";
 
 /**
  * RSVP submit: upload the photo, insert a `pending` row, create a Stripe
  * Checkout Session for the chosen method, and hand back the checkout URL.
  * The row exists before the redirect, so unpaid RSVPs are still captured.
+ *
+ * Closed since Aug 12 — except for the one-person late invite (the `invite`
+ * form field checked against LATE_RSVP_INVITE_TOKEN below, after the form is
+ * parsed). RSVP_CLOSED itself never flips.
  */
 export async function POST(request: Request) {
-  if (RSVP_CLOSED) {
-    return Response.json(
-      {
-        error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}. Registration and payments are closed.`,
-      },
-      { status: 410 },
-    );
-  }
-
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   const supabase = getSupabaseAdmin();
   if (!stripeKey || !supabase) {
@@ -37,6 +33,15 @@ export async function POST(request: Request) {
     form = await request.formData();
   } catch {
     return Response.json({ error: "Expected multipart form data." }, { status: 400 });
+  }
+
+  if (RSVP_CLOSED && !hasLateInvite(form)) {
+    return Response.json(
+      {
+        error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}. Registration and payments are closed.`,
+      },
+      { status: 410 },
+    );
   }
 
   const name = String(form.get("name") ?? "").trim();

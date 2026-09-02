@@ -1,19 +1,15 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { RSVP_CLOSED, RSVP_DEADLINE_LABEL } from "@/lib/letter";
+import { hasLateInvite } from "@/lib/lateInviteServer";
 
 /**
  * Replace the RSVP photo (people deserve a retake). Authorized by possession
  * of the row's UUID — same model as the status endpoint — plus, when a
  * Google session is present and the row is owned, the emails must match.
+ * Closed with the RSVP, except for the one-person late invite (checked after
+ * the form is parsed).
  */
 export async function POST(request: Request) {
-  if (RSVP_CLOSED) {
-    return Response.json(
-      { error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.` },
-      { status: 410 },
-    );
-  }
-
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return Response.json({ error: "Backend not configured." }, { status: 503 });
@@ -24,6 +20,13 @@ export async function POST(request: Request) {
     form = await request.formData();
   } catch {
     return Response.json({ error: "Expected multipart form data." }, { status: 400 });
+  }
+
+  if (RSVP_CLOSED && !hasLateInvite(form)) {
+    return Response.json(
+      { error: `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.` },
+      { status: 410 },
+    );
   }
 
   const rsvpId = String(form.get("rsvp_id") ?? "");

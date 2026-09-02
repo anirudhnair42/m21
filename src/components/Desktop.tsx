@@ -28,6 +28,7 @@ import {
   type PaymentReturn,
 } from "@/lib/payments";
 import { clearHotelReturn, readHotelReturn, type HotelReturn } from "@/lib/hotel";
+import { getInviteToken } from "@/lib/lateInvite";
 
 type WindowState = {
   open: boolean;
@@ -71,6 +72,16 @@ export function Desktop() {
     return value && value in APPS ? (value as AppId) : null;
   });
   useEffect(() => {
+    // One-person late-RSVP invite: stash the token (sessionStorage) before
+    // the strips below wipe it from the URL — the RSVP window mounts a
+    // render later and reads the stash.
+    if (getInviteToken()) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("invite")) {
+        url.searchParams.delete("invite");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
+    }
     // Strip the return params so a reload doesn't replay the state.
     if (paymentReturn) clearPaymentReturn();
     if (hotelReturn) clearHotelReturn();
