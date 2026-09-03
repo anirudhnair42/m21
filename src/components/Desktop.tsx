@@ -28,7 +28,7 @@ import {
   type PaymentReturn,
 } from "@/lib/payments";
 import { clearHotelReturn, readHotelReturn, type HotelReturn } from "@/lib/hotel";
-import { getInviteToken } from "@/lib/lateInvite";
+import { getInviteToken, INVITE_PARAMS } from "@/lib/lateInvite";
 
 type WindowState = {
   open: boolean;
@@ -60,7 +60,7 @@ export function Desktop() {
   const [authReturn] = useState<AppId | null>(() => {
     if (typeof window === "undefined") return null;
     const value = new URLSearchParams(window.location.search).get("auth");
-    return value === "alf" || value === "stay" ? value : null;
+    return value === "alf" || value === "stay" || value === "rsvp" ? value : null;
   });
   const [hotelReturn] = useState<HotelReturn | null>(() => readHotelReturn());
   // Deep link from the emailed letter: `/?open=rsvp` skips the intro and opens
@@ -69,7 +69,11 @@ export function Desktop() {
   const [deepLink] = useState<AppId | null>(() => {
     if (typeof window === "undefined") return null;
     const value = new URLSearchParams(window.location.search).get("open");
-    return value && value in APPS ? (value as AppId) : null;
+    if (value && value in APPS) return value as AppId;
+    // A late-RSVP invite token opens the RSVP window on its own, so the link
+    // can be a single param (`?invite=<token>`) with no ampersand to mangle.
+    if (getInviteToken() !== null) return "rsvp";
+    return null;
   });
   useEffect(() => {
     // One-person late-RSVP invite: stash the token (sessionStorage) before
@@ -77,8 +81,14 @@ export function Desktop() {
     // render later and reads the stash.
     if (getInviteToken()) {
       const url = new URL(window.location.href);
-      if (url.searchParams.has("invite")) {
-        url.searchParams.delete("invite");
+      let changed = false;
+      for (const p of INVITE_PARAMS) {
+        if (url.searchParams.has(p)) {
+          url.searchParams.delete(p);
+          changed = true;
+        }
+      }
+      if (changed) {
         window.history.replaceState({}, "", url.pathname + url.search + url.hash);
       }
     }

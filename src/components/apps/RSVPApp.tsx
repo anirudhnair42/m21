@@ -85,7 +85,7 @@ export function RSVPApp({
         )}
         {view === "form" && !showJoined && needSignIn && (
           <RSVPSignInGate
-            onGoogle={auth.signIn}
+            onGoogle={() => auth.signInTo("rsvp")}
             blockedEmail={auth.blockedEmail}
             error={auth.error}
             onBack={onClose}

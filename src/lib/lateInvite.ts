@@ -23,7 +23,11 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 export function getInviteToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const fromUrl = new URLSearchParams(window.location.search).get("invite");
+    const params = new URLSearchParams(window.location.search);
+    // Read `invite`, but also `amp;invite`: many email clients HTML-encode the
+    // `&` in a link, so `?open=rsvp&invite=X` arrives as `?open=rsvp&amp;invite=X`
+    // and the real param name becomes `amp;invite`. Rescue that too.
+    const fromUrl = params.get("invite") ?? params.get("amp;invite");
     if (fromUrl && TOKEN_RE.test(fromUrl)) {
       sessionStorage.setItem(KEY, fromUrl);
       return fromUrl;
@@ -34,3 +38,7 @@ export function getInviteToken(): string | null {
     return null;
   }
 }
+
+/** Param names the invite token can arrive under — the second is the
+ * HTML-encoded-ampersand variant. Used to strip them from the URL. */
+export const INVITE_PARAMS = ["invite", "amp;invite"] as const;

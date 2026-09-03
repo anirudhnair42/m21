@@ -76,7 +76,7 @@ export function useAuth() {
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 
-  const signInTo = useCallback(async (destination: "alf" | "stay") => {
+  const signInTo = useCallback(async (destination: "alf" | "stay" | "rsvp") => {
     setError(null);
     if (!supabase) {
       // Used to fail silently — surface it so the dead button is explained.

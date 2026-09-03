@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { MinervaWordmark } from "@/components/MinervaLogo";
 import { MobileHotel } from "@/components/mobile/MobileHotel";
 import { AidApp } from "@/components/apps/AidApp";
+import { RSVPApp } from "@/components/apps/RSVPApp";
+import { getInviteToken } from "@/lib/lateInvite";
 
 /**
  * Mobile is intentionally minimal: the scripted iOS experience only shines on a
@@ -19,12 +21,22 @@ export function MobileShell() {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("open");
   });
+  // A late-RSVP invite works on a phone too — someone who missed the deadline
+  // shouldn't be told to find a computer just to register.
+  const [invited] = useState(() => getInviteToken() !== null);
 
   if (openParam === "stay") return <MobileHotel />;
   if (openParam === "aid") {
     return (
       <div style={{ minHeight: "100dvh", background: "var(--minerva-paper)" }}>
         <AidApp />
+      </div>
+    );
+  }
+  if (invited) {
+    return (
+      <div style={{ minHeight: "100dvh", background: "var(--minerva-paper)" }}>
+        <RSVPApp />
       </div>
     );
   }
