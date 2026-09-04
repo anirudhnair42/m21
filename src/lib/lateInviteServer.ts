@@ -4,12 +4,26 @@ import "server-only";
 
 /**
  * The server side of the one-person late-RSVP invite (see lateInvite.ts).
- * True only when the submitted form carries the exact token in the
- * LATE_RSVP_INVITE_TOKEN env var. Env var unset → nothing matches and the
- * closed gate holds unconditionally; delete the var to kill the link.
+ * A candidate matches only when it equals the LATE_RSVP_INVITE_TOKEN env var
+ * exactly. Env var unset → nothing matches and the closed gate holds
+ * unconditionally; delete the var to kill the link.
  */
-export function hasLateInvite(form: FormData): boolean {
+export function isLateInviteToken(candidate: unknown): boolean {
   const expected = process.env.LATE_RSVP_INVITE_TOKEN;
-  const got = form.get("invite");
-  return !!expected && typeof got === "string" && got === expected;
+  if (!expected || typeof candidate !== "string" || candidate.length === 0) {
+    return false;
+  }
+  const ok = candidate === expected;
+  if (!ok) {
+    // Diagnostics for a mistyped/mangled link — never log the full values.
+    console.warn(
+      `late invite mismatch: got len=${candidate.length} prefix=${candidate.slice(0, 4)}, expected len=${expected.length}`,
+    );
+  }
+  return ok;
+}
+
+/** True when a submitted form carries the matching `invite` field. */
+export function hasLateInvite(form: FormData): boolean {
+  return isLateInviteToken(form.get("invite"));
 }

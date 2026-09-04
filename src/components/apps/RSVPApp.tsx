@@ -44,13 +44,34 @@ export function RSVPApp({
     initialReturn?.kind === "success" ? "success" : "form",
   );
   // RSVP stayed closed after Aug 12 — the full flow below survives for exactly
-  // one case: a private `?open=rsvp&invite=<token>` link (see lateInvite.ts).
-  // A Stripe return counts too, so the invitee's success screen renders even
-  // if the stash is gone. Everyone else gets the closed notice, and the
-  // server checks the same token, so this gate is cosmetic, not load-bearing.
-  const [invited] = useState(
-    () => getInviteToken() !== null || initialReturn != null,
-  );
+  // one case: a private invite link (`?invite=<token>`, see lateInvite.ts).
+  // The server is the real gate (/api/rsvp checks the same token); the check
+  // below just decides which screen to show.
+  const [inviteToken] = useState(() => getInviteToken());
+  // "checking" → ask the server whether the token is real; "valid" → show the
+  // flow; "invalid" → say so plainly (a mangled or stale link) rather than
+  // letting someone fill the whole form and fail at "Continue to payment";
+  // "none" → the ordinary closed notice. A Stripe return is trusted as valid
+  // so the invitee's success screen renders even if the stash is gone.
+  const [inviteState, setInviteState] = useState<
+    "none" | "checking" | "valid" | "invalid"
+  >(() => (initialReturn != null ? "valid" : inviteToken ? "checking" : "none"));
+  useEffect(() => {
+    if (inviteState !== "checking" || !inviteToken) return;
+    let cancelled = false;
+    fetch(`/api/rsvp/invite?token=${encodeURIComponent(inviteToken)}`)
+      .then((r) => r.json())
+      .then((body: { valid?: boolean }) => {
+        if (!cancelled) setInviteState(body.valid ? "valid" : "invalid");
+      })
+      .catch(() => {
+        // Network hiccup: fall through to the form; the server still gates.
+        if (!cancelled) setInviteState("valid");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteState, inviteToken]);
   const paidMethod =
     initialReturn?.kind === "success" ? initialReturn.method : "card";
   const wasCancelled = initialReturn?.kind === "cancelled";
@@ -66,8 +87,23 @@ export function RSVPApp({
   // sign-in to require, so fall through and let the server return its 503.
   const needSignIn = auth.configured && !auth.user;
 
-  if (!invited) {
+  if (inviteState === "none") {
     return <RSVPClosedNotice onOpenALF={onOpenALF} onClose={onClose} />;
+  }
+  if (inviteState === "invalid") {
+    return <RSVPBadInviteNotice onClose={onClose} />;
+  }
+  if (inviteState === "checking") {
+    return (
+      <div className="rsvp">
+        <div className="rsvp-inner">
+          <div className="rsvp-done rsvp-closed-state">
+            <div className="rsvp-eyebrow">RU26 · Registration</div>
+            <p className="rsvp-lede">Checking your invite…</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -148,6 +184,35 @@ function RSVPClosedNotice({
               </button>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The invite link reached us, but its token isn't the live one — usually a
+ * link that got cut or altered in transit. Ask for a fresh one. */
+function RSVPBadInviteNotice({ onClose }: { onClose?: () => void }) {
+  return (
+    <div className="rsvp">
+      <div className="rsvp-inner">
+        <div className="rsvp-done rsvp-closed-state">
+          <div className="rsvp-closed-icon" aria-hidden="true">12</div>
+          <div className="rsvp-eyebrow">RU26 · Registration</div>
+          <h1 className="rsvp-title">This invite link isn&apos;t valid</h1>
+          <p className="rsvp-lede">
+            The RSVP deadline ended on {RSVP_DEADLINE_LABEL}, and the private
+            invite in this link doesn&apos;t match the one we have on file — it
+            may have been cut or altered along the way. Reply to Ani for a
+            fresh link and try again.
+          </p>
+          {onClose && (
+            <div className="rsvp-actions">
+              <button className="rsvp-aidlink" onClick={onClose}>
+                Close this window
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
