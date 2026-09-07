@@ -303,7 +303,7 @@ export const REUNION_COURSE: Course = {
     { name: "Anirudh Nair" },
     { name: "Mau Urdaneta" },
     { name: "Amal Muthukumaran" },
-    { name: "Dulce Riviera" },
+    { name: "Dulce Rivera" },
     { name: "Nathan Torento" },
     { name: "Anna Graves" },
   ],
