@@ -77,11 +77,16 @@ export function ForumStoreProvider({
     };
     check();
     const supabase = getSupabaseBrowser();
+    // supabase-js holds its auth lock while this callback runs, and
+    // getSession() inside it deadlocks — so defer the re-check a tick.
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = supabase?.auth.onAuthStateChange(() => {
-      check();
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(check, 50);
     });
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
       sub?.data.subscription.unsubscribe();
     };
   }, [enabledProp]);

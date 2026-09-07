@@ -27,6 +27,18 @@ function firstLast(s: string): string {
   const parts = norm(s).split(" ");
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0] ?? "";
 }
+/** "Ani Nair" matches "Anirudh Nair": same last name, one first name a prefix of the other. */
+function sameName(a: string, b: string): boolean {
+  const [af, al] = firstLast(a).split(" ");
+  const [bf, bl] = firstLast(b).split(" ");
+  if (!af || !bf || !al || !bl || al !== bl) return false;
+  const short = af.length <= bf.length ? af : bf;
+  const long = af.length <= bf.length ? bf : af;
+  return short.length >= 3 && long.startsWith(short);
+}
+function inNames(names: string[], candidate: string): boolean {
+  return !!candidate && names.some((n) => sameName(n, candidate));
+}
 
 export async function GET(request: Request) {
   const supabase = getSupabaseAdmin();
@@ -47,7 +59,7 @@ export async function GET(request: Request) {
 
   const split = (v: string | undefined) => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const testerEmails = split(process.env.FORUM_TESTERS).map((s) => s.toLowerCase());
-  const testerNames = new Set(split(process.env.FORUM_TESTER_NAMES).map(firstLast));
+  const testerNames = split(process.env.FORUM_TESTER_NAMES);
   const open = process.env.FORUM_OPEN === "1";
 
   const { data: rsvp } = await supabase
@@ -64,10 +76,12 @@ export async function GET(request: Request) {
     (typeof meta.full_name === "string" && meta.full_name) || (typeof meta.name === "string" && meta.name) || "";
 
   const isTester =
-    testerEmails.includes(email) ||
-    (rsvp?.name ? testerNames.has(firstLast(rsvp.name)) : false) ||
-    (googleName ? testerNames.has(firstLast(googleName)) : false);
+    testerEmails.includes(email) || inNames(testerNames, rsvp?.name ?? "") || inNames(testerNames, googleName);
   const allowed = isTester || (open && rsvp !== null);
+  // One line per check in the Vercel logs, so "why can't X get in" is answerable.
+  console.log(
+    `forum/access ${allowed ? "ALLOW" : "DENY"} email=${email} google="${googleName}" rsvp="${rsvp?.name ?? "-"}" testers=${testerEmails.length}/${testerNames.length} open=${open}`,
+  );
 
   // A tester signing in with their non-RSVP account still gets their RSVP
   // photo: look the row up by name.
@@ -80,7 +94,7 @@ export async function GET(request: Request) {
       .in("status", ["paid", "processing"])
       .ilike("name", `${googleName.split(" ")[0]}%`)
       .limit(5);
-    const hit = (byName ?? []).find((r) => firstLast(r.name) === firstLast(googleName));
+    const hit = (byName ?? []).find((r) => sameName(r.name, googleName));
     if (hit) {
       photoUrl = hit.photo_url ?? null;
       name = hit.name;
