@@ -28,9 +28,13 @@ In session 1.2 (`SAT`), the resource list becomes:
 
 | row | points at |
 |---|---|
-| Questival challenge list | `https://<walkspot>/e/<CODE>` |
-| Nostalgic stops map (851, 1412, Corona Heights…) | `https://<walkspot>/e/<CODE>/map` |
-| Photo wall — submit your recreation | `https://<walkspot>/e/<CODE>/feed` |
+| Questival challenge list | `https://www.walkspotter.com/e/UPBYAA` |
+| Nostalgic stops map (851, 1412, Corona Heights…) | `https://www.walkspotter.com/e/UPBYAA/map` |
+| Photo wall — submit your recreation | `https://www.walkspotter.com/e/UPBYAA/feed` |
+
+The hunt is `UPBYAA`, seeded with the 53 confirmed attendees from
+`/api/participants` and 30 challenges. The apex redirects to `www`, so the
+`www` form is the canonical one to paste anywhere.
 
 Point `questival.m2021.co` at the walkspot Vercel project and the link reads
 as native. One domain, two projects, zero code moved. The `photos` stub can
