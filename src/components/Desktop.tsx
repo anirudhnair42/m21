@@ -20,6 +20,13 @@ import { RSVPApp } from "@/components/apps/RSVPApp";
 import { AidApp } from "@/components/apps/AidApp";
 import { HotelApp } from "@/components/apps/HotelApp";
 import { AppStub } from "@/components/apps/AppStub";
+import { WeekendApp } from "@/components/apps/WeekendApp";
+import { MapApp } from "@/components/apps/MapApp";
+import { PhotosApp } from "@/components/apps/PhotosApp";
+import { ForumToast, useForumStore } from "@/components/forum/ForumStore";
+
+/** Weekend apps: in the dock only for the cohost preview list until launch. */
+const GATED_APPS = new Set<AppId>(["itinerary", "map", "photos"]);
 import { IntroDialog } from "@/components/IntroDialog";
 import { useReunionFlow, REUNION_TIMINGS } from "@/lib/useReunionFlow";
 import {
@@ -110,6 +117,10 @@ export function Desktop() {
   const [activeId, setActiveId] = useState<AppId | null>(
     paymentReturn ? "rsvp" : hotelReturn ? "stay" : deepLink ? deepLink : authReturn,
   );
+
+  // Reunion invitations + plans, shared with Calendar/Maps/Photos/ALF.
+  const forum = useForumStore();
+  const [alfQuest, setAlfQuest] = useState<string | null>(null);
 
   // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
   // and the "Turn back time" gate).
@@ -230,6 +241,7 @@ export function Desktop() {
   }
 
   const activeApp = activeId ? APPS[activeId] : null;
+  const inviteUnread = forum.unanswered;
   const menuAppName = activeApp ? activeApp.name : "Finder";
 
   return (
@@ -271,6 +283,8 @@ export function Desktop() {
                 onOpenRSVP={() => openApp("rsvp")}
                 rsvpCount={rsvpCount}
                 initialView={alfInitialView}
+                initialQuest={alfQuest}
+                onOpenMap={() => openApp("map")}
               />
             ) : id === "mail" ? (
               <Inbox onOpenDecision={() => openApp("browser")} />
@@ -293,6 +307,20 @@ export function Desktop() {
               />
             ) : id === "stay" ? (
               <HotelApp initialReturn={hotelReturn} />
+            ) : GATED_APPS.has(id) && !forum.enabled ? (
+              <AppStub app={app} />
+            ) : id === "itinerary" ? (
+              <WeekendApp />
+            ) : id === "map" ? (
+              <MapApp
+                onOpenActivity={() => openApp("itinerary")}
+                onOpenQuest={(qid) => {
+                  setAlfQuest(qid);
+                  openAlfAt("questival");
+                }}
+              />
+            ) : id === "photos" ? (
+              <PhotosApp />
             ) : id === "aid" ? (
               <AidApp />
             ) : (
@@ -305,7 +333,7 @@ export function Desktop() {
       <div className="dock-wrap">
         <div className="dock">
           <DockIcon icon={<FinderIconGlyph />} label="Finder" />
-          {DOCK_ORDER.map((id) => {
+          {DOCK_ORDER.filter((id) => forum.enabled || !GATED_APPS.has(id)).map((id) => {
             const app = APPS[id];
             const w = windows[id];
             return (
@@ -319,7 +347,7 @@ export function Desktop() {
                   else openApp(id);
                 }}
                 hasWindow={w?.open && !w?.minimized}
-                badge={id === "mail" ? mailUnread : 0}
+                badge={id === "mail" ? mailUnread + inviteUnread : 0}
               />
             );
           })}
@@ -327,6 +355,8 @@ export function Desktop() {
           <DockIcon icon={<TrashIconGlyph />} label="Trash" />
         </div>
       </div>
+
+      <ForumToast />
 
       {showNotification && (
         <div

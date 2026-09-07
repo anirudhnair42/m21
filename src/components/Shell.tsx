@@ -6,7 +6,9 @@ import { MobileShell } from "@/components/mobile/MobileShell";
 import { HoverTip } from "@/components/HoverTip";
 import { NARROW_QUERY } from "@/lib/useIsNarrow";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { takeForumNext } from "@/lib/auth";
 import { SnackbarProvider } from "@/lib/snackbar";
+import { ForumStoreProvider } from "@/components/forum/ForumStore";
 
 /**
  * Picks the experience by viewport: phones (≤820px) get the iOS 11 mobile
@@ -21,7 +23,23 @@ export function Shell() {
   useEffect(() => {
     // Warm the auth client FIRST, while the OAuth return params are still in
     // the URL — the shells clean the URL a beat later.
-    getSupabaseBrowser();
+    const supabase = getSupabaseBrowser();
+    // A Google sign-in started on the mobile Forum can land here if the
+    // OAuth redirect got collapsed to the site root. Finish the exchange,
+    // then send them back to the page they were on.
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("code") || params.get("auth") === "forum") {
+      const next = takeForumNext();
+      if (next && supabase) {
+        supabase.auth.getSession().then(({ data }) => {
+          if (data.session) window.location.replace(next);
+        });
+        const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+          if (session) window.location.replace(next);
+        });
+        setTimeout(() => sub.subscription.unsubscribe(), 15_000);
+      }
+    }
     const mql = window.matchMedia(NARROW_QUERY);
     setIsNarrow(mql.matches);
     setMounted(true);
@@ -41,7 +59,13 @@ export function Shell() {
 
   return (
     <SnackbarProvider>
-      {isNarrow ? <MobileShell /> : <Desktop />}
+      {isNarrow ? (
+        <MobileShell />
+      ) : (
+        <ForumStoreProvider>
+          <Desktop />
+        </ForumStoreProvider>
+      )}
       <HoverTip />
     </SnackbarProvider>
   );

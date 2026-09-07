@@ -2,6 +2,7 @@
 @import "../styles/reunion.css";
 @import "../styles/ios.css";
 @import "../styles/letter.css";
+@import "../styles/forum-mobile.css";
 
 /* Chronicle Display — self-hosted from /public/fonts. */
 @font-face {

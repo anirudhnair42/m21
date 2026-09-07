@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { MinervaLogo, MinervaWordmark } from "@/components/MinervaLogo";
 import { useIsNarrow } from "@/lib/useIsNarrow";
+import { useForumStore } from "@/components/forum/ForumStore";
+import { getQuest } from "@/lib/questival";
+import { getActivity } from "@/lib/weekend";
+import { firstName, sample, timeShort } from "@/components/forum/store";
 
 type EmailRow = {
   from: string;
@@ -76,14 +80,14 @@ const OTHER_EMAILS: EmailRow[] = [
   },
 ];
 
-function MailSidebar() {
+function MailSidebar({ unread }: { unread: number }) {
   return (
     <div className="mail-sidebar">
       <div className="mail-sidebar-section">Mailboxes</div>
       <div className="mail-sidebar-item active">
         <span className="mail-sidebar-item-icon">📥</span>
         <span>Inbox</span>
-        <span className="mail-sidebar-count">1</span>
+        <span className="mail-sidebar-count">{unread}</span>
       </div>
       <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
         <span className="mail-sidebar-item-icon">✦</span>
@@ -229,6 +233,66 @@ function MailPaneAcceptance({ onOpenDecision }: { onOpenDecision: () => void }) 
   );
 }
 
+function MailPaneInvite({
+  invite,
+  reply,
+  others,
+  onReply,
+  now,
+}: {
+  invite: { id: string; from: { name: string; photo_url: string | null }; kind: "quest" | "activity"; targetId: string; at: number };
+  reply?: "in" | "maybe";
+  others: string[];
+  onReply: (r: "in" | "maybe") => void;
+  now: number;
+}) {
+  const q = invite.kind === "quest" ? getQuest(invite.targetId) : undefined;
+  const a = invite.kind === "activity" ? getActivity(invite.targetId) : undefined;
+  const title = q?.title ?? a?.title ?? invite.targetId;
+  void now;
+  return (
+    <>
+      <div className="mail-pane-header">
+        <div className="mail-pane-subject">{firstName(invite.from.name)} wants to do {title} with you</div>
+        <div className="mail-pane-meta">
+          <div className="mail-pane-avatar" style={{ overflow: "hidden" }}>
+            {invite.from.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={invite.from.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span>{invite.from.name.charAt(0)}</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="mail-pane-from">{invite.from.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
+            <div className="mail-pane-to">to me{others.length ? `, ${others.join(", ")}` : ""}</div>
+          </div>
+          <div className="mail-pane-date">Sat, Sep 12, {timeShort(invite.at)}</div>
+        </div>
+      </div>
+      <div className="mail-pane-body">
+        <div className="mail-invite">
+          <p>Hey,</p>
+          <p>
+            I&apos;m planning <b>{title}</b> on Saturday{q?.venue ? ` at ${q.venue}` : a?.venue ? ` at ${a.venue}` : ""}
+            {q ? ` (${q.points} pts${q.teamMin ? ", team quest" : ""})` : ""}. Want in?{others.length ? ` ${others.join(" and ")} ${others.length > 1 ? "are" : "is"} in too.` : ""}
+          </p>
+          <p>{q ? q.prompt : a?.body}</p>
+          {reply ? (
+            <p className="fm-inv-done">{reply === "in" ? "✓ You're in — it's on your list, and on the map." : "Maybe — we'll nudge you when they're nearby."}</p>
+          ) : (
+            <div className="fm-btn-row">
+              <button className="fm-btn fm-btn-going" onClick={() => onReply("in")}>I&apos;m in</button>
+              <button className="fm-btn" onClick={() => onReply("maybe")}>Maybe</button>
+            </div>
+          )}
+          <p className="mail-invite-sig" style={{ marginTop: 18 }}>— {firstName(invite.from.name)}, via RU26</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
 type InboxProps = {
   onOpenDecision: () => void;
   defaultSelected?: boolean;
@@ -236,9 +300,13 @@ type InboxProps = {
 
 export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
   const isNarrow = useIsNarrow();
-  const [selected, setSelected] = useState<"acceptance" | null>(
+  const [selected, setSelected] = useState<string | null>(
     defaultSelected ? "acceptance" : null,
   );
+  // Reunion invitations ("Anna wants to do X with you") land in the same
+  // inbox, above the 2017 mail. They come from the shared Forum store.
+  const { invites, replies, reply, people, plans, now } = useForumStore();
+  const unansweredCount = invites.filter((i) => !replies[i.id]).length;
   const [unread, setUnread] = useState(!defaultSelected);
   // On phones Mail is a navigation stack: list first, then the message detail.
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -300,13 +368,33 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
       </div>
 
       <div className={`mail-body ${isNarrow ? "mail-body-mobile" : ""}`}>
-        {!isNarrow && <MailSidebar />}
+        {!isNarrow && <MailSidebar unread={unansweredCount + (unread ? 1 : 0)} />}
         {showList && (
           <div className="mail-list">
             <div className="mail-list-header">
               <span>Sort by Date ▾</span>
-              <span>7 messages</span>
+              <span>{7 + invites.length + plans.filter((p) => p.with.length).length} messages</span>
             </div>
+            {invites.map((inv) => {
+              const title = (inv.kind === "quest" ? getQuest(inv.targetId)?.title : getActivity(inv.targetId)?.title) ?? inv.targetId;
+              return (
+                <MailRow
+                  key={inv.id}
+                  email={{
+                    from: inv.from.name,
+                    subject: `${firstName(inv.from.name)} wants to do ${title} with you`,
+                    preview: `Sat, Sep 12 · ${inv.kind === "quest" ? `${getQuest(inv.targetId)?.points ?? ""} pts · Assignment 3: Questival` : "Session 1.2"} — reply I'm in or Maybe.`,
+                    time: timeShort(inv.at),
+                  }}
+                  isUnread={!replies[inv.id]}
+                  isSelected={selected === inv.id}
+                  onClick={() => {
+                    setSelected(inv.id);
+                    setMobileDetail(true);
+                  }}
+                />
+              );
+            })}
             <MailRow
               email={ACCEPTANCE_EMAIL}
               isUnread={unread}
@@ -337,6 +425,14 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
             )}
             {selected === "acceptance" ? (
               <MailPaneAcceptance onOpenDecision={onOpenDecision} />
+            ) : selected && invites.some((i) => i.id === selected) ? (
+              <MailPaneInvite
+                invite={invites.find((i) => i.id === selected)!}
+                reply={replies[selected]}
+                others={sample(people, "co" + selected, 10).filter((p) => p.name !== invites.find((i) => i.id === selected)!.from.name).slice(0, 2).map((p) => firstName(p.name))}
+                onReply={(r) => reply(selected, r)}
+                now={now}
+              />
             ) : (
               <MailPaneEmpty />
             )}

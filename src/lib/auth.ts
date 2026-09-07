@@ -44,6 +44,17 @@ function toAuthUser(u: User): AuthUser | null {
   };
 }
 
+/** Read-and-clear the Forum return path stored before a Google redirect. */
+export function takeForumNext(): string | null {
+  try {
+    const v = window.localStorage.getItem("fm_auth_next");
+    if (v) window.localStorage.removeItem("fm_auth_next");
+    return v;
+  } catch {
+    return null;
+  }
+}
+
 export function useAuth() {
   const supabase = getSupabaseBrowser();
   const configured = supabase !== null;
@@ -76,7 +87,11 @@ export function useAuth() {
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 
-  const signInTo = useCallback(async (destination: "alf" | "stay") => {
+  /** Where the mobile Forum should land after Google, if the redirect
+   * gets collapsed to the site root by Supabase's allowlist. */
+  const FORUM_NEXT_KEY = "fm_auth_next";
+
+  const signInTo = useCallback(async (destination: "alf" | "stay" | "forum") => {
     setError(null);
     if (!supabase) {
       // Used to fail silently — surface it so the dead button is explained.
@@ -86,11 +101,25 @@ export function useAuth() {
       notify(msg);
       return;
     }
+    let redirectTo = `${window.location.origin}/?auth=${destination}`;
+    if (destination === "forum") {
+      // Come back to this exact Forum page. If Supabase's redirect
+      // allowlist collapses us to "/", Shell reads the stored path.
+      const next = window.location.pathname + window.location.search;
+      try {
+        window.localStorage.setItem(FORUM_NEXT_KEY, next);
+      } catch {
+        /* private mode */
+      }
+      const u = new URL(window.location.href);
+      u.searchParams.set("auth", "forum");
+      redirectTo = u.toString();
+    }
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         // Land back on the desktop with ALF reopened, no intro replay.
-        redirectTo: `${window.location.origin}/?auth=${destination}`,
+        redirectTo,
         queryParams: OPEN_TO_ALL
           ? { prompt: "select_account" }
           : { hd: ALLOWED_DOMAINS[0], prompt: "select_account" },

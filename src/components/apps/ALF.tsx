@@ -16,6 +16,9 @@ import {
   RSVP_DEADLINE_LABEL,
   RSVP_DEADLINE_SHORT,
 } from "@/lib/letter";
+import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
+import { useForumStore } from "@/components/forum/ForumStore";
+import { QUESTIVAL } from "@/lib/questival";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -23,7 +26,8 @@ export type AlfView =
   | "home"
   | "course"
   | "session"
-  | "syllabus";
+  | "syllabus"
+  | "questival";
 
 type ViewState =
   | { kind: "home" }
@@ -31,7 +35,11 @@ type ViewState =
   | { kind: "session"; sessionId: string }
   | { kind: "syllabus"; courseId: string }
   | { kind: "assignment"; assignmentId: string }
-  | { kind: "classroom" };
+  | { kind: "classroom" }
+  | { kind: "questival" }
+  | { kind: "quest"; questId: string }
+  | { kind: "questival-me" }
+  | { kind: "questival-live" };
 
 type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events";
 
@@ -40,10 +48,15 @@ type Props = {
   rsvpCount: number | null;
   /** Deep-link target. Pass "syllabus" to open straight onto the grader. */
   initialView?: AlfView;
+  /** With initialView "questival": open this quest. */
+  initialQuest?: string | null;
+  onOpenMap?: () => void;
 };
 
-function initialViewState(initial: AlfView | undefined): ViewState {
+function initialViewState(initial: AlfView | undefined, quest?: string | null): ViewState {
   switch (initial) {
+    case "questival":
+      return quest ? { kind: "quest", questId: quest } : { kind: "questival" };
     case "syllabus":
       return { kind: "syllabus", courseId: REUNION_COURSE.id };
     case "course":
@@ -55,7 +68,7 @@ function initialViewState(initial: AlfView | undefined): ViewState {
 }
 
 function navForInitial(initial: AlfView | undefined): Nav {
-  if (initial === "syllabus" || initial === "course") return "courses";
+  if (initial === "syllabus" || initial === "course" || initial === "questival") return "courses";
   return "home";
 }
 
@@ -125,8 +138,10 @@ function useA11Submission(rsvpId: string | null) {
   return { submission, submitted: submission !== null, loaded, saving, error, save };
 }
 
-export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
-  const [view, setView] = useState<ViewState>(() => initialViewState(initialView));
+export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMap }: Props) {
+  const [view, setView] = useState<ViewState>(() => initialViewState(initialView, initialQuest));
+  // Assignment 3 (Questival) shares its state with Calendar / Maps / Photos / Mail.
+  const forum = useForumStore();
   const [nav, setNav] = useState<Nav>(() => navForInitial(initialView));
   const [coursesOpen, setCoursesOpen] = useState(true);
   // Identity: Google session (Minerva Workspace) + this device/account's RSVP.
@@ -199,6 +214,10 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
     setNav("courses");
     setView({ kind: "classroom" });
   };
+  const openQuestival = () => {
+    setNav("courses");
+    setView({ kind: "questival" });
+  };
 
   // ----- the original letter+grades+comments view --------------------------
   if (view.kind === "syllabus") {
@@ -266,6 +285,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               course={REUNION_COURSE}
               my={my}
               a11Submitted={a11.submitted}
+              questival={forum.enabled ? { proofs: forum.proofs.length, submitted: forum.final !== null, onOpen: openQuestival } : null}
               onOpenSession={openSession}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
@@ -281,6 +301,59 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               onBackToCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
             />
+          )}
+          {(view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live") && (
+            <div className="alf-fm-assignment alf-fm-questival">
+              <div className="alf-fm-crumbs">
+                <a className="alf-link" onClick={() => openCourse(REUNION_COURSE.id)}>{REUNION_COURSE.code}</a>{" "}
+                &gt; Assignments &gt; <a className="alf-link" onClick={openQuestival}>Assignment 3</a>
+                {view.kind === "quest" && <> &gt; Quest</>}
+                {view.kind === "questival-me" && <> &gt; My Questival</>}
+                {view.kind === "questival-live" && <> &gt; The class, live</>}
+                {onOpenMap && (
+                  <button className="fm-link-btn" style={{ float: "right" }} onClick={onOpenMap}>Open in Maps →</button>
+                )}
+              </div>
+              {view.kind === "questival" && (
+                <QuestivalHub
+                  proofs={forum.proofs}
+                  plans={forum.plans}
+                  people={forum.people}
+                  final={forum.final}
+                  now={forum.now}
+                  onOpenQuest={(id) => setView({ kind: "quest", questId: id })}
+                  onOpenMe={() => setView({ kind: "questival-me" })}
+                  onOpenLive={() => setView({ kind: "questival-live" })}
+                />
+              )}
+              {view.kind === "quest" && (
+                <QuestView
+                  questId={view.questId}
+                  people={forum.people}
+                  proofs={forum.proofs}
+                  plan={forum.plans.find((p) => p.kind === "quest" && p.targetId === view.questId)}
+                  now={forum.now}
+                  onSave={forum.saveProof}
+                  onPlan={(w) => forum.addPlan("quest", view.questId, w)}
+                  onUnplan={forum.removePlan}
+                  onOpenMe={() => setView({ kind: "questival-me" })}
+                />
+              )}
+              {view.kind === "questival-me" && (
+                <MyQuestival
+                  proofs={forum.proofs}
+                  plans={forum.plans}
+                  people={forum.people}
+                  final={forum.final}
+                  now={forum.now}
+                  onRemove={forum.removeProof}
+                  onSubmitFinal={forum.submitFinal}
+                  onOpenQuest={(id) => setView({ kind: "quest", questId: id })}
+                  onOpenActivity={() => openSession("ru26-1-2")}
+                />
+              )}
+              {view.kind === "questival-live" && <LiveView proofs={forum.proofs} people={forum.people} now={forum.now} />}
+            </div>
           )}
           {view.kind === "assignment" && (
             <AssignmentPage
@@ -495,6 +568,9 @@ function ForumBanner({
   } else if (view.kind === "assignment") {
     title = `${course.code} – Assignment 1: opening-line reflection`;
     sub = "";
+  } else if (view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live") {
+    title = `${course.code} – Assignment 3: Questival`;
+    sub = `Due ${QUESTIVAL.dueLabel} · Weight 2x`;
   }
 
   return (
@@ -703,6 +779,7 @@ function CourseDetail({
   course,
   my,
   a11Submitted,
+  questival,
   onOpenSession,
   onOpenSyllabus,
   onOpenRSVP,
@@ -713,6 +790,8 @@ function CourseDetail({
   course: Course;
   my: MyRsvp;
   a11Submitted: boolean;
+  /** Assignment 3 (Questival), only when the weekend flag is on for this person. */
+  questival: { proofs: number; submitted: boolean; onOpen: () => void } | null;
   onOpenSession: (id: string) => void;
   onOpenSyllabus: () => void;
   onOpenRSVP: () => void;
@@ -720,6 +799,9 @@ function CourseDetail({
   onOpenClassroom: () => void;
   rsvpCount: number | null;
 }) {
+  const assignmentRows = (course.assignments ?? [])
+    .filter((a) => questival || a.id !== "a2q")
+    .map((a) => (a.id === "a13" && questival ? { ...a, title: "Assignment 4: closing line" } : a));
   const upcoming = course.sessions.filter((s) => s.status === "upcoming");
   const past = course.sessions.filter((s) => s.status === "past");
   const joined = my.joined;
@@ -768,9 +850,29 @@ function CourseDetail({
                     )}
                   </td>
                 </tr>
-                {course.assignments.map((a) => {
+                {assignmentRows.map((a) => {
                   // Post-reunion assignment stays sealed even for members.
                   const sealed = a.id === "a13";
+                  if (a.id === "a2q" && questival && joined) {
+                    return (
+                      <tr key={a.id} className={`alf-graded-row${questival.submitted ? " alf-graded-row-done" : ""}`} onClick={questival.onOpen}>
+                        <td className="alf-graded-title">
+                          <a className="alf-link">{a.title}</a>
+                          <span className="guide-chip">Sat, Sep 12</span>
+                        </td>
+                        <td>{a.weight}</td>
+                        <td>
+                          {questival.submitted ? (
+                            <span className="alf-graded-result-done">Submitted</span>
+                          ) : questival.proofs ? (
+                            <a className="alf-link">In progress · {questival.proofs} saved</a>
+                          ) : (
+                            <a className="alf-link">Open</a>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }
                   if (!joined || sealed) {
                     return (
                       <tr

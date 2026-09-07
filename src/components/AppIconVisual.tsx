@@ -51,6 +51,47 @@ export function AppIconVisual({ app, size = 56 }: Props) {
     );
   }
 
+  if (app.icon === "calendar-sep") {
+    return (
+      <div className="icon-app icon-cal-app" style={{ width: size, height: size, borderRadius: radius }}>
+        <div className="icon-cal-strip">SEP</div>
+        <div className="icon-cal-num">12</div>
+      </div>
+    );
+  }
+
+  if (app.icon === "maps") {
+    return (
+      <div className="icon-app icon-maps" style={{ width: size, height: size, borderRadius: radius }} aria-label="Maps">
+        <svg viewBox="0 0 56 56" width={size} height={size} style={{ display: "block", borderRadius: radius }}>
+          <rect width="56" height="56" fill="#eef3e6" />
+          <path d="M0 22 Q18 18 28 30 T56 34 L56 40 Q38 42 28 36 T0 28 Z" fill="#c9e3f5" />
+          <path d="M-2 14 L58 6" stroke="#fff" strokeWidth="5" />
+          <path d="M-2 14 L58 6" stroke="#f6d98a" strokeWidth="3" />
+          <path d="M18 -2 L26 58" stroke="#fff" strokeWidth="4" />
+          <path d="M-2 42 L58 46" stroke="#fff" strokeWidth="3" />
+          <path d="M36 -2 L44 58" stroke="#fff" strokeWidth="3" />
+          <path d="M8 48 Q16 20 40 12" stroke="#4f8fdd" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+          <circle cx="30" cy="27" r="7.5" fill="#e0443e" stroke="#fff" strokeWidth="2" />
+          <circle cx="30" cy="27" r="2.6" fill="#fff" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (app.icon === "photos") {
+    const petals = ["#f3b13a", "#7cc242", "#3ab8e0", "#4a7fe0", "#9a63d6", "#e0439a", "#ef5b3a", "#f38f2a"];
+    return (
+      <div className="icon-app icon-photos" style={{ width: size, height: size, borderRadius: radius }} aria-label="Photos">
+        <svg viewBox="0 0 56 56" width={size} height={size} style={{ display: "block" }}>
+          {petals.map((c, i) => (
+            <ellipse key={c} cx="28" cy="16.5" rx="6.2" ry="11.5" fill={c} opacity="0.88" transform={`rotate(${i * 45} 28 28)`} />
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
   if (app.icon === "mail") {
     return <ImgIcon src="/assets/icon-mail.png" alt="Mail" size={size} />;
   }

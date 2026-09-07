@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ForumMobile } from "@/components/forum/ForumMobile";
+import { getAccessToken } from "@/lib/auth";
 import { MinervaWordmark } from "@/components/MinervaLogo";
 import { MobileHotel } from "@/components/mobile/MobileHotel";
 import { AidApp } from "@/components/apps/AidApp";
@@ -20,7 +22,26 @@ export function MobileShell() {
     return new URLSearchParams(window.location.search).get("open");
   });
 
+  // A cohost (later: anyone) with a Google session lands in the Forum home
+  // instead of the invitation card. Everyone else sees the card, unchanged.
+  const [forum, setForum] = useState<"checking" | "yes" | "no">("checking");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) return !cancelled && setForum("no");
+      const res = await fetch("/api/forum/access", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+      const b = res?.ok ? await res.json().catch(() => ({})) : {};
+      if (!cancelled) setForum(b.allowed ? "yes" : "no");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (openParam === "stay") return <MobileHotel />;
+  if (!openParam && forum === "yes") return <ForumMobile initialTab="home" />;
+  if (!openParam && forum === "checking") return <div style={{ minHeight: "100dvh", background: "#f6f3ec" }} />;
   if (openParam === "aid") {
     return (
       <div style={{ minHeight: "100dvh", background: "var(--minerva-paper)" }}>

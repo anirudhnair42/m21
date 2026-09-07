@@ -297,6 +297,7 @@ export const REUNION_COURSE: Course = {
   assignments: [
     { id: "a11", title: "Assignment 1: opening-line reflection", weight: "1x", status: "Not started" },
     { id: "a12", title: "Assignment 2: the class, live", weight: "1x", status: "Not started" },
+    { id: "a2q", title: "Assignment 3: Questival", weight: "2x", status: "Not started" },
     { id: "a13", title: "Assignment 3: closing line", weight: "1x", status: "Not started" },
   ],
   participants: [
