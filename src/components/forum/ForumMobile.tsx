@@ -181,7 +181,7 @@ function ForumGate({ initialTab }: { initialTab: Tab }) {
               <>
                 <p className="fm-eyebrow">Session 1.1 starts Fri, Sep 11</p>
                 <h2 className="fm-gate-title">Will be unlocked later</h2>
-                <p className="fm-gate-sub">The weekend, the map, and Assignment 2 open here on Thursday. Cohosts: sign in to preview.</p>
+                <p className="fm-gate-sub">The weekend, the map, and Assignment 3 open here on Thursday. Cohosts: sign in to preview.</p>
                 {blockedEmail && <p className="fm-note">{blockedEmail} isn&apos;t allowed here.</p>}
                 <button className="fm-btn fm-btn-blue" onClick={() => signInTo("forum")}>
                   <span className="fm-gate-g">G</span> Sign in with Google
@@ -399,8 +399,8 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
     const d = DAYS.find((x) => x.id === a?.day);
     return { title: `RU26 Session ${d?.session} – ${a?.title ?? ""}`, sub: a?.venue ?? "" };
   }
-  if (view.kind === "quest") return { title: "RU26 – Assignment 2: Questival", sub: "One quest, one proof" };
-  if (view.kind === "me") return { title: "RU26 – Assignment 2: My Questival", sub: `Due ${QUESTIVAL.dueLabel}` };
+  if (view.kind === "quest") return { title: "RU26 – Assignment 3: Questival", sub: "One quest, one proof" };
+  if (view.kind === "me") return { title: "RU26 – Assignment 3: My Questival", sub: `Due ${QUESTIVAL.dueLabel}` };
   if (view.kind === "live") return { title: "RU26 – The class, live", sub: "Teams, people, proofs" };
   if (view.kind === "class") return { title: "RU26 – The Class of 2021", sub: count ? `${count} confirmed` : "" };
   if (tab === "weekend") {
@@ -408,7 +408,7 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
     return { title: `RU26 Session ${d.session} – ${d.title}`, sub: d.sub };
   }
   if (tab === "map") return { title: "RU26 – The map", sub: "Where we meet, where the points are, who's going" };
-  if (tab === "questival") return { title: "RU26 – Assignment 2: Questival", sub: `Due ${QUESTIVAL.dueLabel} · Weight 1x` };
+  if (tab === "questival") return { title: "RU26 – Assignment 3: Questival", sub: `Due ${QUESTIVAL.dueLabel} · Weight 1x` };
   if (tab === "inbox") return { title: "Inbox", sub: "Who wants to do what with you" };
   const { now: cur, next } = nowNext(new Date(now));
   const sub = cur
@@ -534,7 +534,7 @@ export function HomeView({
             <tr className={a2.done ? "fm-due-done" : ""} onClick={final || proofs.length ? onOpenMe : onOpenQuestival}>
               <td className="fm-due-icon">{a2.done ? <span className="fm-check">✓</span> : <PaperclipIcon />}</td>
               <td>
-                <span className="fm-due-title">RU26 — Assignment 2: Questival</span>
+                <span className="fm-due-title">RU26 — Assignment 3: Questival</span>
                 <span className="fm-due-sub">Due {QUESTIVAL.dueLabel} · Team {team.name}</span>
               </td>
               <td className="fm-due-result">{a2.result}</td>
@@ -542,7 +542,7 @@ export function HomeView({
             <tr className="fm-due-locked">
               <td className="fm-due-icon"><LockIcon /></td>
               <td>
-                <span className="fm-due-title">RU26 — Assignment 3: closing line</span>
+                <span className="fm-due-title">RU26 — Assignment 4: closing line</span>
                 <span className="fm-due-sub">Unlocks Sunday at the closing moment</span>
               </td>
               <td className="fm-due-result">Locked</td>

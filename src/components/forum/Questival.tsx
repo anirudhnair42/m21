@@ -121,7 +121,7 @@ export function QuestivalHub({
 
       <section className="alf-card">
         <div className="fm-assign-head">
-          <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 2: Questival</h2>
+          <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
           <StatusChip final={final} now={now} count={proofs.length} />
         </div>
         <div className="fm-assign-due">
@@ -486,7 +486,7 @@ export function MyQuestival({
     <>
       <section className="alf-card">
         <div className="fm-assign-head">
-          <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 2: Questival</h2>
+          <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
           <StatusChip final={final} now={now} count={proofs.length} />
         </div>
         <div className="fm-assign-due">

@@ -145,7 +145,7 @@ export const ACTIVITIES: Activity[] = [
     kind: "anchor",
     venue: "All over the city",
     host: "Amal + Ani",
-    body: "Assignment 2. Pick your own adventure through nostalgic M21 stops. Capture as you go, tag whoever did it with you, submit your final list before the bonfire.",
+    body: "Assignment 3. Pick your own adventure through nostalgic M21 stops. Capture as you go, tag whoever did it with you, submit your final list before the bonfire.",
   },
   {
     id: "sat-catchup",
