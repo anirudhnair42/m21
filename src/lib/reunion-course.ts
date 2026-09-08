@@ -115,7 +115,6 @@ const SESSION_NOTES: Record<string, { before: string; assessment: string; resour
     assessment: "No formal HC scoring tonight — but bring that opening line. We'll go around the room once.",
     resources: [
       { label: "Southern Pacific Brewing", url: "https://maps.apple.com/?q=620%20Treat%20Ave%2C%20San%20Francisco" },
-      { label: "Altın Gün at The Regency — tickets", url: "https://www.axs.com/events/1352783/altin-gun-tickets" },
     ],
   },
   s21: {

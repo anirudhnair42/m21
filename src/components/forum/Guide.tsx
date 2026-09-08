@@ -39,7 +39,7 @@ export function GuideView({ onOpenDay, onOpenClass, onOpenMap, onOpenInbox }: { 
       <section className="alf-card">
         <h3 className="alf-card-h">2 · Say what you&apos;re coming to</h3>
         <p className="alf-card-body">
-          Tap <span className="fm-kbd">I&apos;m going</span> on anything optional, straight from the class rows or inside an activity. The five required anchors have no button; everyone&apos;s there. That&apos;s the head count we use for food and tables, and your face joins the row so friends can see you&apos;ll be there. Tap again to undo. Side quests (Altın Gün on Friday, disc golf on Sunday) work the same way with <span className="fm-kbd">I&apos;m in</span>.
+          Tap <span className="fm-kbd">I&apos;m going</span> on anything optional, straight from the class rows or inside an activity. The five required anchors have no button; everyone&apos;s there. That&apos;s the head count we use for food and tables, and your face joins the row so friends can see you&apos;ll be there. Tap again to undo. Side quests (bar hopping on Friday, disc golf on Sunday) work the same way with <span className="fm-kbd">I&apos;m in</span>.
         </p>
       </section>
 

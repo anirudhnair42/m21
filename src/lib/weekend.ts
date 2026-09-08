@@ -70,7 +70,7 @@ export const SESSIONS: Session[] = [
     start: T("11", "18:00"), time: "18:00",
     location: "Southern Pacific Brewing, 620 Treat Ave",
     activities: ["fri-dinner"],
-    side: ["fri-altin-gun", "fri-bars"],
+    side: ["fri-bars"],
   },
   {
     id: "s21", number: "2.1", day: "sat",
@@ -158,23 +158,6 @@ export const ACTIVITIES: Activity[] = [
     goingSeed: ["Nathan Torento"],
     lat: 37.7606,
     lng: -122.4133,
-  },
-  {
-    id: "fri-altin-gun",
-    day: "fri",
-    lat: 37.7869,
-    lng: -122.4218,
-    start: T("11", "20:00"),
-    time: "20:00",
-    title: "Altın Gün at The Regency Ballroom",
-    kind: "peer",
-    venue: "The Regency Ballroom",
-    address: "1300 Van Ness Ave, San Francisco, CA 94109",
-    host: "Ani",
-    body: "Turkish psych-funk, bangers only. Doors 7, show 8, with Alex Maas opening. Dinner first at Southern Pacific, then a 15-minute ride up Van Ness. Ani's going; grab a ticket and say you're in so we roll over together.",
-    cost: "Tickets on AXS, about $40. Buy your own.",
-    link: { label: "Tickets on AXS", url: "https://www.axs.com/events/1352783/altin-gun-tickets" },
-    goingSeed: ["Anirudh Nair"],
   },
   // -------------------------------------------------------------- Saturday
   {

@@ -7,7 +7,7 @@ Sign in with the Google account you RSVP'd with. On your phone it opens straight
 
 FRIDAY · Session 1.1 — Arrivals & the welcome dinner
 6:00 PM · Welcome dinner & drinks · Southern Pacific Brewing, 620 Treat Ave (everyone)
-Side quests after: Altın Gün at The Regency Ballroom (doors 7, ~$40 on AXS, Ani's going) · bar hopping around the Mission with Nathan
+Side quest after: bar hopping around the Mission with Nathan
 
 SATURDAY · Session 2.1 — Questival day
 10:00 AM · Breakfast at Dahlia Dell, Golden Gate Park (everyone)
