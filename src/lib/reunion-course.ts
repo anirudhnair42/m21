@@ -38,6 +38,9 @@ export type AgendaItem = {
   body?: ReactNode;
   /** Optional flag for soft/optional anchors (rendered with a muted style). */
   optional?: boolean;
+  /** The weekend activity behind this row, for who's-going faces. */
+  activityId?: string;
+  required?: boolean;
 };
 
 export type SessionStatus = "upcoming" | "past";
@@ -154,6 +157,8 @@ const COURSE_SESSIONS: Session[] = SESSIONS.map((s) => {
       location: a.venue,
       body: a.body,
       optional: a.kind !== "anchor",
+      activityId: a.id,
+      required: a.required,
     })),
     sections: [
       { heading: "Before Class", body: notes?.before ?? s.sub },

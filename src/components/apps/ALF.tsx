@@ -19,6 +19,7 @@ import {
 import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
 import { SessionList } from "@/components/forum/SessionCards";
+import { Faces } from "@/components/forum/ForumMobile";
 import { GuideView } from "@/components/forum/Guide";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
@@ -1676,6 +1677,7 @@ function SessionPage({
   onBackToCourse: () => void;
   onOpenSyllabus: () => void;
 }) {
+  const { who, intents, setIntent, enabled } = useForumStore();
   const dateParts = session.date.split(", ")[1] ?? "";
   const [mon, day] = dateParts.split(" ");
 
@@ -1732,6 +1734,22 @@ function SessionPage({
                     {a.body && (
                       <div className="alf-agenda-body">
                         {typeof a.body === "string" ? <p>{a.body}</p> : a.body}
+                      </div>
+                    )}
+                    {enabled && a.activityId && (
+                      <div className="fm-row-foot">
+                        {a.required ? (
+                          <span className="fm-mini fm-mini-req">Required · everyone</span>
+                        ) : (
+                          <button className={`fm-mini${intents[a.activityId] === "going" ? " fm-mini-on" : ""}`} onClick={() => setIntent(a.activityId!, "going")}>
+                            {intents[a.activityId] === "going" ? "Going ✓" : "I'm going"}
+                          </button>
+                        )}
+                        <Faces people={who[a.activityId]?.going ?? []} max={6} />
+                        <span className="fm-muted">
+                          {a.required ? `all ${who[a.activityId]?.going.length ?? 0} of us` : `${who[a.activityId]?.going_count ?? 0} going`}
+                          {!a.required && (who[a.activityId]?.going ?? []).length ? `: ${(who[a.activityId]?.going ?? []).slice(0, 6).map((p) => p.name.split(" ")[0]).join(", ")}` : ""}
+                        </span>
                       </div>
                     )}
                   </div>
