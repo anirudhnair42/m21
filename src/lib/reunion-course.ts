@@ -121,9 +121,12 @@ const SESSION_NOTES: Record<string, { before: string; assessment: string; resour
     resources: [{ label: "Dahlia Dell, Golden Gate Park", url: "https://maps.apple.com/?q=Dahlia%20Dell%2C%20Golden%20Gate%20Park" }],
   },
   s22: {
-    before: "Finish your last quest with your crew, then head straight to the Marina. Doors at six, dinner at seven.",
+    before: "Finish your last quest with your crew, then head straight to the Marina. Doors at six, dinner at seven, Chug Pub from ten.",
     assessment: "Grades released at dinner, around 8:30. Trivia, a few performances, prizes.",
-    resources: [{ label: "The Loft, 3108B Fillmore St", url: "https://maps.apple.com/?q=3108B%20Fillmore%20St%2C%20San%20Francisco" }],
+    resources: [
+      { label: "The Loft, 3108B Fillmore St", url: "https://maps.apple.com/?q=3108B%20Fillmore%20St%2C%20San%20Francisco" },
+      { label: "Chug Pub, 1849 Lincoln Way", url: "https://maps.apple.com/?q=1849%20Lincoln%20Way%2C%20San%20Francisco" },
+    ],
   },
   s31: {
     before: "Late brunch, slow exit. Flights start in the afternoon — coordinate rides on the group chat.",
