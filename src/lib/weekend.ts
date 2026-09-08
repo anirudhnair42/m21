@@ -337,3 +337,14 @@ export function dayOf(now: Date): Day | null {
   if (pt.getFullYear() !== 2026 || pt.getMonth() !== 8) return null;
   return ({ 11: "fri", 12: "sat", 13: "sun" } as Record<number, Day>)[pt.getDate()] ?? null;
 }
+
+/** Open windows for a one-on-one catch-up (Mau's mini-Calendly). */
+export const CATCHUP_SLOTS: { id: string; label: string; day: Day; start: string }[] = [
+  { id: "fri-1400", label: "Fri 2:00–3:00 PM · around the Presidio", day: "fri", start: T("11", "14:00") },
+  { id: "fri-1500", label: "Fri 3:00–4:00 PM · around the Presidio", day: "fri", start: T("11", "15:00") },
+  { id: "fri-1700", label: "Fri 5:00–6:00 PM · before dinner, Mission", day: "fri", start: T("11", "17:00") },
+  { id: "sat-1330", label: "Sat 1:30–2:30 PM · Alamo Square", day: "sat", start: T("12", "13:30") },
+  { id: "sat-1600", label: "Sat 4:00–5:00 PM · on the way to the beach", day: "sat", start: T("12", "16:00") },
+  { id: "sun-1200", label: "Sun 12:00–1:00 PM · Hellman Hollow", day: "sun", start: T("13", "12:00") },
+  { id: "sun-1300", label: "Sun 1:00–2:00 PM · Hellman Hollow", day: "sun", start: T("13", "13:00") },
+];

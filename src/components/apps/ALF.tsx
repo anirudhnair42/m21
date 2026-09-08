@@ -17,6 +17,7 @@ import {
   RSVP_DEADLINE_SHORT,
 } from "@/lib/letter";
 import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
+import { AdminView } from "@/components/forum/AdminView";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
 
@@ -39,9 +40,10 @@ type ViewState =
   | { kind: "questival" }
   | { kind: "quest"; questId: string }
   | { kind: "questival-me" }
-  | { kind: "questival-live" };
+  | { kind: "questival-live" }
+  | { kind: "organizers" };
 
-type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events";
+type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events" | "organizers";
 
 type Props = {
   onOpenRSVP: () => void;
@@ -260,9 +262,11 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
         <ForumSidebar
           nav={nav}
           coursesOpen={coursesOpen}
+          organizer={forum.organizer}
           onNav={(n) => {
             setNav(n);
             if (n === "home") setView({ kind: "home" });
+            if (n === "organizers") setView({ kind: "organizers" });
             // Assignments live on the course page — same destination, honest tab.
             if (n === "assignments" || n === "courses")
               setView({ kind: "course", courseId: REUNION_COURSE.id });
@@ -285,7 +289,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               course={REUNION_COURSE}
               my={my}
               a11Submitted={a11.submitted}
-              questival={forum.enabled ? { proofs: forum.proofs.length, submitted: forum.final !== null, onOpen: openQuestival } : null}
+              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, submitted: forum.final !== null, onOpen: openQuestival } : null}
               onOpenSession={openSession}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
@@ -302,7 +306,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
             />
           )}
-          {(view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live") && (
+          {(view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live" || view.kind === "organizers") && (
             <div className="alf-fm-assignment alf-fm-questival">
               <div className="alf-fm-crumbs">
                 <a className="alf-link" onClick={() => openCourse(REUNION_COURSE.id)}>{REUNION_COURSE.code}</a>{" "}
@@ -310,49 +314,24 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
                 {view.kind === "quest" && <> &gt; Quest</>}
                 {view.kind === "questival-me" && <> &gt; My Questival</>}
                 {view.kind === "questival-live" && <> &gt; The class, live</>}
+                {view.kind === "organizers" && <> &gt; Organizers</>}
                 {onOpenMap && (
                   <button className="fm-link-btn" style={{ float: "right" }} onClick={onOpenMap}>Open in Maps →</button>
                 )}
               </div>
               {view.kind === "questival" && (
                 <QuestivalHub
-                  proofs={forum.proofs}
-                  plans={forum.plans}
-                  people={forum.people}
-                  final={forum.final}
-                  now={forum.now}
                   onOpenQuest={(id) => setView({ kind: "quest", questId: id })}
                   onOpenMe={() => setView({ kind: "questival-me" })}
                   onOpenLive={() => setView({ kind: "questival-live" })}
                 />
               )}
-              {view.kind === "quest" && (
-                <QuestView
-                  questId={view.questId}
-                  people={forum.people}
-                  proofs={forum.proofs}
-                  plan={forum.plans.find((p) => p.kind === "quest" && p.targetId === view.questId)}
-                  now={forum.now}
-                  onSave={forum.saveProof}
-                  onPlan={(w) => forum.addPlan("quest", view.questId, w)}
-                  onUnplan={forum.removePlan}
-                  onOpenMe={() => setView({ kind: "questival-me" })}
-                />
-              )}
+              {view.kind === "quest" && <QuestView questId={view.questId} onOpenMe={() => setView({ kind: "questival-me" })} />}
               {view.kind === "questival-me" && (
-                <MyQuestival
-                  proofs={forum.proofs}
-                  plans={forum.plans}
-                  people={forum.people}
-                  final={forum.final}
-                  now={forum.now}
-                  onRemove={forum.removeProof}
-                  onSubmitFinal={forum.submitFinal}
-                  onOpenQuest={(id) => setView({ kind: "quest", questId: id })}
-                  onOpenActivity={() => openSession("ru26-1-2")}
-                />
+                <MyQuestival onOpenQuest={(id) => setView({ kind: "quest", questId: id })} onOpenActivity={() => openSession("ru26-1-2")} />
               )}
-              {view.kind === "questival-live" && <LiveView proofs={forum.proofs} people={forum.people} now={forum.now} />}
+              {view.kind === "questival-live" && <LiveView />}
+              {view.kind === "organizers" && <AdminView />}
             </div>
           )}
           {view.kind === "assignment" && (
@@ -378,11 +357,13 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
 function ForumSidebar({
   nav,
   coursesOpen,
+  organizer,
   onNav,
   onToggleCourses,
 }: {
   nav: Nav;
   coursesOpen: boolean;
+  organizer: boolean;
   onNav: (n: Nav) => void;
   onToggleCourses: () => void;
 }) {
@@ -424,6 +405,9 @@ function ForumSidebar({
           </div>
         )}
         <SidebarItem icon={DiamondIcon} label="All Events" locked />
+        {organizer && (
+          <SidebarItem icon={TargetIcon} label="Organizers" active={nav === "organizers"} onClick={() => onNav("organizers")} />
+        )}
       </nav>
     </aside>
   );
@@ -571,6 +555,9 @@ function ForumBanner({
   } else if (view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live") {
     title = `${course.code} – Assignment 3: Questival`;
     sub = `Due ${QUESTIVAL.dueLabel} · Weight 2x`;
+  } else if (view.kind === "organizers") {
+    title = `${course.code} – Organizers`;
+    sub = "Quests, proofs, the clock, the class";
   }
 
   return (

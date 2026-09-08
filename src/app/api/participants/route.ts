@@ -13,7 +13,7 @@ export async function GET() {
   const [list, total] = await Promise.all([
     supabase
       .from("rsvps")
-      .select("name, photo_url, voice_url, status")
+      .select("id, name, photo_url, voice_url, status")
       .in("status", ["paid", "processing"])
       .order("created_at", { ascending: false })
       .limit(200),

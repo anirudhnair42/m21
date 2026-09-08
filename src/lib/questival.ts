@@ -24,8 +24,6 @@ export type Quest = {
   tip?: string;
   lat?: number;
   lng?: number;
-  /** Team quest: needs this many teammates tagged (uploader included). */
-  teamMin?: number;
 };
 
 export const QUESTS: Quest[] = [
@@ -40,7 +38,7 @@ export const QUESTS: Quest[] = [
   { id: "bobs-eat", title: "Eat a Bob's donut", prompt: "One donut, one photo.", points: 10, evidence: "photo", venue: "Bob's Donuts", address: "1621 Polk St, San Francisco, CA 94109", area: "Polk", lat: 37.7918, lng: -122.4215 },
   { id: "bobs-challenge", title: "The Bob's Donuts challenge", prompt: "The giant donut. On camera. Timed.", points: 20, evidence: "video", venue: "Bob's Donuts", address: "1621 Polk St, San Francisco, CA 94109", area: "Polk", tip: "Rules to confirm with Amal.", lat: 37.7918, lng: -122.4215 },
   { id: "res-hall", title: "Selfie with a current Minervan", prompt: "At 2550 Van Ness, a selfie with someone who isn't M21.", points: 10, evidence: "photo", venue: "2550 Van Ness", address: "2550 Van Ness Ave, San Francisco, CA 94109", area: "Van Ness", lat: 37.7975, lng: -122.4241 },
-  { id: "palace", title: "Shout at the Palace", prompt: "Stand in a circle at the Palace of Fine Arts and shout something. Four of your team, minimum.", points: 25, evidence: "video", venue: "Palace of Fine Arts", address: "3601 Lyon St, San Francisco, CA 94123", area: "Marina", lat: 37.8021, lng: -122.4488, teamMin: 4 },
+  { id: "palace", title: "Shout at the Palace", prompt: "Stand in a circle at the Palace of Fine Arts and shout something. Together.", points: 15, evidence: "video", venue: "Palace of Fine Arts", address: "3601 Lyon St, San Francisco, CA 94123", area: "Marina", lat: 37.8021, lng: -122.4488 },
   { id: "ferry", title: "Ferry Building market", prompt: "Saturday farmers market at the Ferry Building — a photo with something you bought.", points: 10, evidence: "photo", venue: "Ferry Building", address: "1 Ferry Building, San Francisco, CA 94111", area: "Embarcadero", tip: "Market ends at 2 PM.", lat: 37.7955, lng: -122.3937 },
   { id: "corona", title: "A note from Corona Heights", prompt: "From the top of Corona Heights, write a note to someone who couldn't make it. Photograph the note and the view.", points: 20, evidence: "text-photo", venue: "Corona Heights", address: "Corona Heights Park, San Francisco, CA 94114", area: "Castro", tip: "We'll pass the notes on after the weekend.", lat: 37.7651, lng: -122.4384 },
   { id: "landmark", title: "A legacy landmark", prompt: "Crissy Field, Coit Tower, the Painted Ladies, Twin Peaks… a photo at one of the places you took every visitor.", points: 15, evidence: "photo", repeat: 3 },
@@ -49,7 +47,7 @@ export const QUESTS: Quest[] = [
   { id: "recreate", title: "Recreate a first-year photo", prompt: "Find a photo from first year. Recreate it, same people if you can. Upload both.", points: 30, evidence: "photo-pair" },
   { id: "professor", title: "Call your favorite professor", prompt: "Video-call the professor who changed something for you. Screenshot the call.", points: 25, evidence: "screenshot", tip: "We'll warn a few faculty in advance." },
   { id: "absent-call", title: "Call someone who isn't here", prompt: "Video-call a classmate who couldn't come, and get them to do something for the camera.", points: 20, evidence: "screenshot" },
-  { id: "sports", title: "Challenge another team", prompt: "Any sport, any team. Film the decisive moment.", points: 30, evidence: "video", teamMin: 3 },
+  { id: "sports", title: "Challenge another crew", prompt: "Any sport, any crew. Film the decisive moment.", points: 20, evidence: "video" },
   { id: "new-hc", title: "Make a new HC", prompt: "Name it, define it in one line, photograph the moment it applies.", points: 15, evidence: "text-photo" },
   { id: "legacy-selfie", title: "Selfie with your legacy", prompt: "A selfie with your legacy.", points: 15, evidence: "photo", tip: "Definition of \"legacy\" to confirm." },
   { id: "soylent", title: "Soylent with Oscar", prompt: "Drink a Soylent (or a Huel) while holding up a photo of Oscar Englebrektsen.", points: 15, evidence: "photo", tip: "Soylent or Huel — cohosts to settle it." },
@@ -57,11 +55,11 @@ export const QUESTS: Quest[] = [
   { id: "rotation-photo", title: "A rotation city, in one photo", prompt: "Something that says Seoul, Hyderabad, Berlin, Buenos Aires, London or Taipei. One per city.", points: 10, evidence: "photo", repeat: 6 },
   { id: "rotation-food", title: "Eat a rotation city", prompt: "Korean, Indian, German, Argentine, British, Taiwanese. One per city.", points: 10, evidence: "photo", repeat: 6 },
   { id: "rule", title: "A rule you broke in college", prompt: "Recreate it. Safely. We mean it.", points: 20, evidence: "photo", tip: "Wording under review." },
-  { id: "of-course", title: "“I'm a Minervan, of course I…”", prompt: "Film the video with your team. Thirty seconds, tops.", points: 35, evidence: "video", teamMin: 3 },
+  { id: "of-course", title: "“I'm a Minervan, of course I…”", prompt: "Film the video with your crew. Thirty seconds, tops.", points: 25, evidence: "video" },
   { id: "rice-cooker", title: "A rice-cooker meal", prompt: "Make a meal in a rice cooker. Plate it like you mean it.", points: 20, evidence: "photo" },
   { id: "karaoke", title: "Karaoke at Pandora", prompt: "One song at Pandora Karaoke. Film the chorus.", points: 20, evidence: "video", venue: "Pandora Karaoke", address: "50 Mason St, San Francisco, CA 94102", area: "Union Square", lat: 37.7842, lng: -122.4093 },
   { id: "hc-advice", title: "Unsolicited HC advice", prompt: "Give a stranger a piece of HC advice. Film their face.", points: 20, evidence: "video" },
-  { id: "reel", title: "The team Reel", prompt: "Cut a Reel of your team's day. Under a minute.", points: 35, evidence: "video", teamMin: 3 },
+  { id: "reel", title: "The crew's Reel", prompt: "Cut a Reel of your day. Under a minute.", points: 25, evidence: "video" },
 ];
 
 export function getQuest(id: string): Quest | undefined {
@@ -146,20 +144,3 @@ export function totalPoints(proofs: Proof[]): number {
   return sum;
 }
 
-// ------------------------------------------------------------------- teams
-
-/** Cohosts assign teams before Saturday, using the Assignment 1 answers. */
-export const TEAMS = [
-  { id: "seoul", name: "Seoul", color: "#1463b0" },
-  { id: "hyderabad", name: "Hyderabad", color: "#e07b00" },
-  { id: "berlin", name: "Berlin", color: "#2e9e5b" },
-  { id: "buenos-aires", name: "Buenos Aires", color: "#7ab8e8" },
-  { id: "london", name: "London", color: "#8b4789" },
-  { id: "taipei", name: "Taipei", color: "#c0392b" },
-] as const;
-
-export type TeamId = (typeof TEAMS)[number]["id"];
-
-export function getTeam(id: TeamId) {
-  return TEAMS.find((t) => t.id === id)!;
-}

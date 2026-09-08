@@ -1,54 +1,33 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import {
-  ANYWHERE_QUESTS,
-  EVIDENCE_LABEL,
-  PLACE_QUESTS,
-  QUESTIVAL,
-  QUESTS,
-  TEAMS,
-  getQuest,
-  getTeam,
-  questivalWindow,
-  timeLeft,
-  totalPoints,
-  type Quest,
-} from "@/lib/questival";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EVIDENCE_LABEL, QUESTIVAL, getQuest, questivalWindow, timeLeft, type Quest } from "@/lib/questival";
 import { directionsUrl, getActivity } from "@/lib/weekend";
 import { CameraIcon, PinIcon } from "@/components/forum/icons";
 import { Faces, PlanIt } from "@/components/forum/ForumMobile";
-import {
-  ME,
-  djb2,
-  firstName,
-  sample,
-  shrinkImage,
-  teamFor,
-  teammates,
-  timeShort,
-  uid,
-  type Final,
-  type Media,
-  type Person,
-  type Plan,
-  type SavedProof,
-} from "@/components/forum/store";
+import { useForumStore } from "@/components/forum/ForumStore";
+import type { BoardResponse, FeedResponse, PersonDTO, SubmissionDTO } from "@/lib/questival-api";
+import { ME_ID, djb2, firstName, sampleFeed, samplePoints, timeShort } from "@/components/forum/store";
+import { getAccessToken } from "@/lib/auth";
 
-function toProofs(saved: SavedProof[], approved: boolean) {
-  return saved.map((p) => ({ questId: p.questId, instance: p.instance, status: approved ? ("approved" as const) : ("draft" as const) }));
+function myPoints(subs: SubmissionDTO[]): number {
+  // Best proof per (quest, instance); everyone tagged is credited.
+  const best = new Map<string, number>();
+  for (const s of subs) {
+    if (s.status !== "approved") continue;
+    const k = `${s.quest_id}#${s.instance}`;
+    best.set(k, Math.max(best.get(k) ?? 0, s.points));
+  }
+  let sum = 0;
+  for (const v of best.values()) sum += v;
+  return sum;
 }
 
-/** Preview stand-in for a person's derived score. */
-function samplePoints(name: string): number {
-  return (djb2("pts" + name) % 19) * 10;
-}
-
-function StatusChip({ final, now, count }: { final: Final; now: number; count: number }) {
+export function StatusChip({ final, now, count }: { final: { extension_used: boolean } | null; now: number; count: number }) {
   const w = questivalWindow(now);
   if (final) {
     if (w === "closed") return <span className="alf-assignment-chip fm-chip-closed">Submitted · Closed</span>;
-    if (final.extension) return <span className="alf-assignment-chip fm-chip-warn">Submitted · Extension used</span>;
+    if (final.extension_used) return <span className="alf-assignment-chip fm-chip-warn">Submitted · Extension used</span>;
     return <span className="alf-assignment-chip">Submitted · Editable until 5:00 PM</span>;
   }
   if (w === "closed") return <span className="alf-assignment-chip fm-chip-closed">Closed</span>;
@@ -60,78 +39,53 @@ function StatusChip({ final, now, count }: { final: Final; now: number; count: n
 // ----- HUB -------------------------------------------------------------------
 
 export function QuestivalHub({
-  proofs,
-  plans,
-  people,
-  final,
-  now,
   onOpenQuest,
   onOpenMe,
   onOpenLive,
 }: {
-  proofs: SavedProof[];
-  plans: Plan[];
-  people: Person[];
-  final: Final;
-  now: number;
   onOpenQuest: (id: string) => void;
   onOpenMe: () => void;
   onOpenLive: () => void;
 }) {
-  const [filter, setFilter] = useState<"all" | "todo" | "planned" | "saved" | "team">("all");
+  const { quests, submissions, plans, final, now, settings } = useForumStore();
+  const [filter, setFilter] = useState<"all" | "todo" | "planned" | "saved">("all");
   const w = questivalWindow(now);
-  const doneIds = new Set(proofs.map((p) => p.questId));
-  const plannedIds = new Set(plans.filter((p) => p.kind === "quest").map((p) => p.targetId));
-  const pts = totalPoints(toProofs(proofs, true));
-  const total = QUESTS.length;
+  const doneIds = new Set(submissions.map((s) => s.quest_id));
+  const plannedIds = new Set(plans.filter((p) => p.kind === "quest").map((p) => p.target_id));
+  const pts = myPoints(submissions);
+  const total = quests.length;
+  const place = quests.filter((q) => q.venue);
+  const anywhere = quests.filter((q) => !q.venue);
 
-  const team = getTeam(teamFor(ME));
-  const mates = teammates(people, ME);
-  const teamPts = pts + mates.reduce((s, p) => s + samplePoints(p.name), 0);
-  const teamRank = 1 + TEAMS.filter((t) => t.id !== team.id && teamTotal(people, t.id) > teamPts).length;
-
-  const show = (q: Quest) =>
-    filter === "all" ? true : filter === "saved" ? doneIds.has(q.id) : filter === "planned" ? plannedIds.has(q.id) : filter === "team" ? !!q.teamMin : !doneIds.has(q.id);
+  const show = (q: Quest) => (filter === "all" ? true : filter === "saved" ? doneIds.has(q.id) : filter === "planned" ? plannedIds.has(q.id) : !doneIds.has(q.id));
 
   const byArea = useMemo(() => {
     const m = new Map<string, Quest[]>();
-    for (const q of PLACE_QUESTS) {
+    for (const q of place) {
       const k = q.area ?? "Elsewhere";
       m.set(k, [...(m.get(k) ?? []), q]);
     }
     return [...m.entries()];
-  }, []);
+  }, [place]);
 
   return (
     <>
-      <section className="alf-card">
-        <div className="fm-team">
-          <span className="fm-team-swatch" style={{ background: team.color }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="fm-team-name">Team {team.name}</div>
-            <div className="fm-team-meta">{mates.length + 1} people · {ordinal(teamRank)} of {TEAMS.length} · {teamPts} pts</div>
-          </div>
-          <Faces people={mates} max={4} />
-        </div>
-        <p className="fm-muted" style={{ marginTop: 10 }}>
-          Every point you earn counts for {team.name}, whoever you earn it with. Team quests need {" "}
-          <b style={{ color: "#2e9e5b" }}>3+ teammates</b> tagged and are worth more.
-        </p>
-      </section>
-
+      {settings.announcement && (
+        <div className="fm-announce"><b>From the cohosts:</b> {settings.announcement}</div>
+      )}
       <section className="alf-card">
         <div className="fm-assign-head">
           <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
-          <StatusChip final={final} now={now} count={proofs.length} />
+          <StatusChip final={final} now={now} count={submissions.length} />
         </div>
         <div className="fm-assign-due">
-          Due {QUESTIVAL.dueLabel} · Weight 1x{w === "open" || w === "extension" ? ` · ${timeLeft(now)}` : ""}
+          Due {QUESTIVAL.dueLabel} · Weight 2x{w === "open" || w === "extension" ? ` · ${timeLeft(now)}` : ""}
         </div>
         <p className="alf-card-body">
-          Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, and submit your
-          final list before the bonfire. Everything is optional; every quest is points.
+          Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, tag whoever
+          did it with you, and submit your final list before the bonfire. Everything is optional; every quest is points.
         </p>
-        <div className="fm-progress"><span style={{ width: `${Math.min(100, (doneIds.size / total) * 100)}%` }} /></div>
+        <div className="fm-progress"><span style={{ width: `${Math.min(100, (doneIds.size / Math.max(1, total)) * 100)}%` }} /></div>
         <div className="fm-stats">
           <span><b>{doneIds.size}</b> of {total} done</span>
           <span><b>{plannedIds.size}</b> planned</span>
@@ -139,14 +93,14 @@ export function QuestivalHub({
         </div>
         <div className="fm-btn-row">
           <button className="fm-btn fm-btn-primary" onClick={onOpenMe}>{final ? "My submission" : "My list"}</button>
-          <button className="fm-btn" onClick={onOpenLive}>Leaderboard</button>
+          <button className="fm-btn" onClick={onOpenLive}>The class, live</button>
         </div>
       </section>
 
       <div className="fm-filters">
-        {(["all", "todo", "planned", "saved", "team"] as const).map((f) => (
+        {(["all", "todo", "planned", "saved"] as const).map((f) => (
           <button key={f} className={`fm-filter${filter === f ? " fm-filter-on" : ""}`} onClick={() => setFilter(f)}>
-            {f === "all" ? "All" : f === "todo" ? "Not done" : f === "planned" ? "Planned" : f === "saved" ? "Saved" : "Team quests"}
+            {f === "all" ? "All" : f === "todo" ? "Not done" : f === "planned" ? "Planned" : "Saved"}
           </button>
         ))}
       </div>
@@ -170,21 +124,11 @@ export function QuestivalHub({
       <section className="alf-card">
         <h3 className="alf-card-h">Anywhere</h3>
         <ul className="fm-quests">
-          {ANYWHERE_QUESTS.filter(show).map((q) => <QuestRow key={q.id} q={q} saved={doneIds.has(q.id)} planned={plannedIds.has(q.id)} final={!!final} onOpen={onOpenQuest} />)}
+          {anywhere.filter(show).map((q) => <QuestRow key={q.id} q={q} saved={doneIds.has(q.id)} planned={plannedIds.has(q.id)} final={!!final} onOpen={onOpenQuest} />)}
         </ul>
       </section>
     </>
   );
-}
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function teamTotal(people: Person[], teamId: string): number {
-  return people.filter((p) => teamFor(p.name) === teamId).reduce((s, p) => s + samplePoints(p.name), 0);
 }
 
 function QuestRow({ q, saved, planned, final, onOpen }: { q: Quest; saved: boolean; planned: boolean; final: boolean; onOpen: (id: string) => void }) {
@@ -193,10 +137,7 @@ function QuestRow({ q, saved, planned, final, onOpen }: { q: Quest; saved: boole
     <li className="fm-quest" onClick={() => onOpen(q.id)}>
       <span className={`fm-dot${dot}`} />
       <span>
-        <div className="fm-quest-title">
-          {q.title}
-          {q.teamMin && <span className="fm-kind fm-kind-team" style={{ marginLeft: 6, verticalAlign: "middle" }}>Team</span>}
-        </div>
+        <div className="fm-quest-title">{q.title}</div>
         <div className="fm-quest-meta">
           {q.venue ? `${q.venue} · ` : ""}{EVIDENCE_LABEL[q.evidence]}{q.repeat ? ` · up to ${q.repeat}×` : ""}{planned && !saved ? " · planned" : ""}
         </div>
@@ -208,89 +149,65 @@ function QuestRow({ q, saved, planned, final, onOpen }: { q: Quest; saved: boole
 
 // ----- QUEST -----------------------------------------------------------------
 
-export function QuestView({
-  questId,
-  people,
-  proofs,
-  plan,
-  now,
-  onSave,
-  onPlan,
-  onUnplan,
-  onOpenMe,
-}: {
-  questId: string;
-  people: Person[];
-  proofs: SavedProof[];
-  plan?: Plan;
-  now: number;
-  onSave: (p: SavedProof) => void;
-  onPlan: (withNames: string[]) => void;
-  onUnplan: (id: string) => void;
-  onOpenMe: () => void;
-}) {
-  const q = getQuest(questId)!;
+export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: () => void }) {
+  const { quests, people, me, submissions, plans, now, saveProof, addPlan, removePlan } = useForumStore();
+  const q = quests.find((x) => x.id === questId) ?? getQuest(questId);
+  const plan = plans.find((p) => p.kind === "quest" && p.target_id === questId);
   const w = questivalWindow(now);
-  const mine = proofs.filter((p) => p.questId === q.id);
-  const cap = q.repeat ?? 1;
+  const mine = submissions.filter((s) => s.quest_id === questId);
+  const cap = q?.repeat ?? 1;
   const nextInstance = mine.length + 1;
   const canAdd = nextInstance <= cap && w !== "closed";
-  const team = getTeam(teamFor(ME));
 
   const fileRef = useRef<HTMLInputElement>(null);
-  const [media, setMedia] = useState<Media[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<{ file: File; preview: string }[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tags, setTags] = useState<string[]>(() => plan?.with ?? []);
+  const [tags, setTags] = useState<string[]>(() => plan?.with.map((p) => p.id).filter((id) => id !== me.id) ?? []);
   const [caption, setCaption] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
+
+  if (!q) return <section className="alf-card"><p className="fm-empty">That quest isn&apos;t in the catalog anymore.</p></section>;
 
   const accept = q.evidence === "video" ? "video/*" : q.evidence === "screenshot" ? "image/*" : "image/*,video/*";
   const multiple = q.evidence === "photo-pair";
   const needed = q.evidence === "photo-pair" ? 2 : 1;
-  const teamTagged = 1 + tags.filter((n) => teamFor(n) === team.id).length;
-  const teamShort = q.teamMin ? Math.max(0, q.teamMin - teamTagged) : 0;
 
-  const onFiles = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setBusy(true);
+  const onFiles = (list: FileList | null) => {
+    if (!list?.length) return;
     setError(null);
-    try {
-      const next: Media[] = [];
-      for (const f of Array.from(files)) {
-        if (f.type.startsWith("video/")) next.push({ kind: "video", src: URL.createObjectURL(f) });
-        else next.push({ kind: "image", src: await shrinkImage(f) });
-      }
-      setMedia((m) => [...m, ...next]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't read that file.");
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
+    setFiles((f) => [...f, ...Array.from(list).map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
-  const save = () => {
-    const proof: SavedProof = {
-      id: uid(),
-      questId: q.id,
-      instance: nextInstance,
-      at: now,
-      caption: caption.trim(),
-      members: tags,
-      // Object URLs don't survive a reload; keep the kind so the list stays honest.
-      media: media.map((m) => (m.kind === "video" ? { kind: "video" } : m)),
-    };
-    onSave(proof);
-    setMedia([]);
-    setCaption("");
-    setReceipt(`Saved ${timeShort(now)}${tags.length ? ` · with ${tags.map(firstName).join(", ")}` : ""}`);
+  const save = async () => {
+    setBusy("Saving…");
+    setError(null);
+    try {
+      await saveProof({
+        questId: q.id,
+        instance: nextInstance,
+        files: files.map((f) => f.file),
+        memberIds: tags,
+        caption: q.evidence === "text-photo" ? undefined : caption.trim() || undefined,
+        note: q.evidence === "text-photo" ? caption.trim() || undefined : undefined,
+        onProgress: (d, t) => setBusy(`Uploading ${d} of ${t}…`),
+      });
+      const names = tags.map((id) => people.find((p) => p.id === id)?.name).filter(Boolean).map((n) => firstName(n!));
+      setReceipt(`Saved ${timeShort(now)}${names.length ? ` · with ${names.join(", ")}` : ""}`);
+      setFiles([]);
+      setCaption("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save — try again.");
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
     <>
       <section className="alf-card">
-        <p className="fm-eyebrow">{q.venue ? `At a place · ${q.area ?? ""}` : "Anywhere"}{q.teamMin ? " · Team quest" : ""}</p>
+        <p className="fm-eyebrow">{q.venue ? `At a place · ${q.area ?? ""}` : "Anywhere"}</p>
         <div className="fm-assign-head" style={{ marginBottom: 8 }}>
           <h2 className="alf-card-h" style={{ margin: 0 }}>{q.title}</h2>
           <span className="fm-pts fm-pts-big">{q.points} pts</span>
@@ -299,36 +216,26 @@ export function QuestView({
         <div className="fm-detail-meta">
           <span><b>Proof</b> · {EVIDENCE_LABEL[q.evidence]}</span>
           {q.venue && <span><b>Where</b> · {q.venue}{q.address ? `, ${q.address}` : ""}</span>}
-          {q.teamMin && <span><b>Team</b> · at least {q.teamMin} of Team {team.name} tagged, you included</span>}
           {q.repeat && <span><b>Repeats</b> · up to {q.repeat} times, {q.points} pts each</span>}
           {q.bonus && <span><b>Bonus</b> · {q.bonus}</span>}
         </div>
         {q.tip && <p className="fm-note">{q.tip}</p>}
         {q.address && (
           <div className="fm-btn-row">
-            <a className="fm-btn fm-btn-blue" href={directionsUrl(q.address)} target="_blank" rel="noreferrer">
-              <PinIcon /> Directions
-            </a>
+            <a className="fm-btn fm-btn-blue" href={directionsUrl(q.address)} target="_blank" rel="noreferrer"><PinIcon /> Directions</a>
           </div>
         )}
       </section>
 
       {mine.length === 0 && (
-        <PlanIt
-          kind="quest"
-          plan={plan}
-          people={people}
-          onPlan={onPlan}
-          onUnplan={onUnplan}
-          teamHint={q.teamMin ? `Team quest — rally ${q.teamMin - 1} from Team ${team.name}. Your teammates are first in the picker.` : undefined}
-        />
+        <PlanIt kind="quest" plan={plan} people={people} me={me} onPlan={(ids) => addPlan("quest", q.id, ids)} onUnplan={removePlan} />
       )}
 
       {mine.length > 0 && (
         <section className="alf-card">
           <h3 className="alf-card-h">On your list</h3>
           <div className="fm-thumbs">
-            {mine.flatMap((p) => p.media.map((m, i) => <Thumb key={`${p.id}-${i}`} m={m} />))}
+            {mine.flatMap((s) => s.media.map((m, i) => <Thumb key={`${s.id}-${i}`} url={m.url} type={m.type} />))}
           </div>
           <p className="fm-muted" style={{ marginTop: 8 }}>
             {mine.length} saved{q.repeat ? ` of ${q.repeat}` : ""}. <button className="fm-link-btn" onClick={onOpenMe}>Open my list</button>
@@ -339,36 +246,23 @@ export function QuestView({
       {canAdd ? (
         <section className="alf-card">
           <h3 className="alf-card-h">{q.repeat && mine.length ? `Instance ${nextInstance} of ${cap}` : "Your proof"}</h3>
-          <input
-            ref={fileRef}
-            type="file"
-            accept={accept}
-            capture={q.evidence === "screenshot" ? undefined : "environment"}
-            multiple={multiple}
-            hidden
-            onChange={(e) => onFiles(e.target.files)}
-          />
-          <button className="fm-capture" onClick={() => fileRef.current?.click()} disabled={busy}>
+          <input ref={fileRef} type="file" accept={accept} capture={q.evidence === "screenshot" ? undefined : "environment"} multiple={multiple} hidden onChange={(e) => onFiles(e.target.files)} />
+          <button className="fm-capture" onClick={() => fileRef.current?.click()} disabled={!!busy}>
             <CameraIcon />
-            {busy ? "Reading…" : q.evidence === "video" ? "Record a video" : q.evidence === "screenshot" ? "Add a screenshot" : "Take a photo"}
+            {q.evidence === "video" ? "Record a video" : q.evidence === "screenshot" ? "Add a screenshot" : "Take a photo"}
             <small>{q.evidence === "photo-pair" ? "Pick the original and the recreation" : "or choose from your library"}</small>
           </button>
           {error && <p className="fm-note">{error}</p>}
-          {media.length > 0 && (
+          {files.length > 0 && (
             <div className="fm-thumbs">
-              {media.map((m, i) => (
-                <Thumb key={i} m={m} onRemove={() => setMedia(media.filter((_, j) => j !== i))} />
+              {files.map((f, i) => (
+                <Thumb key={i} url={f.preview} type={f.file.type.startsWith("video/") ? "video" : "image"} onRemove={() => setFiles(files.filter((_, j) => j !== i))} />
               ))}
             </div>
           )}
 
           <p className="fm-eyebrow" style={{ marginTop: 16 }}>Who did it with you</p>
-          <TagPicker people={people} tags={tags} onChange={setTags} />
-          {q.teamMin && (
-            <p className={teamShort ? "fm-note" : "fm-receipt"} style={{ marginTop: 6 }}>
-              {teamShort ? `${teamShort} more from Team ${team.name} needed for this to count.` : `✓ ${teamTagged} from Team ${team.name} — counts.`}
-            </p>
-          )}
+          <TagPicker people={people.filter((p) => p.id !== me.id)} tags={tags} onChange={setTags} />
 
           {q.evidence === "text-photo" ? (
             <textarea className="fm-input" rows={3} placeholder="Your line…" value={caption} onChange={(e) => setCaption(e.target.value)} style={{ marginTop: 10 }} />
@@ -377,9 +271,7 @@ export function QuestView({
           )}
 
           <div className="fm-btn-row">
-            <button className="fm-btn fm-btn-primary" disabled={media.length < needed || busy || teamShort > 0} onClick={save}>
-              Save to my list
-            </button>
+            <button className="fm-btn fm-btn-primary" disabled={files.length < needed || !!busy} onClick={save}>{busy ?? "Save to my list"}</button>
           </div>
           {receipt && <p className="fm-receipt">✓ {receipt}</p>}
           {w === "before" && <p className="fm-muted" style={{ marginTop: 8 }}>Saving works now; scoring opens Sat 10:00.</p>}
@@ -394,44 +286,35 @@ export function QuestView({
   );
 }
 
-function Thumb({ m, onRemove }: { m: Media; onRemove?: () => void }) {
+export function Thumb({ url, type, onRemove }: { url: string; type: "image" | "video"; onRemove?: () => void }) {
   return (
     <div className="fm-thumb">
-      {m.kind === "image" && m.src ? (
+      {type === "image" && url ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={m.src} alt="" />
-      ) : m.kind === "video" && m.src ? (
-        <video src={m.src} playsInline muted />
+        <img src={url} alt="" />
+      ) : type === "video" && url ? (
+        <video src={url} playsInline muted />
       ) : (
-        <div className="fm-thumb-video" style={{ height: "100%" }}>VIDEO</div>
+        <div className="fm-thumb-video" style={{ height: "100%" }}>{type === "video" ? "VIDEO" : "—"}</div>
       )}
       {onRemove && <button className="fm-thumb-x" onClick={onRemove} aria-label="Remove">×</button>}
     </div>
   );
 }
 
-/** Faces to tag. Tagged first, then your team, then everyone else. */
-export function TagPicker({ people, tags, onChange }: { people: Person[]; tags: string[]; onChange: (t: string[]) => void }) {
+/** Faces to tag, by RSVP id. Tagged first. */
+export function TagPicker({ people, tags, onChange }: { people: PersonDTO[]; tags: string[]; onChange: (t: string[]) => void }) {
   const [query, setQuery] = useState("");
-  const myTeam = teamFor(ME);
   const list = people.filter((p) => !query || p.name.toLowerCase().includes(query.toLowerCase()));
-  const rank = (p: Person) => (tags.includes(p.name) ? 0 : teamFor(p.name) === myTeam ? 1 : 2);
-  const ordered = [...list].sort((a, b) => rank(a) - rank(b));
+  const ordered = [...list].sort((a, b) => Number(tags.includes(b.id)) - Number(tags.includes(a.id)));
   return (
     <>
       <input className="fm-input" placeholder="Search the class…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ marginBottom: 6 }} />
       <div className="fm-tags">
         {ordered.map((p) => {
-          const on = tags.includes(p.name);
-          const t = getTeam(teamFor(p.name));
-          const mate = t.id === myTeam;
+          const on = tags.includes(p.id);
           return (
-            <button
-              key={p.name}
-              className={`fm-tag${on ? " fm-tag-on" : ""}${mate ? " fm-tag-team" : ""}`}
-              style={mate ? ({ "--team": t.color } as React.CSSProperties) : undefined}
-              onClick={() => onChange(on ? tags.filter((x) => x !== p.name) : [...tags, p.name])}
-            >
+            <button key={p.id} className={`fm-tag${on ? " fm-tag-on" : ""}`} onClick={() => onChange(on ? tags.filter((x) => x !== p.id) : [...tags, p.id])}>
               {p.photo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={p.photo_url} alt="" loading="lazy" />
@@ -450,54 +333,34 @@ export function TagPicker({ people, tags, onChange }: { people: Person[]; tags: 
 
 // ----- MY QUESTIVAL ----------------------------------------------------------
 
-export function MyQuestival({
-  proofs,
-  plans,
-  people,
-  final,
-  now,
-  onRemove,
-  onSubmitFinal,
-  onOpenQuest,
-  onOpenActivity,
-}: {
-  proofs: SavedProof[];
-  plans: Plan[];
-  people: Person[];
-  final: Final;
-  now: number;
-  onRemove: (id: string) => void;
-  onSubmitFinal: () => void;
-  onOpenQuest: (id: string) => void;
-  onOpenActivity: (id: string) => void;
-}) {
+export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id: string) => void; onOpenActivity: (id: string) => void }) {
+  const { submissions, plans, me, final, now, removeProof, submitFinal } = useForumStore();
   const [confirming, setConfirming] = useState(false);
   const w = questivalWindow(now);
-  const pts = totalPoints(toProofs(proofs, true));
-  const withNames = [...new Set(proofs.flatMap((p) => p.members))];
-  const withPeople = withNames.map((n) => people.find((p) => p.name === n) ?? { name: n, photo_url: null });
+  const pts = myPoints(submissions);
+  const withPeople = useMemo(() => {
+    const seen = new Map<string, PersonDTO>();
+    for (const s of submissions) for (const p of s.members) if (p.id !== me.id) seen.set(p.id, p);
+    return [...seen.values()];
+  }, [submissions, me.id]);
   const bonfire = getActivity("sat-bonfire")!;
-  const editable = w === "open" || w === "extension" || w === "before";
-  const doneIds = new Set(proofs.map((p) => p.questId));
-  const planned = plans.filter((p) => !(p.kind === "quest" && doneIds.has(p.targetId)));
-  const team = getTeam(teamFor(ME));
+  const editable = w !== "closed";
+  const doneIds = new Set(submissions.map((s) => s.quest_id));
+  const planned = plans.filter((p) => !(p.kind === "quest" && doneIds.has(p.target_id)));
 
   return (
     <>
       <section className="alf-card">
         <div className="fm-assign-head">
           <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
-          <StatusChip final={final} now={now} count={proofs.length} />
+          <StatusChip final={final} now={now} count={submissions.length} />
         </div>
         <div className="fm-assign-due">
-          {final
-            ? `Submitted ${timeShort(final.at)}${final.extension ? " · after the 7th minute" : ""}`
-            : `Due ${QUESTIVAL.dueLabel} · Weight 1x`}
-          {" · "}Team {team.name}
+          {final ? `Submitted ${timeShort(final.submitted_at)}${final.extension_used ? " · after the 7th minute" : ""}` : `Due ${QUESTIVAL.dueLabel} · Weight 2x`}
         </div>
         <div className="fm-stats" style={{ marginTop: 6 }}>
-          <span><b>{proofs.length}</b> quests</span>
-          <span><b>{pts}</b> pts for {team.name}</span>
+          <span><b>{submissions.length}</b> quests</span>
+          <span><b>{pts}</b> pts</span>
         </div>
         {withPeople.length > 0 && (
           <div className="fm-row-foot">
@@ -509,20 +372,18 @@ export function MyQuestival({
 
         {!final && !confirming && (
           <div className="fm-btn-row">
-            <button className="fm-btn fm-btn-primary" disabled={proofs.length === 0 || w === "closed"} onClick={() => setConfirming(true)}>
-              Submit final list
-            </button>
+            <button className="fm-btn fm-btn-primary" disabled={submissions.length === 0 || w === "closed"} onClick={() => setConfirming(true)}>Submit final list</button>
           </div>
         )}
         {!final && confirming && (
           <div className="alf-next-card" style={{ marginTop: 12 }}>
             <div className="alf-next-card-text">
               <span className="alf-next-card-eyebrow">Confirm</span>
-              <span className="alf-next-card-title">{proofs.length} quests · {pts} pts{withPeople.length ? ` · with ${withPeople.map((p) => firstName(p.name)).join(", ")}` : ""}</span>
+              <span className="alf-next-card-title">{submissions.length} quests · {pts} pts{withPeople.length ? ` · with ${withPeople.map((p) => firstName(p.name)).join(", ")}` : ""}</span>
               <span className="alf-next-card-sub">Submit before the bonfire? You can still edit until 5:00 PM.</span>
             </div>
             <div className="alf-next-card-actions">
-              <button className="alf-next-card-btn" onClick={() => { onSubmitFinal(); setConfirming(false); }}>Submit</button>
+              <button className="alf-next-card-btn" onClick={() => { submitFinal(); setConfirming(false); }}>Submit</button>
               <button className="alf-next-card-link" onClick={() => setConfirming(false)}>Not yet</button>
             </div>
           </div>
@@ -530,9 +391,7 @@ export function MyQuestival({
         {final && (
           <div className="fm-sealed">
             <div className="fm-sealed-big">Submitted.</div>
-            <div className="fm-sealed-sub">
-              {final.extension ? "Right at the deadline — in the Ani tradition." : "Grades released at dinner, around 8:30."}
-            </div>
+            <div className="fm-sealed-sub">{final.extension_used ? "Right at the deadline — in the Ani tradition." : "Grades released at dinner, around 8:30."}</div>
           </div>
         )}
       </section>
@@ -557,16 +416,17 @@ export function MyQuestival({
           <p className="fm-muted" style={{ marginBottom: 6 }}>What you intend to do. Nothing here counts until you capture it.</p>
           <ul className="fm-proofs">
             {planned.map((p) => {
-              const title = p.kind === "quest" ? getQuest(p.targetId)?.title : getActivity(p.targetId)?.title;
-              const q = p.kind === "quest" ? getQuest(p.targetId) : undefined;
+              const title = p.kind === "quest" ? getQuest(p.target_id)?.title : getActivity(p.target_id)?.title;
+              const q = p.kind === "quest" ? getQuest(p.target_id) : undefined;
+              const ins = p.with.filter((x) => p.replies[x.id] === "in").map((x) => firstName(x.name));
               return (
-                <li key={p.id} className="fm-proof-row" onClick={() => (p.kind === "quest" ? onOpenQuest(p.targetId) : onOpenActivity(p.targetId))}>
-                  <div className="fm-proof-thumb" style={{ background: "#f3f0e8", border: "1px dashed #c9c3b4" }}>
-                    <div className="fm-proof-thumb-ph" style={{ color: "#8a8680" }}>PLAN</div>
-                  </div>
+                <li key={p.id} className="fm-proof-row" onClick={() => (p.kind === "quest" ? onOpenQuest(p.target_id) : onOpenActivity(p.target_id))}>
+                  <div className="fm-proof-thumb" style={{ background: "#f3f0e8", border: "1px dashed #c9c3b4" }}><div className="fm-proof-thumb-ph" style={{ color: "#8a8680" }}>PLAN</div></div>
                   <div>
                     <div className="fm-proof-title">{title}</div>
-                    <div className="fm-proof-meta">{p.with.length ? `with ${p.with.map(firstName).join(", ")}` : "just you, for now"}</div>
+                    <div className="fm-proof-meta">
+                      {p.with.length ? `with ${p.with.map((x) => firstName(x.name)).join(", ")}` : "just you, for now"}{ins.length ? ` · in: ${ins.join(", ")}` : ""}
+                    </div>
                   </div>
                   {q && <span className="fm-pts">{q.points}</span>}
                 </li>
@@ -578,32 +438,34 @@ export function MyQuestival({
 
       <section className="alf-card">
         <h3 className="alf-card-h">Your list</h3>
-        {proofs.length === 0 ? (
+        {submissions.length === 0 ? (
           <p className="fm-empty">Nothing saved yet. Open a quest and take a photo.</p>
         ) : (
           <ul className="fm-proofs">
-            {proofs.map((p) => {
-              const q = getQuest(p.questId)!;
-              const first = p.media[0];
+            {submissions.map((s) => {
+              const q = getQuest(s.quest_id);
+              const first = s.media[0];
+              const others = s.members.filter((p) => p.id !== me.id);
               return (
-                <li key={p.id} className="fm-proof-row">
-                  <div className="fm-proof-thumb" onClick={() => onOpenQuest(q.id)}>
-                    {first?.kind === "image" && first.src ? (
+                <li key={s.id} className={`fm-proof-row${s.status === "rejected" ? " fm-proof-rejected" : ""}`}>
+                  <div className="fm-proof-thumb" onClick={() => onOpenQuest(s.quest_id)}>
+                    {first?.type === "image" && first.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={first.src} alt="" />
+                      <img src={first.url} alt="" />
                     ) : (
-                      <div className="fm-proof-thumb-ph">{first?.kind === "video" ? "VIDEO" : "—"}</div>
+                      <div className="fm-proof-thumb-ph">{first?.type === "video" ? "VIDEO" : "—"}</div>
                     )}
                   </div>
-                  <div onClick={() => onOpenQuest(q.id)}>
-                    <div className="fm-proof-title">{q.title}{q.repeat ? ` · ${p.instance}` : ""}</div>
+                  <div onClick={() => onOpenQuest(s.quest_id)}>
+                    <div className="fm-proof-title">{q?.title ?? s.quest_id}{q?.repeat ? ` · ${s.instance}` : ""}</div>
                     <div className="fm-proof-meta">
-                      {timeShort(p.at)}{p.members.length ? ` · with ${p.members.map(firstName).join(", ")}` : ""}{p.caption ? ` · “${p.caption}”` : ""}
+                      {timeShort(s.created_at)}{others.length ? ` · with ${others.map((p) => firstName(p.name)).join(", ")}` : ""}{s.caption ? ` · “${s.caption}”` : ""}
+                      {s.status === "rejected" ? ` · not counted${s.review_note ? `: ${s.review_note}` : ""}` : ""}
                     </div>
                   </div>
                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span className="fm-pts">{q.points}</span>
-                    {editable && <button className="fm-proof-remove" onClick={() => onRemove(p.id)} aria-label="Remove">×</button>}
+                    <span className="fm-pts">{s.points}</span>
+                    {editable && s.uploader.id === me.id && <button className="fm-proof-remove" onClick={() => removeProof(s.id)} aria-label="Remove">×</button>}
                   </span>
                 </li>
               );
@@ -617,162 +479,131 @@ export function MyQuestival({
 
 // ----- LIVE ------------------------------------------------------------------
 
-type FeedItem = { id: string; who: Person; withPeople: Person[]; quest: Quest; at: number; media?: Media; caption?: string };
+/** Feed + board, from the API when possible, else sample + my local proofs. */
+export function useLive() {
+  const { mode, submissions, people, now, me } = useForumStore();
+  const [feed, setFeed] = useState<SubmissionDTO[] | null>(null);
+  const [board, setBoard] = useState<BoardResponse | null>(null);
+  const load = useCallback(async () => {
+    if (mode !== "api") return;
+    const token = await getAccessToken();
+    const h: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+    const [f, b] = await Promise.all([
+      fetch("/api/questival/feed", { headers: h }).then((r) => (r.ok ? (r.json() as Promise<FeedResponse>) : null)).catch(() => null),
+      fetch("/api/questival/board", { headers: h }).then((r) => (r.ok ? (r.json() as Promise<BoardResponse>) : null)).catch(() => null),
+    ]);
+    if (f) setFeed(f.items);
+    if (b) setBoard(b);
+  }, [mode]);
+  useEffect(() => {
+    load();
+    const t = setInterval(() => document.visibilityState === "visible" && load(), 20_000);
+    return () => clearInterval(t);
+  }, [load]);
 
-function sampleFeed(people: Person[], now: number): FeedItem[] {
-  if (people.length === 0) return [];
-  const base = Math.min(now, QUESTIVAL.dueAt);
-  return QUESTS.filter((q) => djb2("feed" + q.id) % 100 < 45)
-    .map((q, i) => {
-      const who = people[djb2("who" + q.id) % people.length];
-      const withPeople = sample(people, "with" + q.id, 12).filter((p) => p !== who).slice(0, 3);
-      return { id: `s-${q.id}`, who, withPeople, quest: q, at: base - (i + 1) * 17 * 60_000 };
+  const items: SubmissionDTO[] = feed ?? [...submissions, ...sampleFeed(people, now, QUESTIVAL.dueAt)].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const rows = board?.rows ?? (() => {
+    const base = people.filter((p) => p.id !== me.id).map((p) => ({ person: p, points: samplePoints(p.name), completed: Math.round(samplePoints(p.name) / 15), rank: 0 }));
+    base.push({ person: me, points: myPoints(submissions), completed: submissions.length, rank: 0 });
+    base.sort((a, b) => b.points - a.points || a.person.name.localeCompare(b.person.name));
+    let rank = 0;
+    return base.map((r, i) => {
+      if (i === 0 || base[i - 1].points !== r.points) rank = i + 1;
+      return { ...r, rank };
     });
+  })();
+  return { items, rows, frozen: board?.frozen ?? false, refresh: load };
 }
 
-/** Ties share a rank (1, 1, 3), the way a scoreboard reads out loud. */
-function rankRows<T extends { pts: number }>(rows: T[]): (T & { rank: number })[] {
-  const out: (T & { rank: number })[] = [];
-  rows.forEach((r, i) => {
-    const prev = out[i - 1];
-    out.push({ ...r, rank: prev && prev.pts === r.pts ? prev.rank : i + 1 });
-  });
-  return out;
-}
-
-export function LiveView({ proofs, people, now }: { proofs: SavedProof[]; people: Person[]; now: number }) {
-  const [seg, setSeg] = useState<"teams" | "people" | "feed">("teams");
-  const me: Person = { name: ME, photo_url: null };
-  const myTeam = teamFor(ME);
-
-  const feed: FeedItem[] = [
-    ...proofs.map((p) => ({
-      id: p.id,
-      who: me,
-      withPeople: p.members.map((n) => people.find((x) => x.name === n) ?? { name: n, photo_url: null }),
-      quest: getQuest(p.questId)!,
-      at: p.at,
-      media: p.media[0],
-      caption: p.caption,
-    })),
-    ...sampleFeed(people, now),
-  ].sort((a, b) => b.at - a.at);
-
-  const myPts = totalPoints(toProofs(proofs, true));
-  const board = [
-    ...people.map((p) => ({ p, pts: samplePoints(p.name), done: Math.round(samplePoints(p.name) / 15) })),
-    { p: me, pts: myPts, done: proofs.length },
-  ].sort((a, b) => b.pts - a.pts || a.p.name.localeCompare(b.p.name));
-  const ranked = rankRows(board);
-
-  const teams = rankRows(
-    TEAMS.map((t) => {
-      const members = people.filter((p) => teamFor(p.name) === t.id);
-      const pts = members.reduce((s, p) => s + samplePoints(p.name), 0) + (t.id === myTeam ? myPts : 0);
-      return { t, members, pts, size: members.length + (t.id === myTeam ? 1 : 0) };
-    }).sort((a, b) => b.pts - a.pts),
-  );
+export function LiveView({ initial = "feed" }: { initial?: "feed" | "board" }) {
+  const { me } = useForumStore();
+  const [seg, setSeg] = useState<"feed" | "board">(initial);
+  const { items, rows, frozen } = useLive();
 
   return (
     <>
-      <div className="fm-seg">
-        <button className={`fm-seg-btn${seg === "teams" ? " fm-seg-on" : ""}`} onClick={() => setSeg("teams")}><b>Teams</b><span>the board</span></button>
-        <button className={`fm-seg-btn${seg === "people" ? " fm-seg-on" : ""}`} onClick={() => setSeg("people")}><b>People</b><span>individual</span></button>
+      <div className="fm-seg" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <button className={`fm-seg-btn${seg === "feed" ? " fm-seg-on" : ""}`} onClick={() => setSeg("feed")}><b>Feed</b><span>as it lands</span></button>
+        <button className={`fm-seg-btn${seg === "board" ? " fm-seg-on" : ""}`} onClick={() => setSeg("board")}><b>Board</b><span>{frozen ? "final" : "points"}</span></button>
       </div>
 
-      {seg === "teams" && (
+      {seg === "feed" && <Feed items={items} />}
+
+      {seg === "board" && (
         <section className="alf-card">
-          <h3 className="alf-card-h">Teams</h3>
+          <h3 className="alf-card-h">Leaderboard</h3>
           <table className="fm-board">
             <tbody>
-              {teams.map((r) => (
-                <tr key={r.t.id} className={r.t.id === myTeam ? "fm-board-me" : ""}>
+              {rows.map((r) => (
+                <tr key={r.person.id} className={r.person.id === me.id ? "fm-board-me" : ""}>
                   <td className="fm-board-rank">{r.rank}</td>
                   <td>
                     <span className="fm-board-name">
-                      <span className="fm-team-swatch" style={{ background: r.t.color }} />
-                      {r.t.name}
-                      <Faces people={r.members} max={4} />
-                      <span className="fm-muted" style={{ fontSize: 11 }}>{r.size}</span>
+                      {r.person.photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.person.photo_url} alt="" loading="lazy" />
+                      ) : (
+                        <span className="fm-face" style={{ margin: 0, width: 26, height: 26, background: r.person.id === me.id ? "#2e9e5b" : undefined }} />
+                      )}
+                      {r.person.name}
+                      <span className="fm-muted" style={{ fontSize: 11 }}>{r.completed} quests</span>
                     </span>
                   </td>
-                  <td className="fm-board-pts">{r.pts}</td>
+                  <td className="fm-board-pts">{r.points}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="fm-muted" style={{ marginTop: 10 }}>A team&apos;s score is the sum of its people. Prizes at dinner for the top team and the top three people.</p>
+          <p className="fm-muted" style={{ marginTop: 10 }}>Everyone tagged on a proof gets its points. Prizes at dinner for the top three, and for the best recreation.</p>
         </section>
-      )}
-
-      {seg === "people" && (
-        <section className="alf-card">
-          <h3 className="alf-card-h">People</h3>
-          <table className="fm-board">
-            <tbody>
-              {ranked.map((r) => {
-                const t = getTeam(teamFor(r.p.name));
-                return (
-                  <tr key={r.p.name} className={r.p === me ? "fm-board-me" : ""}>
-                    <td className="fm-board-rank">{r.rank}</td>
-                    <td>
-                      <span className="fm-board-name">
-                        {r.p.photo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={r.p.photo_url} alt="" loading="lazy" style={{ boxShadow: `0 0 0 2px ${t.color}` }} />
-                        ) : (
-                          <span className="fm-face" style={{ margin: 0, width: 26, height: 26, background: r.p === me ? "#2e9e5b" : undefined, boxShadow: `0 0 0 2px ${t.color}` }} />
-                        )}
-                        {r.p.name}
-                        <span className="fm-muted" style={{ fontSize: 11 }}>{t.name} · {r.done} quests</span>
-                      </span>
-                    </td>
-                    <td className="fm-board-pts">{r.pts}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {seg === "feed" && (
-        <ul className="fm-feed">
-          {feed.length === 0 && <li className="fm-empty">Nothing yet. The class is still at breakfast.</li>}
-          {feed.map((f) => (
-            <li key={f.id} className="fm-card-proof">
-              <div className="fm-card-proof-head">
-                {f.who.photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img className="fm-face-lg" src={f.who.photo_url} alt="" loading="lazy" />
-                ) : (
-                  <span className="fm-face fm-face-lg" style={{ margin: 0, background: "#2e9e5b" }} />
-                )}
-                <span className="fm-card-proof-who">
-                  {firstName(f.who.name)}{f.withPeople.length ? ` + ${f.withPeople.map((p) => firstName(p.name)).join(", ")}` : ""}
-                </span>
-                <span className="fm-card-proof-time">{timeShort(f.at)}</span>
-              </div>
-              <div className="fm-card-proof-media">
-                {f.media?.kind === "image" && f.media.src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.media.src} alt="" />
-                ) : (
-                  <div className="fm-card-proof-ph">
-                    <small>{f.media?.kind === "video" ? "Video" : "Proof"}</small>
-                    {f.quest.title}
-                  </div>
-                )}
-              </div>
-              <div className="fm-card-proof-foot">
-                <span>{f.quest.title}{f.caption ? ` · “${f.caption}”` : ""}</span>
-                <span className="fm-pts">+{f.quest.points} {getTeam(teamFor(f.who.name)).name}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
       )}
     </>
+  );
+}
+
+export function Feed({ items, limit }: { items: SubmissionDTO[]; limit?: number }) {
+  const shown = limit ? items.slice(0, limit) : items;
+  return (
+    <ul className="fm-feed">
+      {shown.length === 0 && <li className="fm-empty">Nothing yet. The class is still at breakfast.</li>}
+      {shown.map((f) => {
+        const q = getQuest(f.quest_id);
+        const others = f.members.filter((p) => p.id !== f.uploader.id);
+        const first = f.media[0];
+        return (
+          <li key={f.id} className="fm-card-proof">
+            <div className="fm-card-proof-head">
+              {f.uploader.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="fm-face-lg" src={f.uploader.photo_url} alt="" loading="lazy" />
+              ) : (
+                <span className="fm-face fm-face-lg" style={{ margin: 0, background: f.uploader.id === ME_ID ? "#2e9e5b" : undefined }} />
+              )}
+              <span className="fm-card-proof-who">
+                {firstName(f.uploader.name)}{others.length ? ` + ${others.map((p) => firstName(p.name)).join(", ")}` : ""}
+              </span>
+              <span className="fm-card-proof-time">{timeShort(f.created_at)}</span>
+            </div>
+            <div className="fm-card-proof-media">
+              {first?.type === "image" && first.url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={first.url} alt="" loading="lazy" />
+              ) : first?.type === "video" && first.url ? (
+                <video src={first.url} controls playsInline preload="metadata" />
+              ) : (
+                <div className="fm-card-proof-ph" style={{ background: `linear-gradient(135deg, #1a2530 0%, hsl(${djb2(f.quest_id) % 360} 45% 32%) 100%)` }}>
+                  <small>{first?.type === "video" ? "Video" : "Proof"}</small>
+                  {q?.title ?? f.quest_id}
+                </div>
+              )}
+            </div>
+            <div className="fm-card-proof-foot">
+              <span>{q?.title ?? f.quest_id}{f.caption ? ` · “${f.caption}”` : ""}{f.note ? ` · “${f.note}”` : ""}</span>
+              <span className="fm-pts">+{f.points}</span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

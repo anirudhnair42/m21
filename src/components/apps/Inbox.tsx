@@ -6,7 +6,9 @@ import { useIsNarrow } from "@/lib/useIsNarrow";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { getQuest } from "@/lib/questival";
 import { getActivity } from "@/lib/weekend";
-import { firstName, sample, timeShort } from "@/components/forum/store";
+import { firstName, timeShort } from "@/components/forum/store";
+import type { CatchupDTO, PlanDTO } from "@/lib/questival-api";
+import { CATCHUP_SLOTS } from "@/lib/weekend";
 
 type EmailRow = {
   from: string;
@@ -233,49 +235,37 @@ function MailPaneAcceptance({ onOpenDecision }: { onOpenDecision: () => void }) 
   );
 }
 
-function MailPaneInvite({
-  invite,
-  reply,
-  others,
-  onReply,
-  now,
-}: {
-  invite: { id: string; from: { name: string; photo_url: string | null }; kind: "quest" | "activity"; targetId: string; at: number };
-  reply?: "in" | "maybe";
-  others: string[];
-  onReply: (r: "in" | "maybe") => void;
-  now: number;
-}) {
-  const q = invite.kind === "quest" ? getQuest(invite.targetId) : undefined;
-  const a = invite.kind === "activity" ? getActivity(invite.targetId) : undefined;
-  const title = q?.title ?? a?.title ?? invite.targetId;
-  void now;
+function MailPaneInvite({ invite, reply, meId, onReply }: { invite: PlanDTO; reply?: "in" | "maybe"; meId: string; onReply: (r: "in" | "maybe") => void }) {
+  const q = invite.kind === "quest" ? getQuest(invite.target_id) : undefined;
+  const a = invite.kind === "activity" ? getActivity(invite.target_id) : undefined;
+  const title = q?.title ?? a?.title ?? invite.target_id;
+  const others = invite.with.filter((p) => p.id !== meId && p.id !== "me").map((p) => firstName(p.name));
   return (
     <>
       <div className="mail-pane-header">
-        <div className="mail-pane-subject">{firstName(invite.from.name)} wants to do {title} with you</div>
+        <div className="mail-pane-subject">{firstName(invite.owner.name)} wants to do {title} with you</div>
         <div className="mail-pane-meta">
           <div className="mail-pane-avatar" style={{ overflow: "hidden" }}>
-            {invite.from.photo_url ? (
+            {invite.owner.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={invite.from.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={invite.owner.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
-              <span>{invite.from.name.charAt(0)}</span>
+              <span>{invite.owner.name.charAt(0)}</span>
             )}
           </div>
           <div style={{ flex: 1 }}>
-            <div className="mail-pane-from">{invite.from.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
+            <div className="mail-pane-from">{invite.owner.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
             <div className="mail-pane-to">to me{others.length ? `, ${others.join(", ")}` : ""}</div>
           </div>
-          <div className="mail-pane-date">Sat, Sep 12, {timeShort(invite.at)}</div>
+          <div className="mail-pane-date">Sat, Sep 12, {timeShort(invite.created_at)}</div>
         </div>
       </div>
       <div className="mail-pane-body">
         <div className="mail-invite">
           <p>Hey,</p>
           <p>
-            I&apos;m planning <b>{title}</b> on Saturday{q?.venue ? ` at ${q.venue}` : a?.venue ? ` at ${a.venue}` : ""}
-            {q ? ` (${q.points} pts${q.teamMin ? ", team quest" : ""})` : ""}. Want in?{others.length ? ` ${others.join(" and ")} ${others.length > 1 ? "are" : "is"} in too.` : ""}
+            I&apos;m planning <b>{title}</b> on Saturday{q?.venue ? ` at ${q.venue}` : a?.venue ? ` at ${a.venue}` : ""}{q ? ` (${q.points} pts)` : ""}. Want in?
+            {others.length ? ` ${others.join(" and ")} ${others.length > 1 ? "are" : "is"} invited too.` : ""}
           </p>
           <p>{q ? q.prompt : a?.body}</p>
           {reply ? (
@@ -286,7 +276,49 @@ function MailPaneInvite({
               <button className="fm-btn" onClick={() => onReply("maybe")}>Maybe</button>
             </div>
           )}
-          <p className="mail-invite-sig" style={{ marginTop: 18 }}>— {firstName(invite.from.name)}, via RU26</p>
+          <p className="mail-invite-sig" style={{ marginTop: 18 }}>— {firstName(invite.owner.name)}, via RU26</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MailPaneCatchup({ c, onReply }: { c: CatchupDTO; onReply: (s: "accepted" | "declined") => void }) {
+  const slot = CATCHUP_SLOTS.find((x) => x.id === c.slot);
+  return (
+    <>
+      <div className="mail-pane-header">
+        <div className="mail-pane-subject">{firstName(c.from.name)} wants to catch up</div>
+        <div className="mail-pane-meta">
+          <div className="mail-pane-avatar" style={{ overflow: "hidden" }}>
+            {c.from.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={c.from.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span>{c.from.name.charAt(0)}</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="mail-pane-from">{c.from.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
+            <div className="mail-pane-to">to me</div>
+          </div>
+          <div className="mail-pane-date">{timeShort(c.created_at)}</div>
+        </div>
+      </div>
+      <div className="mail-pane-body">
+        <div className="mail-invite">
+          <p>Hey,</p>
+          <p>Five years is too long. One on one, <b>{slot?.label ?? c.slot}</b>?</p>
+          {c.note && <p>“{c.note}”</p>}
+          {c.status === "pending" ? (
+            <div className="fm-btn-row">
+              <button className="fm-btn fm-btn-going" onClick={() => onReply("accepted")}>Let&apos;s do it</button>
+              <button className="fm-btn" onClick={() => onReply("declined")}>Can&apos;t</button>
+            </div>
+          ) : (
+            <p className="fm-inv-done">{c.status === "accepted" ? "✓ On both your calendars." : "Declined."}</p>
+          )}
+          <p className="mail-invite-sig" style={{ marginTop: 18 }}>— {firstName(c.from.name)}, via RU26</p>
         </div>
       </div>
     </>
@@ -305,8 +337,10 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
   );
   // Reunion invitations ("Anna wants to do X with you") land in the same
   // inbox, above the 2017 mail. They come from the shared Forum store.
-  const { invites, replies, reply, people, plans, now } = useForumStore();
-  const unansweredCount = invites.filter((i) => !replies[i.id]).length;
+  const { invites, replyPlan, catchups, replyCatchup, plans, me } = useForumStore();
+  const myReply = (p: PlanDTO) => p.replies[me.id] ?? p.replies["me"];
+  const incoming = catchups.filter((c) => c.to.id === me.id);
+  const unansweredCount = invites.filter((i) => !myReply(i)).length + incoming.filter((c) => c.status === "pending").length;
   const [unread, setUnread] = useState(!defaultSelected);
   // On phones Mail is a navigation stack: list first, then the message detail.
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -373,20 +407,37 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
           <div className="mail-list">
             <div className="mail-list-header">
               <span>Sort by Date ▾</span>
-              <span>{7 + invites.length + plans.filter((p) => p.with.length).length} messages</span>
+              <span>{7 + invites.length + incoming.length + plans.length} messages</span>
             </div>
+            {incoming.map((c) => (
+              <MailRow
+                key={c.id}
+                email={{
+                  from: c.from.name,
+                  subject: `${firstName(c.from.name)} wants to catch up · ${CATCHUP_SLOTS.find((x) => x.id === c.slot)?.label ?? c.slot}`,
+                  preview: c.note ?? "One on one, in one of the weekend's open windows.",
+                  time: timeShort(c.created_at),
+                }}
+                isUnread={c.status === "pending"}
+                isSelected={selected === c.id}
+                onClick={() => {
+                  setSelected(c.id);
+                  setMobileDetail(true);
+                }}
+              />
+            ))}
             {invites.map((inv) => {
-              const title = (inv.kind === "quest" ? getQuest(inv.targetId)?.title : getActivity(inv.targetId)?.title) ?? inv.targetId;
+              const title = (inv.kind === "quest" ? getQuest(inv.target_id)?.title : getActivity(inv.target_id)?.title) ?? inv.target_id;
               return (
                 <MailRow
                   key={inv.id}
                   email={{
-                    from: inv.from.name,
-                    subject: `${firstName(inv.from.name)} wants to do ${title} with you`,
-                    preview: `Sat, Sep 12 · ${inv.kind === "quest" ? `${getQuest(inv.targetId)?.points ?? ""} pts · Assignment 3: Questival` : "Session 1.2"} — reply I'm in or Maybe.`,
-                    time: timeShort(inv.at),
+                    from: inv.owner.name,
+                    subject: `${firstName(inv.owner.name)} wants to do ${title} with you`,
+                    preview: `Sat, Sep 12 · ${inv.kind === "quest" ? `${getQuest(inv.target_id)?.points ?? ""} pts · Assignment 3: Questival` : "Session 1.2"} — reply I'm in or Maybe.`,
+                    time: timeShort(inv.created_at),
                   }}
-                  isUnread={!replies[inv.id]}
+                  isUnread={!myReply(inv)}
                   isSelected={selected === inv.id}
                   onClick={() => {
                     setSelected(inv.id);
@@ -425,14 +476,10 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
             )}
             {selected === "acceptance" ? (
               <MailPaneAcceptance onOpenDecision={onOpenDecision} />
+            ) : selected && incoming.some((c) => c.id === selected) ? (
+              <MailPaneCatchup c={incoming.find((c) => c.id === selected)!} onReply={(st) => replyCatchup(selected, st)} />
             ) : selected && invites.some((i) => i.id === selected) ? (
-              <MailPaneInvite
-                invite={invites.find((i) => i.id === selected)!}
-                reply={replies[selected]}
-                others={sample(people, "co" + selected, 10).filter((p) => p.name !== invites.find((i) => i.id === selected)!.from.name).slice(0, 2).map((p) => firstName(p.name))}
-                onReply={(r) => reply(selected, r)}
-                now={now}
-              />
+              <MailPaneInvite invite={invites.find((i) => i.id === selected)!} reply={myReply(invites.find((i) => i.id === selected)!)} meId={me.id} onReply={(r) => replyPlan(selected, r)} />
             ) : (
               <MailPaneEmpty />
             )}

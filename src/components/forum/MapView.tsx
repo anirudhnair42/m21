@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LMap, LayerGroup } from "leaflet";
 import { ACTIVITIES, DAYS } from "@/lib/weekend";
-import { PLACE_QUESTS } from "@/lib/questival";
-import { sample, type Person, type Plan } from "@/components/forum/store";
+import { sample } from "@/components/forum/store";
+import { useForumStore } from "@/components/forum/ForumStore";
+import type { PersonDTO } from "@/lib/questival-api";
 
 type Layer = "anchors" | "quests" | "side";
 
@@ -53,17 +54,9 @@ const tiles = tileSource();
  * side sessions (peer-led), and who's planning to be at each. Paper-toned
  * tiles so it sits inside the Forum instead of looking like a different app.
  */
-export function MapView({
-  people,
-  plans,
-  onOpenActivity,
-  onOpenQuest,
-}: {
-  people: Person[];
-  plans: Plan[];
-  onOpenActivity: (id: string) => void;
-  onOpenQuest: (id: string) => void;
-}) {
+export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: string) => void; onOpenQuest: (id: string) => void }) {
+  const { people, plans, who, quests: allQuests, questivalOpen } = useForumStore();
+  const liveQuests = questivalOpen ? allQuests : [];
   const host = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
   const layersRef = useRef<Record<Layer, LayerGroup> | null>(null);
@@ -83,7 +76,7 @@ export function MapView({
       layersRef.current = layers;
       mapRef.current = map;
 
-      const faces = (ps: Person[]) =>
+      const faces = (ps: PersonDTO[]) =>
         ps.slice(0, 6).map((p) => (p.photo_url ? `<img class="fm-face" src="${p.photo_url}" alt="">` : `<span class="fm-face"></span>`)).join("") +
         (ps.length > 6 ? `<span class="fm-face-more">+${ps.length - 6}</span>` : "");
 
@@ -91,19 +84,19 @@ export function MapView({
 
       for (const a of ACTIVITIES) {
         if (a.lat == null || a.lng == null) continue;
-        const going = sample(people, a.id, a.kind === "anchor" ? 62 : a.kind === "optional" ? 30 : 14);
-        const mine = plans.some((p) => p.kind === "activity" && p.targetId === a.id);
+        const going = who[a.id]?.going ?? sample(people, a.id, a.kind === "anchor" ? 62 : a.kind === "optional" ? 30 : 14);
+        const mine = plans.some((p) => p.kind === "activity" && p.target_id === a.id);
         const d = DAYS.find((x) => x.id === a.day)!;
         const m = L.marker([a.lat, a.lng], { icon: pin(a.kind === "peer" ? "fm-pin-peer" : a.kind === "anchor" ? "fm-pin-anchor" : "fm-pin-opt", `${d.label} ${a.time.split(" ")[0]}`) });
         m.bindPopup(popupHtml(a.title, `${d.label} ${a.time}${a.venue ? ` · ${a.venue}` : ""}`, faces(going), `${going.length + (mine ? 1 : 0)} going${mine ? " · you're in" : ""}`, `activity:${a.id}`));
         m.addTo(a.kind === "peer" ? layers.side : layers.anchors);
       }
-      for (const q of PLACE_QUESTS) {
+      for (const q of liveQuests.filter((x) => x.venue)) {
         if (q.lat == null || q.lng == null) continue;
         const planning = sample(people, "plan" + q.id, 16);
-        const mine = plans.some((p) => p.kind === "quest" && p.targetId === q.id);
-        const m = L.marker([q.lat, q.lng], { icon: pin(`fm-pin-quest${mine ? " fm-pin-mine" : ""}${q.teamMin ? " fm-pin-team" : ""}`, `${q.points}`) });
-        m.bindPopup(popupHtml(q.title, `${q.points} pts${q.teamMin ? " · team quest" : ""}${q.venue ? ` · ${q.venue}` : ""}`, faces(planning), `${planning.length + (mine ? 1 : 0)} planning to go${mine ? " · you too" : ""}`, `quest:${q.id}`));
+        const mine = plans.some((p) => p.kind === "quest" && p.target_id === q.id);
+        const m = L.marker([q.lat, q.lng], { icon: pin(`fm-pin-quest${mine ? " fm-pin-mine" : ""}`, `${q.points}`) });
+        m.bindPopup(popupHtml(q.title, `${q.points} pts${q.venue ? ` · ${q.venue}` : ""}`, faces(planning), `${planning.length + (mine ? 1 : 0)} planning to go${mine ? " · you too" : ""}`, `quest:${q.id}`));
         m.addTo(layers.quests);
       }
 
@@ -123,7 +116,7 @@ export function MapView({
       layersRef.current = null;
     };
     // Rebuilding on every plan/people change is fine at this size.
-  }, [people, plans, onOpenActivity, onOpenQuest]);
+  }, [people, plans, who, liveQuests, onOpenActivity, onOpenQuest]);
 
   // Toggle layers.
   useEffect(() => {
@@ -151,14 +144,13 @@ export function MapView({
       <div ref={host} className="fm-map" />
       <div className="fm-map-chips">
         <button className={`fm-filter${on.anchors ? " fm-filter-on" : ""}`} onClick={() => setOn({ ...on, anchors: !on.anchors })}>Where we meet</button>
-        <button className={`fm-filter${on.quests ? " fm-filter-on" : ""}`} onClick={() => setOn({ ...on, quests: !on.quests })}>Points</button>
+        {questivalOpen && <button className={`fm-filter${on.quests ? " fm-filter-on" : ""}`} onClick={() => setOn({ ...on, quests: !on.quests })}>Points</button>}
         <button className={`fm-filter${on.side ? " fm-filter-on" : ""}`} onClick={() => setOn({ ...on, side: !on.side })}>Side sessions</button>
         <button className="fm-filter" onClick={locate}>{located ? "◉ You" : "◎ Find me"}</button>
       </div>
       <div className="fm-map-legend">
         <span><i className="fm-pin fm-pin-anchor fm-pin-mini" /> everyone</span>
-        <span><i className="fm-pin fm-pin-quest fm-pin-mini" /> quest · pts</span>
-        <span><i className="fm-pin fm-pin-quest fm-pin-team fm-pin-mini" /> team quest</span>
+        {questivalOpen && <span><i className="fm-pin fm-pin-quest fm-pin-mini" /> quest · pts</span>}
         <span><i className="fm-pin fm-pin-peer fm-pin-mini" /> peer-led</span>
       </div>
     </div>

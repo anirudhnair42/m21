@@ -11,7 +11,7 @@ import { useForumStore } from "@/components/forum/ForumStore";
  * right. Same views as the phone, hosted in the desktop chrome.
  */
 export function WeekendApp({ initialActivity }: { initialActivity?: string }) {
-  const { people, intents, setIntent, plans, addPlan, removePlan, setToast } = useForumStore();
+  const { setToast } = useForumStore();
   const [day, setDay] = useState<Day>(() => (initialActivity ? getActivity(initialActivity)?.day ?? "fri" : "fri"));
   const [activity, setActivity] = useState<string | null>(initialActivity ?? null);
 
@@ -74,18 +74,9 @@ export function WeekendApp({ initialActivity }: { initialActivity?: string }) {
         <div className="fm fm-embed wk-embed-top">
           <main className="fm-main">
             {activity ? (
-              <ActivityView
-                activity={getActivity(activity)!}
-                people={people}
-                intent={intents[activity]}
-                plan={plans.find((p) => p.kind === "activity" && p.targetId === activity)}
-                onIntent={(i) => setIntent(activity, i)}
-                onPlan={(w) => addPlan("activity", activity, w)}
-                onUnplan={removePlan}
-                onShare={share}
-              />
+              <ActivityView activity={getActivity(activity)!} onShare={share} />
             ) : (
-              <WeekendView day={day} onDay={(x) => { setDay(x); setActivity(null); }} people={people} intents={intents} onOpen={setActivity} />
+              <WeekendView day={day} onDay={(x) => { setDay(x); setActivity(null); }} onOpen={setActivity} />
             )}
           </main>
         </div>

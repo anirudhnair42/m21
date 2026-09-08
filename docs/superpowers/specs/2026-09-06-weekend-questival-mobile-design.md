@@ -564,3 +564,47 @@ Shipped 2026-09-07 to production, gated. Share `https://www.m2021.co/weekend`
 Chat, reactions, push notifications, offline maps, fixed teams, a CMS,
 video transcoding, Supabase Realtime, Walkspot embedding, post-reunion
 archive (that becomes Assignment 3 / the Photo Wall app after the weekend).
+
+## 17. Revisions after Mau's review (2026-09-07)
+
+Source: Ani ↔ Mau chat, Sept 7. Agreed: one integrated site, ALF design
+language, Walkspot's underlying logic (scoring, upload rules) reused where it
+saves time. Mau's notes and the resulting changes:
+
+### Remove
+- **Teams.** No assignment, no team quests, no `teamMin`, no Teams board,
+  no team colors in the class list. Tagging stays as the only group
+  mechanic ("hang out with whoever you want"). Drop `q_teams`,
+  `rsvps.team_id`, the team card on the hub, and the "Team" filter. Points
+  raised for the former team quests go back to their base values.
+- **Speed catch-up pre-selection.** Nothing to pick in advance for the
+  13:30 block; cohosts randomize on the spot.
+
+### Add
+- **Organizer section** (`/questival/review`, and an "Organizers" item in
+  the desktop ALF sidebar): add/edit/archive quests and points live
+  (stored overrides on top of the static catalog), review and reject
+  proofs, adjust points with a note, pin the announcement, release results,
+  and manage people (find someone's RSVP, fix a name, mark someone as
+  organizer). Allowlist: `ORGANIZER_EMAILS`.
+- **Feed, front and center.** The feed exists (Photos on desktop, the
+  class-live view on the phone) but Mau couldn't find it. Make it a
+  top-level **Feed** tab on the phone (replacing the now-unneeded Class
+  tab slot) and the default view of Photos on the desktop; add "Latest from
+  the class" to the Questival hub.
+- **Catch-up requests** (Mau's mini-Calendly). From anyone's face in the
+  class list: "Request a catch-up" → pick a window from the weekend's open
+  slots (Fri 14:00–17:00, Sat 13:30–15:00, Sat 16:00–17:00, Sun
+  11:00–14:00) and an optional line → lands in their inbox → Accept puts
+  it on both calendars with a shared spot suggestion (nearest anchor).
+  Table `catchups (id, from_rsvp, to_rsvp, slot, note, status)`.
+
+### Keep, as reviewed
+- Map with the schedule, plan-it with invitations, tagging, the submission
+  page, the 5:00 PM final-submit moment, single sign-in.
+
+### Launch prep (Ani's email with the full schedule)
+- Content freeze on `weekend.ts` and `questival.ts` after cohost answers.
+- `FORUM_OPEN=1` + redeploy; mobile root already switches to the Forum for
+  anyone allowed.
+- Email links: `https://www.m2021.co/weekend` and `https://www.m2021.co/questival`.

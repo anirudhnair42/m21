@@ -1,11 +1,9 @@
 "use client";
 
 import { MapView } from "@/components/forum/MapView";
-import { useForumStore } from "@/components/forum/ForumStore";
 
 /** Maps — the live map in a High Sierra Maps window. */
 export function MapApp({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: string) => void; onOpenQuest: (id: string) => void }) {
-  const { people, plans } = useForumStore();
   return (
     <div className="mp-app">
       <div className="mp-toolbar">
@@ -15,7 +13,7 @@ export function MapApp({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: s
       </div>
       <div className="mp-body">
         <div className="fm-main fm-main-map" style={{ position: "absolute", inset: 0 }}>
-          <MapView people={people} plans={plans} onOpenActivity={onOpenActivity} onOpenQuest={onOpenQuest} />
+          <MapView onOpenActivity={onOpenActivity} onOpenQuest={onOpenQuest} />
         </div>
       </div>
     </div>

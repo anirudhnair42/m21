@@ -307,7 +307,7 @@ export function Desktop() {
               />
             ) : id === "stay" ? (
               <HotelApp initialReturn={hotelReturn} />
-            ) : GATED_APPS.has(id) && !forum.enabled ? (
+            ) : (GATED_APPS.has(id) && !forum.enabled) || (id === "photos" && !forum.questivalOpen) ? (
               <AppStub app={app} />
             ) : id === "itinerary" ? (
               <WeekendApp />
@@ -333,7 +333,7 @@ export function Desktop() {
       <div className="dock-wrap">
         <div className="dock">
           <DockIcon icon={<FinderIconGlyph />} label="Finder" />
-          {DOCK_ORDER.filter((id) => forum.enabled || !GATED_APPS.has(id)).map((id) => {
+          {DOCK_ORDER.filter((id) => (forum.enabled || !GATED_APPS.has(id)) && (id !== "photos" || forum.questivalOpen)).map((id) => {
             const app = APPS[id];
             const w = windows[id];
             return (

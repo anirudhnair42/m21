@@ -1,32 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CatchupDTO, PersonDTO, PlanDTO, SubmissionDTO } from "@/lib/questival-api";
+import { QUESTS, getQuest } from "@/lib/questival";
 
 /**
- * Preview-only client state. The real build swaps these for the API routes
- * in the spec; the component boundaries stay the same.
+ * Client-side helpers for the Forum: device persistence for the preview
+ * ("local") mode, sample data so an empty database still looks alive,
+ * image shrinking, and small formatters. The DTO types come from the API
+ * contract so local and API modes render through the same components.
  */
 
-export type Person = { name: string; photo_url: string | null };
-
+export type { PersonDTO as Person };
 export type PlanIntent = "going" | "interested";
+export type Final = { submitted_at: string; extension_used: boolean } | null;
 
-export type Media = { kind: "image" | "video"; src?: string };
+export const ME_ID = "me";
+export const ME_NAME = "You";
+export const ME: PersonDTO = { id: ME_ID, name: ME_NAME, photo_url: null };
 
-export type SavedProof = {
-  id: string;
-  questId: string;
-  instance: number;
-  at: number;
-  caption: string;
-  /** Names of the classmates tagged (the uploader is implied). */
-  members: string[];
-  media: Media[];
-};
-
-export type Final = { at: number; extension: boolean } | null;
-
-const PREFIX = "fm_preview_v1:";
+const PREFIX = "fm_preview_v2:";
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -54,7 +47,6 @@ export function usePersisted<T>(key: string, initial: T) {
 export function readNowOffset(): number {
   const raw = new URLSearchParams(window.location.search).get("now");
   if (!raw) return 0;
-  // "2026-09-12T14:14" or "2026-09-12"; always San Francisco time.
   const iso = raw.includes("T") ? `${raw}:00-07:00` : `${raw}T12:00:00-07:00`;
   const parsed = Date.parse(iso);
   return Number.isFinite(parsed) ? parsed - Date.now() : 0;
@@ -72,7 +64,7 @@ export function sample<T extends { name: string }>(items: T[], salt: string, pct
 }
 
 /** Shrink to ≤max px JPEG before anything leaves the phone. */
-export function shrinkImage(file: File, max = 1280): Promise<string> {
+export function shrinkImage(file: File, max = 1600): Promise<{ blob: Blob; dataUrl: string }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -87,7 +79,8 @@ export function shrinkImage(file: File, max = 1280): Promise<string> {
       if (!ctx) return reject(new Error("no canvas"));
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      canvas.toBlob((blob) => (blob ? resolve({ blob, dataUrl }) : reject(new Error("encode failed"))), "image/jpeg", 0.82);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -101,7 +94,7 @@ export function firstName(name: string): string {
   return name.split(" ")[0];
 }
 
-export function timeShort(ms: number): string {
+export function timeShort(ms: number | string): string {
   return new Date(ms).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -113,42 +106,9 @@ export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// ------------------------------------------------------------ plans & teams
+// ------------------------------------------------------------- sample data
 
-import { TEAMS, type TeamId } from "@/lib/questival";
-
-/** "I intend to do this, with these people." Not a submission. */
-export type Plan = {
-  id: string;
-  kind: "quest" | "activity";
-  targetId: string;
-  with: string[];
-  at: number;
-};
-
-/** What lands in someone's inbox when a classmate plans something with them. */
-export type Invite = {
-  id: string;
-  from: Person;
-  kind: "quest" | "activity";
-  targetId: string;
-  at: number;
-};
-
-export const ME = "You";
-
-/** Cohosts assign teams for real; the preview seeds them by name. */
-export function teamFor(name: string): TeamId {
-  if (name === ME) return "berlin";
-  return TEAMS[djb2("team" + name) % TEAMS.length].id;
-}
-
-export function teammates(people: Person[], name: string): Person[] {
-  const t = teamFor(name);
-  return people.filter((p) => p.name !== name && teamFor(p.name) === t);
-}
-
-export function sampleInvites(people: Person[], now: number): Invite[] {
+export function sampleInvites(people: PersonDTO[], now: number): PlanDTO[] {
   if (people.length < 3) return [];
   const picks: { kind: "quest" | "activity"; targetId: string; min: number }[] = [
     { kind: "quest", targetId: "bobs-challenge", min: 9 },
@@ -156,11 +116,64 @@ export function sampleInvites(people: Person[], now: number): Invite[] {
     { kind: "activity", targetId: "sat-catchup", min: 75 },
     { kind: "quest", targetId: "of-course", min: 128 },
   ];
-  return picks.map((x, i) => ({
-    id: `inv-${x.targetId}`,
-    from: people[djb2("inv" + x.targetId) % people.length],
-    kind: x.kind,
-    targetId: x.targetId,
-    at: now - x.min * 60_000 - i,
-  }));
+  return picks.map((x) => {
+    const owner = people[djb2("inv" + x.targetId) % people.length];
+    const others = sample(people, "co" + x.targetId, 10).filter((p) => p.id !== owner.id).slice(0, 2);
+    return {
+      id: `inv-${x.targetId}`,
+      kind: x.kind,
+      target_id: x.targetId,
+      owner,
+      with: [ME, ...others],
+      replies: {},
+      created_at: new Date(now - x.min * 60_000).toISOString(),
+    };
+  });
+}
+
+export function sampleCatchups(people: PersonDTO[], now: number): CatchupDTO[] {
+  if (people.length < 5) return [];
+  const from = people[djb2("catchup") % people.length];
+  return [
+    {
+      id: "cu-sample",
+      from,
+      to: ME,
+      slot: "sat-1330",
+      note: "Five years is too long. Alamo Square?",
+      status: "pending",
+      created_at: new Date(now - 52 * 60_000).toISOString(),
+    },
+  ];
+}
+
+export function sampleFeed(people: PersonDTO[], now: number, dueAt: number): SubmissionDTO[] {
+  if (people.length === 0) return [];
+  const base = Math.min(now, dueAt);
+  return QUESTS.filter((q) => djb2("feed" + q.id) % 100 < 45).map((q, i) => {
+    const who = people[djb2("who" + q.id) % people.length];
+    const withPeople = sample(people, "with" + q.id, 12).filter((p) => p.id !== who.id).slice(0, 3);
+    return {
+      id: `s-${q.id}`,
+      quest_id: q.id,
+      instance: 1,
+      uploader: who,
+      members: [who, ...withPeople],
+      media: [],
+      caption: null,
+      note: null,
+      status: "approved" as const,
+      points: q.points,
+      review_note: null,
+      created_at: new Date(base - (i + 1) * 17 * 60_000).toISOString(),
+    };
+  });
+}
+
+export function samplePoints(name: string): number {
+  return (djb2("pts" + name) % 19) * 10;
+}
+
+export function questTitle(id: string): string {
+  return getQuest(id)?.title ?? id;
 }
