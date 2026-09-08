@@ -8,6 +8,7 @@
  */
 
 import type { ReactNode } from "react";
+import { DAYS, activitiesFor } from "@/lib/weekend";
 
 export type Resource = {
   label: string;
@@ -107,44 +108,23 @@ const FRI: Session = {
   id: "ru26-1-1",
   courseId: "RU26",
   number: "1.1",
-  title: "Welcome night & opening dinner",
+  title: DAYS[0].title,
   date: "Fri, Sep 11, 2026",
   status: "upcoming",
   presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: "San Francisco · arrivals & evening",
-  agenda: [
-    {
-      time: "12:00",
-      title: "Spark Social Lunch",
-      location: "Presidio Parade Ground",
-      body:
-        "We'll be grabbing lunch from the food trucks and hanging out near the Presidio Parade Ground. If you're in the city early, come by.",
-    },
-    {
-      time: "14:00",
-      title: "Neighborhood exploration / museum visit",
-      body:
-        "Come join for some neighborhood exploration (which one is TBD) if you're here early.",
-    },
-    {
-      time: "18:00",
-      title: "Dinner & drinks",
-      location: "Venue TBD",
-      body:
-        "We'll book a place for dinner and drinks for people to stream in. Patio space for mingling and catching up. Come reconnect.",
-    },
-    {
-      time: "21:00",
-      title: "Barhopping",
-      optional: true,
-      body: "For those still going — we'll make our way around the neighborhood.",
-    },
-  ],
+  location: DAYS[0].sub,
+  agenda: activitiesFor("fri").map((a) => ({
+    time: a.time,
+    title: a.title,
+    location: a.venue,
+    body: a.body,
+    optional: a.kind !== "anchor",
+  })),
   sections: [
     {
       heading: "Before Class",
       body:
-        "Land in San Francisco. Drop bags wherever you're staying. The only thing on the books is dinner at 6 — informal, no name tags. Come think about your opening line: one sentence on where the last five years took you.",
+        "Land in San Francisco. Drop bags wherever you're staying. Dinner at 6 at Southern Pacific Brewing is the one thing on the books — informal, no name tags. Altın Gün plays the Regency at 8 if you're still going. Come think about your opening line: one sentence on where the last five years took you.",
     },
     {
       heading: "Assessment",
@@ -154,8 +134,8 @@ const FRI: Session = {
     {
       heading: "Resources for Class",
       resources: [
-        { label: "Venue address & directions", note: "TBD" },
-        { label: "Friday photo album (shared)", note: "Link goes here" },
+        { label: "Southern Pacific Brewing · 620 Treat Ave", url: "https://www.google.com/maps/search/?api=1&query=620+Treat+Ave+San+Francisco" },
+        { label: "Altın Gün · tickets on AXS", url: "https://www.axs.com/events/1352783/altin-gun-tickets" },
         { label: "Playlist · Class of 2021 throwbacks", note: "Link goes here" },
       ],
     },
@@ -166,58 +146,34 @@ const SAT: Session = {
   id: "ru26-1-2",
   courseId: "RU26",
   number: "1.2",
-  title: "An unscheduled day, with a few anchors",
+  title: DAYS[1].title,
   date: "Sat, Sep 12, 2026",
   status: "upcoming",
   presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: "San Francisco · all day",
-  agenda: [
-    {
-      time: "10:00",
-      title: "Breakfast at Fort Mason",
-      location: "Fort Mason",
-      body:
-        "Start your day at Fort Mason with some iconic SF eats. We'll have breakfast bites and coffee from Saint Frank, Bob's Donuts, and more. Come hang out for a slow morning before the Questival begins.",
-    },
-    {
-      time: "12:00",
-      title: "Questival begins",
-      location: "All around the city",
-      body:
-        "A pick-your-own-adventure scavenger hunt with nostalgic M21 stops. Pair up with friends and tackle the challenges like a team assignment — or just wander the city. Everything is optional; you earn points per challenge completed (plus video evidence). Prizes at night!",
-    },
-    {
-      time: "18:00",
-      title: "Dinner & beach bonfire",
-      location: "Ocean Beach",
-      body:
-        "We'll end the scavenger hunt around sunset at Ocean Beach. Come take in the view — and don't forget some sand for the road. Bring snacks and drinks; we'll have a bonfire going. Then we'll head to a bar nearby at 8 for some M21 trivia and small gifts.",
-    },
-    {
-      time: "22:00",
-      title: "Optional afterparty",
-      optional: true,
-      body:
-        "Afterparty in Corona Heights, stargazing back at Ocean Beach, or a good night's sleep — dealer's choice.",
-    },
-  ],
+  location: DAYS[1].sub,
+  agenda: activitiesFor("sat").map((a) => ({
+    time: a.time,
+    title: a.title,
+    location: a.venue,
+    body: a.body,
+    optional: a.kind !== "anchor",
+  })),
   sections: [
     {
       heading: "Before Class",
       body:
-        "Saturday is mostly open — splinter into the groups that make sense. Everything is optional; the two anchors are breakfast at Fort Mason and the bonfire at Ocean Beach.",
+        "Questival day. Breakfast at Dahlia Dell, lunch at the Res Hall, the bonfire at Ocean Beach, dinner at Common Space are the anchors; everything in between is Assignment 3, with whoever you want.",
     },
     {
-      heading: "Assignment · Photo wall",
+      heading: "Assignment 3 · Questival",
       body:
-        "Recreate a favorite photo from your Minerva days somewhere in the city, and submit it to the photo wall. Best recreations get shown off at dinner.",
+        "Pick your own adventure through nostalgic M21 stops. Capture as you go, tag whoever did it with you, submit your final list before the bonfire. Grades at dinner.",
     },
     {
       heading: "Resources for Class",
       resources: [
-        { label: "Questival challenge list", note: "Link goes here" },
-        { label: "Nostalgic stops map (851, 1412, Corona Heights…)", note: "TBD" },
-        { label: "Photo wall — submit your recreation" },
+        { label: "The quest catalog", note: "Unlocks this week" },
+        { label: "The map", url: "/?open=map" },
       ],
     },
   ],
@@ -227,25 +183,23 @@ const SUN: Session = {
   id: "ru26-1-3",
   courseId: "RU26",
   number: "1.3",
-  title: "Slow Sunday & goodbyes",
+  title: DAYS[2].title,
   date: "Sun, Sep 13, 2026",
   status: "upcoming",
   presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: "Golden Gate Park · brunch",
-  agenda: [
-    {
-      time: "11:00",
-      title: "Faculty brunch in Golden Gate Park",
-      location: "Hellman Hollow, GG Park",
-      body:
-        "We capped off our Minerva experience with a feast in Hellman Hollow — so to end this five-year reunion, we invite you back to the same place. A loosely organized picnic feast: frisbees, spikeball, card games, drinks, snacks, and maybe a few faculty and staff dropping by to say hi. Come in when you can, leave when you need to.",
-    },
-  ],
+  location: DAYS[2].sub,
+  agenda: activitiesFor("sun").map((a) => ({
+    time: a.time,
+    title: a.title,
+    location: a.venue,
+    body: a.body,
+    optional: a.kind !== "anchor",
+  })),
   sections: [
     {
       heading: "Before Class",
       body:
-        "Late brunch, slow exit. Flights start in the afternoon — coordinate rides on the group chat.",
+        "Late brunch at Hellman Hollow, four tables booked, same spot as the graduation feast. Slow exit; coordinate rides in the group chat.",
     },
     {
       heading: "Assignment · Closing line",
@@ -270,7 +224,7 @@ export const REUNION_COURSE: Course = {
     "Nair / Urdaneta / Mangos / Torento / Graves · Fri/Sat/Sun",
   term: "Fall 2026",
   greeting:
-    "You have one upcoming class: RU26 Session 1.1 on Fri, Sep 11 in San Francisco.",
+    "Welcome to the weekend. Three sessions, Fri–Sun, in San Francisco.",
   syllabus: {
     eyebrow: "REUNION COURSE",
     courseHeader: "RU26: Alumni Reunifications",
@@ -279,7 +233,7 @@ export const REUNION_COURSE: Course = {
       {
         heading: "Course Description",
         body:
-          "Alumni Reunifications is a three-session intensive convening the Minerva University Class of 2021 five years after graduation. The course pairs structured anchors — a welcome dinner, a group photo, a closing brunch — with deliberately unscheduled time, on the theory that the interval IS the argument.",
+          "Alumni Reunifications is a three-session intensive convening the Minerva University Class of 2021 five years after graduation. The course pairs structured anchors — a welcome dinner, a group photo, a closing brunch — with a full day of Questival — pick-your-own-adventure quests across the city — on the theory that the interval IS the argument.",
       },
       {
         heading: "Prerequisites & Working Knowledge",

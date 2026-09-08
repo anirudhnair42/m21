@@ -31,12 +31,16 @@ export type Activity = {
   /** Map pin. Absent when the venue is still TBD. */
   lat?: number;
   lng?: number;
+  /** External link, e.g. tickets. */
+  link?: { label: string; url: string };
+  /** Names shown as going even before anyone taps (the host, for one). */
+  goingSeed?: string[];
 };
 
 export const DAYS: { id: Day; label: string; session: string; title: string; date: string; sub: string }[] = [
-  { id: "fri", label: "Fri", session: "1.1", title: "Welcome night & opening dinner", date: "Fri, Sep 11, 2026", sub: "San Francisco · arrivals & evening" },
-  { id: "sat", label: "Sat", session: "1.2", title: "Questival, then the beach", date: "Sat, Sep 12, 2026", sub: "San Francisco · all day" },
-  { id: "sun", label: "Sun", session: "1.3", title: "Slow Sunday & goodbyes", date: "Sun, Sep 13, 2026", sub: "Golden Gate Park · picnic" },
+  { id: "fri", label: "Fri", session: "1.1", title: "Arrivals & the welcome dinner", date: "Fri, Sep 11, 2026", sub: "Presidio by day, the Mission by night" },
+  { id: "sat", label: "Sat", session: "1.2", title: "Questival day, with a few anchors", date: "Sat, Sep 12, 2026", sub: "Golden Gate Park → the city → Ocean Beach" },
+  { id: "sun", label: "Sun", session: "1.3", title: "The picnic & goodbyes", date: "Sun, Sep 13, 2026", sub: "Hellman Hollow, Golden Gate Park" },
 ];
 
 const T = (day: "11" | "12" | "13", hhmm: string) => `2026-09-${day}T${hhmm}:00-07:00`;
@@ -99,13 +103,19 @@ export const ACTIVITIES: Activity[] = [
   {
     id: "fri-altin-gun",
     day: "fri",
-    start: null,
-    time: "Late",
-    title: "Altın Gün show",
+    lat: 37.7869,
+    lng: -122.4218,
+    start: T("11", "20:00"),
+    time: "20:00",
+    title: "Altın Gün at The Regency Ballroom",
     kind: "peer",
+    venue: "The Regency Ballroom",
+    address: "1300 Van Ness Ave, San Francisco, CA 94109",
     host: "Ani",
-    body: "Turkish psych-funk, bangers only. If enough of us are in, we buy tickets as a block.",
-    pending: "Date and tickets to confirm.",
+    body: "Turkish psych-funk, bangers only. Doors 7, show 8, with Alex Maas opening. Dinner first at Southern Pacific, then a 15-minute ride up Van Ness. Ani's going; grab a ticket and say you're in so we roll over together.",
+    cost: "Tickets on AXS, about $40. Buy your own.",
+    link: { label: "Tickets on AXS", url: "https://www.axs.com/events/1352783/altin-gun-tickets" },
+    goingSeed: ["Anirudh Nair"],
   },
   // -------------------------------------------------------------- Saturday
   {

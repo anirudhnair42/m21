@@ -722,3 +722,27 @@
   background: var(--minerva-blue); color: #fff; font-size: 18px; cursor: pointer;
   box-shadow: 0 4px 12px rgba(20,99,176,0.35);
 }
+
+/* ---------- home: how it works + day cards ---------- */
+.fm-steps { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.55; color: #2a2a2a; }
+.fm-steps li { margin-bottom: 8px; }
+.fm-steps b { font-weight: 600; }
+.fm-kbd { display: inline-block; padding: 0 6px; border: 1px solid #d8d4cb; border-radius: 4px; background: #fff; font-size: 12px; line-height: 18px; }
+.fm-step-done { color: #2e9e5b; font-weight: 600; }
+.fm-daycard { padding: 14px 16px 10px !important; }
+.fm-daycard-head { display: flex; align-items: center; gap: 12px; cursor: pointer; padding-bottom: 10px; border-bottom: 1px solid #efeadf; }
+.fm-daycard-title { font-family: var(--serif-font-family); font-size: 19px; line-height: 1.2; margin: 2px 0; color: #1a1a1a; }
+.fm-daycard-count { color: #2e9e5b; font-weight: 700; font-size: 13px; flex: 0 0 auto; }
+.fm-daycard-list { list-style: none; margin: 0; padding: 0; }
+.fm-daycard-row { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid #f3f0e8; cursor: pointer; }
+.fm-daycard-row:last-child { border-bottom: 0; }
+.fm-daycard-time { font-family: var(--font-mono); font-size: 11.5px; color: #8a8680; }
+.fm-daycard-main { min-width: 0; display: flex; flex-direction: column; }
+.fm-daycard-name { font-size: 13.5px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-daycard-venue { font-size: 11.5px; color: #8a8680; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-daycard-opt .fm-daycard-name { font-weight: 500; color: #4a4a4a; }
+.fm-daycard-side { margin-top: 8px; padding: 8px 10px 2px; background: rgba(139,71,137,0.05); border: 1px solid rgba(139,71,137,0.18); border-radius: 6px; }
+.fm-daycard-side .fm-eyebrow { color: #8b4789; }
+.fm-daycard-foot { display: flex; align-items: center; margin-top: 4px; }
+.fm-mini { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; border: 1px solid #d8d4cb; background: #fff; font-family: inherit; font-size: 11.5px; font-weight: 600; color: #1a1a1a; cursor: pointer; white-space: nowrap; }
+.fm-mini-on { background: #2e9e5b; border-color: #2e9e5b; color: #fff; }

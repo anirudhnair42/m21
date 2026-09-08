@@ -18,6 +18,7 @@ import {
 } from "@/lib/letter";
 import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
+import { DayCards, HowItWorks } from "@/components/forum/DayCards";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
 
@@ -53,6 +54,8 @@ type Props = {
   /** With initialView "questival": open this quest. */
   initialQuest?: string | null;
   onOpenMap?: () => void;
+  onOpenCalendar?: (activityId?: string) => void;
+  onOpenPhotos?: () => void;
 };
 
 function initialViewState(initial: AlfView | undefined, quest?: string | null): ViewState {
@@ -140,7 +143,7 @@ function useA11Submission(rsvpId: string | null) {
   return { submission, submitted: submission !== null, loaded, saving, error, save };
 }
 
-export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMap }: Props) {
+export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMap, onOpenCalendar, onOpenPhotos }: Props) {
   const [view, setView] = useState<ViewState>(() => initialViewState(initialView, initialQuest));
   // Assignment 3 (Questival) shares its state with Calendar / Maps / Photos / Mail.
   const forum = useForumStore();
@@ -285,6 +288,8 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               onOpenQuestival={openQuestival}
               onOpenRSVP={onOpenRSVP}
               onOpenAssignment={openAssignment}
+              onOpenClass={() => onOpenPhotos?.()}
+              onOpenActivity={(id) => onOpenCalendar?.(id)}
             />
           )}
           {view.kind === "course" && (
@@ -623,6 +628,8 @@ function ForumHome({
   onOpenQuestival,
   onOpenRSVP,
   onOpenAssignment,
+  onOpenClass,
+  onOpenActivity,
 }: {
   joined: boolean;
   pendingPayment: boolean;
@@ -634,29 +641,21 @@ function ForumHome({
   onOpenQuestival: () => void;
   onOpenRSVP: () => void;
   onOpenAssignment: (id: string) => void;
+  onOpenClass: () => void;
+  onOpenActivity: (id: string) => void;
 }) {
   const course = REUNION_COURSE;
   return (
     <div className="alf-fm-home">
       <div className="alf-fm-home-main">
         {joined && (
-          <section className="alf-card">
-            <h2 className="alf-card-h">This weekend</h2>
-            <p className="alf-card-para">
-              Three sessions, one per day. The full run of show with venues, directions and who&apos;s going is in{" "}
-              <b>Calendar</b>; the map is in <b>Maps</b>. Both are in the dock.
+          <div className="alf-fm-questival" style={{ maxWidth: "none" }}>
+            <HowItWorks onOpenDay={(d) => onOpenSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)} onOpenClass={onOpenClass} />
+            <DayCards onOpenDay={(d) => onOpenSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)} onOpenActivity={onOpenActivity} />
+            <p className="alf-card-para" style={{ margin: "0 0 14px" }}>
+              Every venue, with directions and who&apos;s going, is also in <b>Calendar</b>; the map is in <b>Maps</b>. Both are in the dock.
             </p>
-            <ul className="alf-office-list">
-              {course.sessions.map((s) => (
-                <li key={s.id} className="alf-office-item">
-                  <a className="alf-link" onClick={() => onOpenSession(s.id)}>
-                    Session {s.number} — {s.title}
-                  </a>
-                  <div className="alf-office-meta">{s.date}{s.location ? ` · ${s.location}` : ""}</div>
-                </li>
-              ))}
-            </ul>
-          </section>
+          </div>
         )}
         <section className="alf-card">
           <h2 className="alf-card-h">

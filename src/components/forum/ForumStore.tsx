@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { QUESTIVAL, QUESTS, getQuest, questivalWindow, type Quest } from "@/lib/questival";
+import { ACTIVITIES } from "@/lib/weekend";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getAccessToken } from "@/lib/auth";
 import type {
@@ -424,15 +425,25 @@ export function ForumStoreProvider({
     [mode, loadState, setLCatchupReplies],
   );
 
-  // Sample "who's going" when the API has nothing yet.
+  // Who's going: the API when it answers, sample faces otherwise; either way
+  // the hosts named on an activity show as going from day one.
   const whoMerged = useMemo<WhoAllResponse>(() => {
-    if (Object.keys(who).length) return who;
     const out: WhoAllResponse = {};
-    for (const a of ["fri-lunch", "fri-wander", "fri-dinner", "fri-bars", "fri-altin-gun", "sat-breakfast", "sat-sports", "sat-questival", "sat-catchup", "sat-lunch", "sat-sidequests", "sat-bonfire", "sat-doors", "sat-dinner", "sat-after", "sun-brunch", "sun-closing", "sun-park", "sun-disc-golf"]) {
-      const pct = a.includes("dinner") || a.includes("breakfast") || a.includes("bonfire") || a.includes("brunch") || a === "sat-questival" || a === "sat-lunch" ? 62 : a.includes("altin") || a.includes("disc") ? 14 : 30;
-      const going = sample(people, a, pct);
-      const interested = sample(people, a + ":i", 18).filter((p) => !going.includes(p));
-      out[a] = { going, going_count: going.length, interested_count: interested.length };
+    const live = Object.keys(who).length > 0;
+    for (const a of ACTIVITIES) {
+      let going: PersonDTO[];
+      let interested_count: number;
+      if (live) {
+        going = who[a.id]?.going ?? [];
+        interested_count = who[a.id]?.interested_count ?? 0;
+      } else {
+        const pct = a.kind === "anchor" ? 62 : a.kind === "peer" ? 14 : 30;
+        going = sample(people, a.id, pct);
+        interested_count = sample(people, a.id + ":i", 18).filter((p) => !going.includes(p)).length;
+      }
+      const seeded = (a.goingSeed ?? []).map((n) => people.find((p) => p.name === n)).filter((p): p is PersonDTO => !!p && !going.some((g) => g.id === p.id));
+      going = [...seeded, ...going];
+      out[a.id] = { going, going_count: Math.max(going.length, (live ? who[a.id]?.going_count ?? 0 : going.length)), interested_count };
     }
     return out;
   }, [who, people]);

@@ -5,6 +5,7 @@ import { CATCHUP_SLOTS, DAYS, activitiesFor, dayOf, directionsUrl, getActivity, 
 import { QUESTIVAL, getQuest, questivalWindow } from "@/lib/questival";
 import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker, Feed, useLive } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
+import { DayCards, HowItWorks } from "@/components/forum/DayCards";
 import { MapView } from "@/components/forum/MapView";
 import { useAuth, getAccessToken } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
@@ -172,6 +173,7 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
 
   const scrollTop = () => document.querySelector(".fm-main")?.scrollTo({ top: 0 });
   const goTab = (t: Tab) => { setTab(t); setView({ kind: "tab" }); scrollTop(); };
+  const goDay = (d: Day) => { setDay(d); goTab("weekend"); };
   const open = (v: View) => { setView(v); scrollTop(); };
   const back = () => setView({ kind: "tab" });
   const openActivity = (id: string) => open({ kind: "activity", id });
@@ -246,6 +248,7 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
             onOpenClass={() => open({ kind: "class" })}
             onOpenLive={() => open({ kind: "live" })}
             onOpenAdmin={() => open({ kind: "admin" })}
+            onOpenDay={goDay}
           />
         )}
         {view.kind === "tab" && tab === "weekend" && <WeekendView day={day} onDay={setDay} onOpen={openActivity} />}
@@ -316,13 +319,12 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
 // ----- HOME ------------------------------------------------------------------
 
 export function HomeView({
-  onOpenActivity, onOpenQuestival, onOpenMe, onOpenWeekend, onOpenInbox, onOpenClass, onOpenLive, onOpenAdmin,
+  onOpenActivity, onOpenQuestival, onOpenMe, onOpenWeekend, onOpenInbox, onOpenClass, onOpenLive, onOpenAdmin, onOpenDay,
 }: {
   onOpenActivity: (id: string) => void; onOpenQuestival: () => void; onOpenMe: () => void; onOpenWeekend: () => void;
-  onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void;
+  onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void; onOpenDay: (d: Day) => void;
 }) {
-  const { now, submissions, final, unanswered, settings, organizer, catchups, me, questivalOpen, intents } = useForumStore();
-  const plannedDays = new Set(Object.entries(intents).filter(([, v]) => v).map(([id]) => id.split("-")[0]));
+  const { now, submissions, final, unanswered, settings, organizer, catchups, me, questivalOpen } = useForumStore();
   const { items } = useLive();
   const { now: cur, next } = nowNext(new Date(now));
   const today = dayOf(new Date(now));
@@ -353,15 +355,16 @@ export function HomeView({
         </div>
       ) : (
         <div className="fm-now">
-          <div className="fm-now-eyebrow">Upcoming class</div>
-          <div className="fm-now-title">RU26 Session 1.1 — Welcome night</div>
-          <div className="fm-now-sub">Fri, Sep 11 · 6:00 PM · Southern Pacific Brewing</div>
-          <div className="fm-now-next">{daysOut} {daysOut === 1 ? "day" : "days"} to go. Open on Friday for the live run of show.</div>
-          <div className="fm-now-actions"><button className="fm-btn" onClick={onOpenWeekend}>The weekend</button></div>
+          <div className="fm-now-eyebrow">Welcome to the weekend</div>
+          <div className="fm-now-title">Fri Sep 11 – Sun Sep 13 · San Francisco</div>
+          <div className="fm-now-sub">Three sessions. Dinner Friday at six, Questival Saturday, the picnic Sunday.</div>
+          <div className="fm-now-next">{daysOut} {daysOut === 1 ? "day" : "days"} to go. Below: what&apos;s on, and how to say you&apos;re in.</div>
         </div>
       )}
 
       {settings.announcement && <div className="fm-announce"><b>From the cohosts:</b> {settings.announcement}</div>}
+
+      {!today && <HowItWorks onOpenDay={onOpenDay} onOpenClass={onOpenClass} />}
 
       {organizer && (
         <div className="alf-next-card" style={{ marginTop: 0, marginBottom: 14, background: "rgba(20,99,176,0.05)", borderColor: "rgba(20,99,176,0.3)" }}>
@@ -383,6 +386,26 @@ export function HomeView({
           <div className="alf-next-card-actions"><button className="alf-next-card-btn" onClick={onOpenInbox}>Open inbox</button></div>
         </div>
       )}
+
+      {accepted.length > 0 && (
+        <section className="alf-card">
+          <h2 className="alf-card-h">Your catch-ups</h2>
+          <ul className="fm-quests">
+            {accepted.map((c) => {
+              const other = c.from.id === me.id ? c.to : c.from;
+              const slot = CATCHUP_SLOTS.find((s) => s.id === c.slot);
+              return (
+                <li key={c.id} className="fm-quest" style={{ cursor: "default", gridTemplateColumns: "28px 1fr" }}>
+                  <Face p={other} size={26} />
+                  <span><div className="fm-quest-title">{other.name}</div><div className="fm-quest-meta">{slot?.label ?? c.slot}{c.note ? ` · “${c.note}”` : ""}</div></span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <DayCards onOpenDay={onOpenDay} onOpenActivity={onOpenActivity} />
 
       <section className="alf-card">
         <h2 className="alf-card-h">Assignments Due</h2>
@@ -415,56 +438,6 @@ export function HomeView({
         </table>
       </section>
 
-      {accepted.length > 0 && (
-        <section className="alf-card">
-          <h2 className="alf-card-h">Your catch-ups</h2>
-          <ul className="fm-quests">
-            {accepted.map((c) => {
-              const other = c.from.id === me.id ? c.to : c.from;
-              const slot = CATCHUP_SLOTS.find((s) => s.id === c.slot);
-              return (
-                <li key={c.id} className="fm-quest" style={{ cursor: "default", gridTemplateColumns: "28px 1fr" }}>
-                  <Face p={other} size={26} />
-                  <span><div className="fm-quest-title">{other.name}</div><div className="fm-quest-meta">{slot?.label ?? c.slot}{c.note ? ` · “${c.note}”` : ""}</div></span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {!today && (
-        <section className="alf-card">
-          <h2 className="alf-card-h">Before Class</h2>
-          <ul className="fm-quests">
-            <li className="fm-quest" style={{ cursor: "default" }}>
-              <span className="fm-dot fm-dot-done" />
-              <span><div className="fm-quest-title">Assignment 1: opening-line reflection</div><div className="fm-quest-meta">On the desktop ALF, editable until Friday.</div></span>
-              <span />
-            </li>
-            <li className="fm-quest" onClick={onOpenWeekend}>
-              <span className={`fm-dot${plannedDays.size ? " fm-dot-done" : ""}`} />
-              <span><div className="fm-quest-title">Say what you&apos;re coming to</div><div className="fm-quest-meta">Tap &ldquo;I&apos;m going&rdquo; on Friday, Saturday, Sunday so the hosts can plan food and tables.</div></span>
-              <span className="fm-muted" style={{ fontSize: 11 }}>{plannedDays.size}/3</span>
-            </li>
-            <li className="fm-quest" onClick={onOpenWeekend}>
-              <span className="fm-dot" />
-              <span><div className="fm-quest-title">Side sessions</div><div className="fm-quest-meta">Altın Gün on Friday, disc golf on Sunday. Peer-led; say you&apos;re interested.</div></span>
-              <span />
-            </li>
-            <li className="fm-quest" onClick={onOpenClass}>
-              <span className="fm-dot" />
-              <span><div className="fm-quest-title">Request a catch-up</div><div className="fm-quest-meta">One on one with someone you&apos;ve missed, in one of the open windows.</div></span>
-              <span />
-            </li>
-            <li className="fm-quest" onClick={() => window.open("/?open=stay", "_blank")}>
-              <span className="fm-dot" />
-              <span><div className="fm-quest-title">Housing</div><div className="fm-quest-meta">Res Hall rooms at 2550 Van Ness, Fri–Mon, $200 per room.</div></span>
-              <span />
-            </li>
-          </ul>
-        </section>
-      )}
 
       {questivalOpen && (
         <section className="alf-card">
@@ -474,21 +447,10 @@ export function HomeView({
       )}
 
       <section className="alf-card">
-        <h2 className="alf-card-h">{today ? "Today" : "Friday"}</h2>
-        <ul className="alf-agenda">
-          {activitiesFor(today ?? "fri").filter((a) => a.kind !== "peer").map((a) => (
-            <li key={a.id} className={`alf-agenda-item${a.kind === "optional" ? " alf-agenda-optional" : ""}`} onClick={() => onOpenActivity(a.id)}>
-              <div className="alf-agenda-time">{a.time}</div>
-              <div className="alf-agenda-content"><div className="alf-agenda-title">{a.title}{a.venue && <span className="alf-agenda-loc">{a.venue}</span>}</div></div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="alf-card">
         <h2 className="alf-card-h">The Class of 2021</h2>
         <p className="fm-muted">Everyone who&apos;s confirmed. Tap a face to request a catch-up.</p>
         <button className="fm-link-btn" onClick={onOpenClass}>Open the class list →</button>
+        <button className="fm-link-btn" style={{ marginLeft: 14 }} onClick={() => window.open("/?open=stay", "_blank")}>Housing at the Res Hall →</button>
       </section>
     </>
   );
@@ -604,6 +566,7 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
         <p className="fm-detail-body">{a.body}</p>
         {a.pending && <p className="fm-note">{a.pending}</p>}
         <div className="fm-btn-row">
+          {a.link && <a className="fm-btn fm-btn-primary" href={a.link.url} target="_blank" rel="noreferrer">{a.link.label} ↗</a>}
           {a.address && <a className="fm-btn fm-btn-blue" href={directionsUrl(a.address)} target="_blank" rel="noreferrer"><PinIcon /> Directions</a>}
           <button className="fm-btn" onClick={() => onShare(a.title, `${a.title} · ${d.label} ${a.time}${a.venue ? ` · ${a.venue}` : ""}`)}><ShareIcon /> Share</button>
         </div>

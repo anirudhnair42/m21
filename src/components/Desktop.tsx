@@ -126,6 +126,7 @@ export function Desktop() {
   // Reunion invitations + plans, shared with Calendar/Maps/Photos/ALF.
   const forum = useForumStore();
   const [alfQuest, setAlfQuest] = useState<string | null>(null);
+  const [calActivity, setCalActivity] = useState<string | null>(null);
 
   // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
   // and the "Turn back time" gate).
@@ -285,6 +286,11 @@ export function Desktop() {
                 initialView={alfInitialView}
                 initialQuest={alfQuest}
                 onOpenMap={() => openApp("map")}
+                onOpenCalendar={(id) => {
+                  setCalActivity(id ?? null);
+                  openApp("itinerary", { freshMount: !!id });
+                }}
+                onOpenPhotos={() => openApp("photos")}
               />
             ) : id === "mail" ? (
               <Inbox onOpenDecision={() => openApp("browser")} />
@@ -310,7 +316,7 @@ export function Desktop() {
             ) : (GATED_APPS.has(id) && !forum.enabled) || (id === "photos" && !forum.questivalOpen) ? (
               <AppStub app={app} />
             ) : id === "itinerary" ? (
-              <WeekendApp />
+              <WeekendApp initialActivity={calActivity ?? undefined} />
             ) : id === "map" ? (
               <MapApp
                 onOpenActivity={() => openApp("itinerary")}

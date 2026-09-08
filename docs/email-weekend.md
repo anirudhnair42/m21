@@ -12,13 +12,14 @@ Four days. The Forum is open: https://www.m2021.co
 
 Sign in with the Google account you RSVP'd with. On your phone it opens straight to the weekend; on a computer it's the desktop you already know, with Calendar and Maps in the dock.
 
-**Session 1.1 · Friday, Sept 11**
+**Session 1.1 · Friday, Sept 11 — Arrivals & the welcome dinner**
 12:00 Arrival lunch · Presidio food trucks (optional, self-pay)
 14:00 Neighborhood wander or a museum (optional)
 18:00 Welcome dinner & drinks · Southern Pacific Brewing, 620 Treat Ave ← everyone
 21:00 Bar hopping · Mission, decided at dinner
+20:00 Side quest: Altın Gün at The Regency Ballroom (doors 7, show 8, ~$40 on AXS). Ani's going; tap "I'm in" on the site if you are
 
-**Session 1.2 · Saturday, Sept 12**
+**Session 1.2 · Saturday, Sept 12 — Questival day, with a few anchors**
 10:00 Breakfast · Dahlia Dell, Golden Gate Park ← everyone
 11:30 Sports Palooza · Dahlia Dell lawn
 13:30 Speed catch-up · Alamo Square
@@ -27,13 +28,13 @@ Sign in with the Google account you RSVP'd with. On your phone it opens straight
 18:00 Doors, 19:00 dinner · Common Space (address lands in the app)
 22:00 After party
 
-**Session 1.3 · Sunday, Sept 13**
+**Session 1.3 · Sunday, Sept 13 — The picnic & goodbyes**
 11:00 Faculty brunch & picnic · Hellman Hollow, Golden Gate Park ← everyone
 Closing moment early afternoon, then the park until your flight.
 
 **Before class**
 1. Open each day and tap "I'm going" on what you're coming to. That's how we plan food and tables.
-2. Side sessions: Altın Gün on Friday night and disc golf on Sunday are peer-led. Say you're interested and the host will rally people.
+2. Side quests: Altın Gün on Friday night (Ani's going) and disc golf on Sunday (Mau) are peer-led. Tap "I'm in" and the host will rally people.
 3. Request a catch-up: tap a face in the class list and pick an open window. One on one, on both your calendars.
 4. Housing: Res Hall rooms at 2550 Van Ness, Fri–Mon, $200 per room, if you haven't booked.
 
