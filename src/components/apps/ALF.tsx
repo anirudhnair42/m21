@@ -22,7 +22,7 @@ import { SessionList } from "@/components/forum/SessionCards";
 import { GuideView } from "@/components/forum/Guide";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
-import { sessionsFor } from "@/lib/weekend";
+import { SESSIONS, getActivity, nextSession, sessionsFor } from "@/lib/weekend";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -648,6 +648,7 @@ function ForumHome({
   onOpenClass,
   onOpenActivity,
   onOpenGuide,
+  onOpenCalendar,
 }: {
   joined: boolean;
   pendingPayment: boolean;
@@ -662,6 +663,7 @@ function ForumHome({
   onOpenClass: () => void;
   onOpenActivity: (id: string) => void;
   onOpenGuide: () => void;
+  onOpenCalendar?: () => void;
 }) {
   const course = REUNION_COURSE;
   void onOpenClass;
@@ -801,30 +803,42 @@ function ForumHome({
             See all announcements
           </a>
         </section>
-        <section className="alf-card alf-card-side">
-          <h2 className="alf-card-h">Office Hours</h2>
-          <ul className="alf-office-list">
-            <li className="alf-office-item">
-              <a
-                className="alf-link"
-                href="https://cal.com/ani"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                Office Hours with Anirudh Nair
-              </a>
-              <div className="alf-office-meta">cal.com/ani</div>
-            </li>
-          </ul>
-          <a
-            className="alf-link locked locked-below"
-            data-locked="This is not really a real ALF LOL"
-          >
-            See all office hours
-          </a>
-        </section>
+        {joined && <WhosGoingRail onOpenCalendar={onOpenCalendar} />}
       </aside>
     </div>
+  );
+}
+
+/** The rail card that replaced Office Hours: who's coming to the next class. */
+function WhosGoingRail({ onOpenCalendar }: { onOpenCalendar?: () => void }) {
+  const { who, now } = useForumStore();
+  const next = nextSession(new Date(now)) ?? SESSIONS[0];
+  const anchor = next.activities.map(getActivity).find((a) => a?.kind === "anchor") ?? getActivity(next.activities[0]);
+  const going = anchor ? who[anchor.id]?.going ?? [] : [];
+  return (
+    <section className="alf-card alf-card-side">
+      <h2 className="alf-card-h">Who&apos;s going</h2>
+      <div className="alf-office-meta" style={{ marginBottom: 8 }}>Session {next.number} · {next.title}</div>
+      {going.length === 0 ? (
+        <p className="alf-card-empty">{anchor?.required ? "Everyone — attendance required." : "No one has said so yet. Open Calendar and be the first."}</p>
+      ) : (
+        <ul className="alf-office-list">
+          {going.slice(0, 12).map((p) => (
+            <li key={p.id} className="alf-office-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {p.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.photo_url} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                <span className="alf-fb-avatar" style={{ width: 22, height: 22 }}>{p.name.charAt(0)}</span>
+              )}
+              <span>{p.name}</span>
+            </li>
+          ))}
+          {going.length > 12 && <li className="alf-office-meta">and {going.length - 12} more</li>}
+        </ul>
+      )}
+      <a className="alf-link" onClick={onOpenCalendar}>Everyone, per activity, in Calendar →</a>
+    </section>
   );
 }
 
