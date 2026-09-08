@@ -22,9 +22,6 @@ import {
   ME,
   ME_ID,
   readNowOffset,
-  sample,
-  sampleCatchups,
-  sampleInvites,
   shrinkImage,
   uid,
   usePersisted,
@@ -240,7 +237,6 @@ export function ForumStoreProvider({
   // ---- local preview state
   const [lIntents, setLIntents] = usePersisted<Record<string, PlanIntent | undefined>>("intents", {});
   const [lPlans, setLPlans] = usePersisted<PlanDTO[]>("plans", []);
-  const [lReplies, setLReplies] = usePersisted<Record<string, "in" | "maybe">>("replies", {});
   const [lSubs, setLSubs] = usePersisted<SubmissionDTO[]>("subs", []);
   const [lFinal, setLFinal] = usePersisted<Final>("final", null);
   const [lCatchups, setLCatchups] = usePersisted<CatchupDTO[]>("catchups", []);
@@ -264,14 +260,9 @@ export function ForumStoreProvider({
   const plans = mode === "api" ? state!.plans : lPlans;
   const submissions = mode === "api" ? state!.submissions : lSubs;
   const final = mode === "api" ? state!.final : lFinal;
-  const invites = useMemo(() => {
-    if (mode === "api") return state!.invites;
-    return sampleInvites(people, now).map((p) => ({ ...p, replies: (lReplies[p.id] ? { [ME_ID]: lReplies[p.id] } : {}) as Record<string, "in" | "maybe"> }));
-  }, [mode, state, people, now, lReplies]);
-  const catchups = useMemo(() => {
-    if (mode === "api") return state!.catchups;
-    return [...lCatchups, ...sampleCatchups(people, now).map((c) => ({ ...c, status: lCatchupReplies[c.id] ?? c.status }))];
-  }, [mode, state, people, now, lCatchups, lCatchupReplies]);
+  // Invitations only come from real people; nothing to show until the API answers.
+  const invites = useMemo<PlanDTO[]>(() => (mode === "api" ? state!.invites : []), [mode, state]);
+  const catchups = useMemo<CatchupDTO[]>(() => (mode === "api" ? state!.catchups : lCatchups.map((c) => ({ ...c, status: lCatchupReplies[c.id] ?? c.status }))), [mode, state, lCatchups, lCatchupReplies]);
   const unanswered =
     invites.filter((p) => !p.replies[me.id] && !p.replies[ME_ID]).length + catchups.filter((c) => c.to.id === me.id && c.status === "pending").length;
 
@@ -319,9 +310,9 @@ export function ForumStoreProvider({
   const replyPlan = useCallback(
     (planId: string, reply: "in" | "maybe") => {
       if (mode === "api") api("/api/questival/plans/reply", { method: "POST", json: { plan_id: planId, reply } }).then(loadState).catch(failed);
-      else setLReplies((m) => ({ ...m, [planId]: reply }));
+      else void planId, void reply;
     },
-    [mode, loadState, setLReplies],
+    [mode, loadState],
   );
 
   const saveProof = useCallback(
@@ -425,28 +416,21 @@ export function ForumStoreProvider({
     [mode, loadState, setLCatchupReplies],
   );
 
-  // Who's going: the API when it answers, sample faces otherwise; either way
-  // the hosts named on an activity show as going from day one.
+  // Who's going: the API's answer, plus the hosts named on an activity
+  // (real people, shown as going from day one). No sample faces.
   const whoMerged = useMemo<WhoAllResponse>(() => {
     const out: WhoAllResponse = {};
-    const live = Object.keys(who).length > 0;
     for (const a of ACTIVITIES) {
-      let going: PersonDTO[];
-      let interested_count: number;
-      if (live) {
-        going = who[a.id]?.going ?? [];
-        interested_count = who[a.id]?.interested_count ?? 0;
-      } else {
-        const pct = a.kind === "anchor" ? 62 : a.kind === "peer" ? 14 : 30;
-        going = sample(people, a.id, pct);
-        interested_count = sample(people, a.id + ":i", 18).filter((p) => !going.includes(p)).length;
+      const going = [...(who[a.id]?.going ?? [])];
+      for (const n of a.goingSeed ?? []) {
+        const p = people.find((x) => x.name === n);
+        if (p && !going.some((g) => g.id === p.id)) going.unshift(p);
       }
-      const seeded = (a.goingSeed ?? []).map((n) => people.find((p) => p.name === n)).filter((p): p is PersonDTO => !!p && !going.some((g) => g.id === p.id));
-      going = [...seeded, ...going];
-      out[a.id] = { going, going_count: Math.max(going.length, (live ? who[a.id]?.going_count ?? 0 : going.length)), interested_count };
+      if (mode === "local" && intents[a.id] === "going" && !going.some((g) => g.id === me.id)) going.push(me);
+      out[a.id] = { going, going_count: Math.max(going.length, who[a.id]?.going_count ?? 0), interested_count: who[a.id]?.interested_count ?? 0 };
     }
     return out;
-  }, [who, people]);
+  }, [who, people, mode, intents, me]);
 
   const refreshRef = useRef(() => {});
   refreshRef.current = () => {

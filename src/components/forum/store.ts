@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { CatchupDTO, PersonDTO, PlanDTO, SubmissionDTO } from "@/lib/questival-api";
-import { QUESTS, getQuest } from "@/lib/questival";
+import type { PersonDTO } from "@/lib/questival-api";
+import { getQuest } from "@/lib/questival";
 
 /**
  * Client-side helpers for the Forum: device persistence for the preview
@@ -58,11 +58,6 @@ export function djb2(s: string): number {
   return h;
 }
 
-/** Deterministic sample subset, so the preview looks alive but stable. */
-export function sample<T extends { name: string }>(items: T[], salt: string, pct: number): T[] {
-  return items.filter((p) => djb2(salt + p.name) % 100 < pct);
-}
-
 /** Shrink to ≤max px JPEG before anything leaves the phone. */
 export function shrinkImage(file: File, max = 1600): Promise<{ blob: Blob; dataUrl: string }> {
   return new Promise((resolve, reject) => {
@@ -104,74 +99,6 @@ export function timeShort(ms: number | string): string {
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
-
-// ------------------------------------------------------------- sample data
-
-export function sampleInvites(people: PersonDTO[], now: number): PlanDTO[] {
-  if (people.length < 3) return [];
-  const picks: { kind: "quest" | "activity"; targetId: string; min: number }[] = [
-    { kind: "quest", targetId: "bobs-challenge", min: 9 },
-    { kind: "quest", targetId: "recreate", min: 41 },
-    { kind: "activity", targetId: "sat-catchup", min: 75 },
-    { kind: "quest", targetId: "of-course", min: 128 },
-  ];
-  return picks.map((x) => {
-    const owner = people[djb2("inv" + x.targetId) % people.length];
-    const others = sample(people, "co" + x.targetId, 10).filter((p) => p.id !== owner.id).slice(0, 2);
-    return {
-      id: `inv-${x.targetId}`,
-      kind: x.kind,
-      target_id: x.targetId,
-      owner,
-      with: [ME, ...others],
-      replies: {},
-      created_at: new Date(now - x.min * 60_000).toISOString(),
-    };
-  });
-}
-
-export function sampleCatchups(people: PersonDTO[], now: number): CatchupDTO[] {
-  if (people.length < 5) return [];
-  const from = people[djb2("catchup") % people.length];
-  return [
-    {
-      id: "cu-sample",
-      from,
-      to: ME,
-      slot: "sat-1330",
-      note: "Five years is too long. Alamo Square?",
-      status: "pending",
-      created_at: new Date(now - 52 * 60_000).toISOString(),
-    },
-  ];
-}
-
-export function sampleFeed(people: PersonDTO[], now: number, dueAt: number): SubmissionDTO[] {
-  if (people.length === 0) return [];
-  const base = Math.min(now, dueAt);
-  return QUESTS.filter((q) => djb2("feed" + q.id) % 100 < 45).map((q, i) => {
-    const who = people[djb2("who" + q.id) % people.length];
-    const withPeople = sample(people, "with" + q.id, 12).filter((p) => p.id !== who.id).slice(0, 3);
-    return {
-      id: `s-${q.id}`,
-      quest_id: q.id,
-      instance: 1,
-      uploader: who,
-      members: [who, ...withPeople],
-      media: [],
-      caption: null,
-      note: null,
-      status: "approved" as const,
-      points: q.points,
-      review_note: null,
-      created_at: new Date(base - (i + 1) * 17 * 60_000).toISOString(),
-    };
-  });
-}
-
-export function samplePoints(name: string): number {
-  return (djb2("pts" + name) % 19) * 10;
 }
 
 export function questTitle(id: string): string {

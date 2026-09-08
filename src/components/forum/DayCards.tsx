@@ -10,31 +10,6 @@ import { PinIcon } from "@/components/forum/icons";
  * sessions you can sign up for, and how much of it you've said yes to.
  * Shared by the phone Home and the desktop ALF home.
  */
-export function HowItWorks({ onOpenDay, onOpenClass }: { onOpenDay: (d: Day) => void; onOpenClass: () => void }) {
-  const { intents, questivalOpen } = useForumStore();
-  const said = Object.values(intents).filter(Boolean).length;
-  return (
-    <section className="alf-card fm-how">
-      <h2 className="alf-card-h">How the weekend works</h2>
-      <ol className="fm-steps">
-        <li>
-          <b>Say what you&apos;re coming to.</b> Open a day, tap <span className="fm-kbd">I&apos;m going</span> on anything. That&apos;s the head count for food and tables.
-          {said > 0 && <span className="fm-step-done"> ✓ {said} so far</span>}
-        </li>
-        <li>
-          <b>Plan it with people.</b> On any activity, <span className="fm-kbd">Plan it</span> and pick who with; they get an invitation. Or <button className="fm-link-btn" onClick={onOpenClass}>request a one-on-one catch-up</button> from the class list.
-        </li>
-        <li>
-          <b>Saturday is Assignment 3: Questival.</b> {questivalOpen ? "Quests, points, and a 5:00 PM deadline before the bonfire. Open the Questival tab." : "The brief unlocks this week. Bring walking shoes."}
-        </li>
-      </ol>
-      <div className="fm-btn-row" style={{ marginTop: 8 }}>
-        <button className="fm-btn fm-btn-blue" onClick={() => onOpenDay("fri")}>Start with Friday →</button>
-      </div>
-    </section>
-  );
-}
-
 export function DayCards({ onOpenDay, onOpenActivity }: { onOpenDay: (d: Day) => void; onOpenActivity: (id: string) => void }) {
   const { intents, who, setIntent } = useForumStore();
   return (

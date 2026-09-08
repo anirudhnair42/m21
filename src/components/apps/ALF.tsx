@@ -18,7 +18,8 @@ import {
 } from "@/lib/letter";
 import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
-import { DayCards, HowItWorks } from "@/components/forum/DayCards";
+import { DayCards } from "@/components/forum/DayCards";
+import { GuideView } from "@/components/forum/Guide";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
 
@@ -42,7 +43,8 @@ type ViewState =
   | { kind: "quest"; questId: string }
   | { kind: "questival-me" }
   | { kind: "questival-live" }
-  | { kind: "organizers" };
+  | { kind: "organizers" }
+  | { kind: "guide" };
 
 type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events" | "organizers";
 
@@ -290,6 +292,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               onOpenAssignment={openAssignment}
               onOpenClass={() => onOpenPhotos?.()}
               onOpenActivity={(id) => onOpenCalendar?.(id)}
+              onOpenGuide={() => setView({ kind: "guide" })}
             />
           )}
           {view.kind === "course" && (
@@ -313,6 +316,16 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               onBackToCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
             />
+          )}
+          {view.kind === "guide" && (
+            <div className="alf-fm-questival">
+              <div className="alf-fm-crumbs"><a className="alf-link" onClick={goHome}>Home</a> &gt; How it all works</div>
+              <GuideView
+                onOpenDay={(d) => openSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)}
+                onOpenClass={() => onOpenPhotos?.()}
+                onOpenMap={onOpenMap}
+              />
+            </div>
           )}
           {(view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live" || view.kind === "organizers") && (
             <div className="alf-fm-assignment alf-fm-questival">
@@ -566,6 +579,9 @@ function ForumBanner({
   } else if (view.kind === "organizers") {
     title = `${course.code} – Organizers`;
     sub = "Quests, proofs, the clock, the class";
+  } else if (view.kind === "guide") {
+    title = `${course.code} – How it all works`;
+    sub = "The weekend, in six steps";
   }
 
   return (
@@ -630,6 +646,7 @@ function ForumHome({
   onOpenAssignment,
   onOpenClass,
   onOpenActivity,
+  onOpenGuide,
 }: {
   joined: boolean;
   pendingPayment: boolean;
@@ -643,14 +660,21 @@ function ForumHome({
   onOpenAssignment: (id: string) => void;
   onOpenClass: () => void;
   onOpenActivity: (id: string) => void;
+  onOpenGuide: () => void;
 }) {
   const course = REUNION_COURSE;
+  void onOpenClass;
   return (
     <div className="alf-fm-home">
       <div className="alf-fm-home-main">
         {joined && (
           <div className="alf-fm-questival" style={{ maxWidth: "none" }}>
-            <HowItWorks onOpenDay={(d) => onOpenSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)} onOpenClass={onOpenClass} />
+            <div className="fm-now" style={{ marginBottom: 14 }}>
+              <div className="fm-now-eyebrow">Welcome to the weekend</div>
+              <div className="fm-now-title">Fri Sep 11 – Sun Sep 13 · San Francisco</div>
+              <div className="fm-now-sub">Three sessions. Dinner Friday at six, Questival Saturday, the picnic Sunday. Tap <b>I&apos;m going</b> on anything below.</div>
+              <button className="fm-shiny" style={{ maxWidth: 360 }} onClick={onOpenGuide}>✦ How it all works</button>
+            </div>
             <DayCards onOpenDay={(d) => onOpenSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)} onOpenActivity={onOpenActivity} />
             <p className="alf-card-para" style={{ margin: "0 0 14px" }}>
               Every venue, with directions and who&apos;s going, is also in <b>Calendar</b>; the map is in <b>Maps</b>. Both are in the dock.

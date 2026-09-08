@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LMap, LayerGroup } from "leaflet";
 import { ACTIVITIES, DAYS } from "@/lib/weekend";
-import { sample } from "@/components/forum/store";
 import { useForumStore } from "@/components/forum/ForumStore";
-import type { PersonDTO } from "@/lib/questival-api";
+import { getAccessToken } from "@/lib/auth";
+import type { MapWhoResponse, PersonDTO } from "@/lib/questival-api";
 
 type Layer = "anchors" | "quests" | "side";
 
@@ -55,8 +55,21 @@ const tiles = tileSource();
  * tiles so it sits inside the Forum instead of looking like a different app.
  */
 export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: string) => void; onOpenQuest: (id: string) => void }) {
-  const { people, plans, who, quests: allQuests, questivalOpen } = useForumStore();
+  const { me, plans, who, quests: allQuests, questivalOpen, enabled } = useForumStore();
   const liveQuests = questivalOpen ? allQuests : [];
+  const [mapWho, setMapWho] = useState<MapWhoResponse | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      const r = await fetch("/api/map", { headers: token ? { Authorization: `Bearer ${token}` } : {} }).catch(() => null);
+      if (!cancelled && r?.ok) setMapWho(await r.json().catch(() => null));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
   const host = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
   const layersRef = useRef<Record<Layer, LayerGroup> | null>(null);
@@ -84,19 +97,20 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
 
       for (const a of ACTIVITIES) {
         if (a.lat == null || a.lng == null) continue;
-        const going = who[a.id]?.going ?? sample(people, a.id, a.kind === "anchor" ? 62 : a.kind === "optional" ? 30 : 14);
+        const going = who[a.id]?.going ?? [];
         const mine = plans.some((p) => p.kind === "activity" && p.target_id === a.id);
         const d = DAYS.find((x) => x.id === a.day)!;
         const m = L.marker([a.lat, a.lng], { icon: pin(a.kind === "peer" ? "fm-pin-peer" : a.kind === "anchor" ? "fm-pin-anchor" : "fm-pin-opt", `${d.label} ${a.time.split(" ")[0]}`) });
-        m.bindPopup(popupHtml(a.title, `${d.label} ${a.time}${a.venue ? ` · ${a.venue}` : ""}`, faces(going), `${going.length + (mine ? 1 : 0)} going${mine ? " · you're in" : ""}`, `activity:${a.id}`));
+        m.bindPopup(popupHtml(a.title, `${d.label} ${a.time}${a.venue ? ` · ${a.venue}` : ""}`, faces(going), `${going.length} going${mine ? " · you're in" : ""}`, `activity:${a.id}`));
         m.addTo(a.kind === "peer" ? layers.side : layers.anchors);
       }
       for (const q of liveQuests.filter((x) => x.venue)) {
         if (q.lat == null || q.lng == null) continue;
-        const planning = sample(people, "plan" + q.id, 16);
         const mine = plans.some((p) => p.kind === "quest" && p.target_id === q.id);
+        const planning = [...(mapWho?.quests[q.id] ?? [])];
+        if (mine && !planning.some((p) => p.id === me.id)) planning.unshift(me);
         const m = L.marker([q.lat, q.lng], { icon: pin(`fm-pin-quest${mine ? " fm-pin-mine" : ""}`, `${q.points}`) });
-        m.bindPopup(popupHtml(q.title, `${q.points} pts${q.venue ? ` · ${q.venue}` : ""}`, faces(planning), `${planning.length + (mine ? 1 : 0)} planning to go${mine ? " · you too" : ""}`, `quest:${q.id}`));
+        m.bindPopup(popupHtml(q.title, `${q.points} pts${q.venue ? ` · ${q.venue}` : ""}`, faces(planning), `${planning.length} planning to go${mine ? " · you too" : ""}`, `quest:${q.id}`));
         m.addTo(layers.quests);
       }
 
@@ -116,7 +130,7 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
       layersRef.current = null;
     };
     // Rebuilding on every plan/people change is fine at this size.
-  }, [people, plans, who, liveQuests, onOpenActivity, onOpenQuest]);
+  }, [me, plans, who, mapWho, liveQuests, onOpenActivity, onOpenQuest]);
 
   // Toggle layers.
   useEffect(() => {

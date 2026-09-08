@@ -7,7 +7,7 @@ import { CameraIcon, PinIcon } from "@/components/forum/icons";
 import { Faces, PlanIt } from "@/components/forum/ForumMobile";
 import { useForumStore } from "@/components/forum/ForumStore";
 import type { BoardResponse, FeedResponse, PersonDTO, SubmissionDTO } from "@/lib/questival-api";
-import { ME_ID, djb2, firstName, sampleFeed, samplePoints, timeShort } from "@/components/forum/store";
+import { ME_ID, djb2, firstName, timeShort } from "@/components/forum/store";
 import { getAccessToken } from "@/lib/auth";
 
 function myPoints(subs: SubmissionDTO[]): number {
@@ -501,17 +501,11 @@ export function useLive() {
     return () => clearInterval(t);
   }, [load]);
 
-  const items: SubmissionDTO[] = feed ?? [...submissions, ...sampleFeed(people, now, QUESTIVAL.dueAt)].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  const rows = board?.rows ?? (() => {
-    const base = people.filter((p) => p.id !== me.id).map((p) => ({ person: p, points: samplePoints(p.name), completed: Math.round(samplePoints(p.name) / 15), rank: 0 }));
-    base.push({ person: me, points: myPoints(submissions), completed: submissions.length, rank: 0 });
-    base.sort((a, b) => b.points - a.points || a.person.name.localeCompare(b.person.name));
-    let rank = 0;
-    return base.map((r, i) => {
-      if (i === 0 || base[i - 1].points !== r.points) rank = i + 1;
-      return { ...r, rank };
-    });
-  })();
+  // Without the API there is nothing live to show but your own proofs.
+  const items: SubmissionDTO[] = feed ?? [...submissions].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  const rows = board?.rows ?? [{ person: me, points: myPoints(submissions), completed: submissions.length, rank: 1 }];
+  void people;
+  void now;
   return { items, rows, frozen: board?.frozen ?? false, refresh: load };
 }
 

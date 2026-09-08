@@ -5,7 +5,8 @@ import { CATCHUP_SLOTS, DAYS, activitiesFor, dayOf, directionsUrl, getActivity, 
 import { QUESTIVAL, getQuest, questivalWindow } from "@/lib/questival";
 import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker, Feed, useLive } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
-import { DayCards, HowItWorks } from "@/components/forum/DayCards";
+import { DayCards } from "@/components/forum/DayCards";
+import { GuideView } from "@/components/forum/Guide";
 import { MapView } from "@/components/forum/MapView";
 import { useAuth, getAccessToken } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
@@ -24,7 +25,8 @@ type View =
   | { kind: "me" }
   | { kind: "live" }
   | { kind: "class" }
-  | { kind: "admin" };
+  | { kind: "admin" }
+  | { kind: "guide" };
 
 const noop = () => () => {};
 const TABS: Tab[] = ["home", "weekend", "map", "questival", "inbox"];
@@ -166,10 +168,8 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
   const [day, setDay] = useState<Day>(() => dayOf(new Date(Date.now() + readNowOffset())) ?? "fri");
   const store = useForumStore();
   const { now, me, people, unanswered, mode, localReason, organizer, setToast, questivalOpen } = store;
-  useEffect(() => {
-    // Questival views are organizer-only until it launches.
-    if (!questivalOpen && (view.kind === "quest" || view.kind === "me" || view.kind === "live")) setView({ kind: "tab" });
-  }, [questivalOpen, view.kind]);
+  // Questival views are organizer-only until it launches.
+  const shownView: View = !questivalOpen && (view.kind === "quest" || view.kind === "me" || view.kind === "live") ? { kind: "tab" } : view;
 
   const scrollTop = () => document.querySelector(".fm-main")?.scrollTo({ top: 0 });
   const goTab = (t: Tab) => { setTab(t); setView({ kind: "tab" }); scrollTop(); };
@@ -190,19 +190,19 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
     }
   };
 
-  const banner = bannerFor(view, tab, day, now, people.length, me.name);
-  const isMap = view.kind === "tab" && tab === "map";
+  const banner = bannerFor(shownView, tab, day, now, people.length, me.name);
+  const isMap = shownView.kind === "tab" && tab === "map";
 
   return (
     <div className="fm">
       {mode === "local" && (
         <div className="fm-preview-strip">
-          {localReason === "tables-missing" ? "Preview · database not set up yet, nothing saves beyond this phone" : localReason === "no-rsvp" ? "Preview · this account has no RSVP, nothing saves" : "Preview build · sample data · your photos stay on this phone"}
+          {localReason === "no-rsvp" ? "This account has no RSVP — browsing only, nothing saves" : "Not connected yet — nothing you tap is saved"}
         </div>
       )}
 
       <header className="alf-fb">
-        {view.kind === "tab" ? (
+        {shownView.kind === "tab" ? (
           <div className="alf-fb-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/minerva-wordmark.png" alt="Minerva University" className="alf-fb-brand-img" />
@@ -231,14 +231,15 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
       </header>
 
       <main className={`fm-main${isMap ? " fm-main-map" : ""}`}>
-        {view.kind === "activity" && <ActivityView activity={getActivity(view.id)!} onShare={share} />}
-        {view.kind === "quest" && <QuestView questId={view.id} onOpenMe={() => open({ kind: "me" })} />}
-        {view.kind === "me" && <MyQuestival onOpenQuest={openQuest} onOpenActivity={openActivity} />}
-        {view.kind === "live" && <LiveView />}
-        {view.kind === "class" && <ClassView />}
-        {view.kind === "admin" && <AdminView />}
+        {shownView.kind === "activity" && <ActivityView activity={getActivity(shownView.id)!} onShare={share} />}
+        {shownView.kind === "quest" && <QuestView questId={shownView.id} onOpenMe={() => open({ kind: "me" })} />}
+        {shownView.kind === "me" && <MyQuestival onOpenQuest={openQuest} onOpenActivity={openActivity} />}
+        {shownView.kind === "live" && <LiveView />}
+        {shownView.kind === "class" && <ClassView />}
+        {shownView.kind === "admin" && <AdminView />}
+        {shownView.kind === "guide" && <GuideView onOpenDay={goDay} onOpenClass={() => open({ kind: "class" })} onOpenMap={() => goTab("map")} onOpenInbox={() => goTab("inbox")} />}
 
-        {view.kind === "tab" && tab === "home" && (
+        {shownView.kind === "tab" && tab === "home" && (
           <HomeView
             onOpenActivity={openActivity}
             onOpenQuestival={() => goTab("questival")}
@@ -249,18 +250,19 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
             onOpenLive={() => open({ kind: "live" })}
             onOpenAdmin={() => open({ kind: "admin" })}
             onOpenDay={goDay}
+            onOpenGuide={() => open({ kind: "guide" })}
           />
         )}
-        {view.kind === "tab" && tab === "weekend" && <WeekendView day={day} onDay={setDay} onOpen={openActivity} />}
+        {shownView.kind === "tab" && tab === "weekend" && <WeekendView day={day} onDay={setDay} onOpen={openActivity} />}
         {isMap && <MapView onOpenActivity={openActivity} onOpenQuest={openQuest} />}
-        {view.kind === "tab" && tab === "questival" && (
+        {shownView.kind === "tab" && tab === "questival" && (
           store.questivalOpen ? (
             <QuestivalHub onOpenQuest={openQuest} onOpenMe={() => open({ kind: "me" })} onOpenLive={() => open({ kind: "live" })} />
           ) : (
             <QuestivalLocked />
           )
         )}
-        {view.kind === "tab" && tab === "inbox" && <InboxView onOpenQuest={openQuest} onOpenActivity={openActivity} onOpenClass={() => open({ kind: "class" })} />}
+        {shownView.kind === "tab" && tab === "inbox" && <InboxView onOpenQuest={openQuest} onOpenActivity={openActivity} onOpenClass={() => open({ kind: "class" })} />}
       </main>
 
       <ForumToast />
@@ -272,7 +274,7 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
         <TabButton on={tab === "questival"} label="Questival" onClick={() => goTab("questival")}><ListIcon /></TabButton>
         <TabButton on={tab === "inbox"} label="Inbox" badge={unanswered} onClick={() => goTab("inbox")}><MailIcon /></TabButton>
       </nav>
-      {organizer && view.kind !== "admin" && (
+      {organizer && shownView.kind !== "admin" && (
         <button className="fm-admin-fab" onClick={() => open({ kind: "admin" })} aria-label="Organizers">⚙</button>
       )}
     </div>
@@ -300,6 +302,7 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
   if (view.kind === "live") return { title: "RU26 – The class, live", sub: "Everyone's proofs, as they land" };
   if (view.kind === "class") return { title: "RU26 – The Class of 2021", sub: count ? `${count} confirmed · tap a face to request a catch-up` : "" };
   if (view.kind === "admin") return { title: "RU26 – Organizers", sub: "Quests, proofs, the clock, the class" };
+  if (view.kind === "guide") return { title: "RU26 – How it all works", sub: "The weekend, in six steps" };
   if (tab === "weekend") {
     const d = DAYS.find((x) => x.id === day)!;
     return { title: `RU26 Session ${d.session} – ${d.title}`, sub: d.sub };
@@ -319,12 +322,14 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
 // ----- HOME ------------------------------------------------------------------
 
 export function HomeView({
-  onOpenActivity, onOpenQuestival, onOpenMe, onOpenWeekend, onOpenInbox, onOpenClass, onOpenLive, onOpenAdmin, onOpenDay,
+  onOpenActivity, onOpenQuestival, onOpenMe, onOpenWeekend, onOpenInbox, onOpenClass, onOpenLive, onOpenAdmin, onOpenDay, onOpenGuide,
 }: {
   onOpenActivity: (id: string) => void; onOpenQuestival: () => void; onOpenMe: () => void; onOpenWeekend: () => void;
-  onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void; onOpenDay: (d: Day) => void;
+  onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void; onOpenDay: (d: Day) => void; onOpenGuide: () => void;
 }) {
-  const { now, submissions, final, unanswered, settings, organizer, catchups, me, questivalOpen } = useForumStore();
+  const { now, submissions, final, unanswered, settings, catchups, me, questivalOpen } = useForumStore();
+  void onOpenAdmin;
+  void onOpenWeekend;
   const { items } = useLive();
   const { now: cur, next } = nowNext(new Date(now));
   const today = dayOf(new Date(now));
@@ -351,6 +356,7 @@ export function HomeView({
           <div className="fm-now-actions">
             {focus?.address && <a className="fm-btn" href={directionsUrl(focus.address)} target="_blank" rel="noreferrer"><PinIcon /> Directions</a>}
             {focus && <button className="fm-btn" onClick={() => onOpenActivity(focus.id)}>Details</button>}
+            <button className="fm-btn" onClick={onOpenGuide}>✦ Guide</button>
           </div>
         </div>
       ) : (
@@ -358,23 +364,13 @@ export function HomeView({
           <div className="fm-now-eyebrow">Welcome to the weekend</div>
           <div className="fm-now-title">Fri Sep 11 – Sun Sep 13 · San Francisco</div>
           <div className="fm-now-sub">Three sessions. Dinner Friday at six, Questival Saturday, the picnic Sunday.</div>
-          <div className="fm-now-next">{daysOut} {daysOut === 1 ? "day" : "days"} to go. Below: what&apos;s on, and how to say you&apos;re in.</div>
+          <div className="fm-now-next">{daysOut} {daysOut === 1 ? "day" : "days"} to go. Tap <b>I&apos;m going</b> on anything below.</div>
+          <button className="fm-shiny" onClick={onOpenGuide}>✦ How it all works</button>
         </div>
       )}
 
       {settings.announcement && <div className="fm-announce"><b>From the cohosts:</b> {settings.announcement}</div>}
 
-      {!today && <HowItWorks onOpenDay={onOpenDay} onOpenClass={onOpenClass} />}
-
-      {organizer && (
-        <div className="alf-next-card" style={{ marginTop: 0, marginBottom: 14, background: "rgba(20,99,176,0.05)", borderColor: "rgba(20,99,176,0.3)" }}>
-          <div className="alf-next-card-text">
-            <span className="alf-next-card-eyebrow" style={{ color: "var(--minerva-blue)" }}>Organizers</span>
-            <span className="alf-next-card-title">Quests, proofs, the clock, the class</span>
-          </div>
-          <div className="alf-next-card-actions"><button className="alf-next-card-btn" style={{ background: "var(--minerva-blue)" }} onClick={onOpenAdmin}>Open</button></div>
-        </div>
-      )}
 
       {unanswered > 0 && (
         <div className="alf-next-card" style={{ marginTop: 0, marginBottom: 14 }}>
@@ -640,7 +636,7 @@ export function PlanIt({ kind, plan, people, me, onPlan, onUnplan }: { kind: "qu
 // ----- INBOX -----------------------------------------------------------------
 
 export function InboxView({ onOpenQuest, onOpenActivity, onOpenClass }: { onOpenQuest: (id: string) => void; onOpenActivity: (id: string) => void; onOpenClass: () => void }) {
-  const { invites, replyPlan, plans, catchups, replyCatchup, me, settings, now } = useForumStore();
+  const { invites, replyPlan, plans, catchups, replyCatchup, me, settings } = useForumStore();
   const label = (kind: "quest" | "activity", id: string) => (kind === "quest" ? getQuest(id)?.title : getActivity(id)?.title) ?? id;
   const openTarget = (kind: "quest" | "activity", id: string) => (kind === "quest" ? onOpenQuest(id) : onOpenActivity(id));
   const sent = plans.filter((p) => p.with.some((x) => x.id !== me.id));
@@ -712,18 +708,17 @@ export function InboxView({ onOpenQuest, onOpenActivity, onOpenClass }: { onOpen
         )}
       </section>
 
-      <section className="alf-card">
-        <h3 className="alf-card-h">From the cohosts</h3>
-        <ul className="fm-inbox">
-          <li className="fm-inv">
-            <span className="fm-tag-ph" style={{ background: "#1a2530" }}>M</span>
-            <div>
-              <div className="fm-inv-text">{settings.announcement ?? "Questival opens Saturday at 10:00 at Dahlia Dell. Final lists due 5:00 PM before the bonfire."}</div>
-              <div className="fm-inv-meta">{timeShort(now - 3 * 3600_000)}</div>
-            </div>
-          </li>
-        </ul>
-      </section>
+      {settings.announcement && (
+        <section className="alf-card">
+          <h3 className="alf-card-h">From the cohosts</h3>
+          <ul className="fm-inbox">
+            <li className="fm-inv">
+              <span className="fm-tag-ph" style={{ background: "#1a2530" }}>M</span>
+              <div><div className="fm-inv-text">{settings.announcement}</div></div>
+            </li>
+          </ul>
+        </section>
+      )}
     </>
   );
 }
