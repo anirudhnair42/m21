@@ -1,4 +1,4 @@
-import { UUID_RE, fail, handler, json, mergedCatalog, must, questMap, readJson, requireOrganizer } from "@/lib/forum-server";
+import { UUID_RE, cleanText, fail, getSettings, handler, json, mergedCatalog, must, questMap, readJson, requireOrganizer } from "@/lib/forum-server";
 import { submissionById } from "@/lib/questival-server";
 import type { ReviewSubmissionRequest } from "@/lib/questival-api";
 
@@ -24,11 +24,11 @@ export const PATCH = handler<{ params: Promise<{ id: string }> }>(async (request
   }
   if (body.review_note !== undefined) {
     if (body.review_note !== null && typeof body.review_note !== "string") fail(400, "review_note must be text.", "bad-request");
-    patch.review_note = body.review_note ? body.review_note.trim().slice(0, 500) : null;
+    patch.review_note = cleanText(body.review_note, 500);
   }
 
   const updated = must(await supabase.from("q_submissions").update(patch).eq("id", id).select("id").maybeSingle()) as { id: string } | null;
   if (!updated) fail(404, "Proof not found.");
-  const quests = questMap(await mergedCatalog(supabase, { organizer: true }));
-  return json(await submissionById(supabase, id, quests));
+  const [quests, settings] = await Promise.all([mergedCatalog(supabase, { organizer: true }), getSettings(supabase)]);
+  return json(await submissionById(supabase, id, questMap(quests), { settings, viewer: { id: null, organizer: true } }));
 });

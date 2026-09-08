@@ -11,7 +11,8 @@ export const GET = handler(async (request) => {
   const { supabase } = await requireCaller(request);
   const settings = await getSettings(supabase);
 
-  let q = supabase.from("q_submissions").select(SUBMISSION_COLUMNS).eq("status", "approved");
+  // Pre-open proofs never score (see submissionPoints); skipping them here keeps the query small.
+  let q = supabase.from("q_submissions").select(SUBMISSION_COLUMNS).eq("status", "approved").gte("created_at", settings.opens_at);
   if (settings.frozen_at) q = q.lt("created_at", settings.frozen_at);
   const [subs, people, quests] = await Promise.all([
     q,
@@ -22,7 +23,7 @@ export const GET = handler(async (request) => {
   for (const p of (must(people) ?? []) as PersonDTO[]) map.set(p.id, toPerson(p));
 
   const body: BoardResponse = {
-    rows: boardRows((must(subs) ?? []) as SubmissionRow[], questMap(quests), map),
+    rows: boardRows((must(subs) ?? []) as SubmissionRow[], questMap(quests), map, settings),
     frozen: settings.frozen_at !== null,
   };
   return json(body);

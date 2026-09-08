@@ -3,7 +3,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { must, personMap, personOf, publicMediaUrl } from "@/lib/forum-server";
-import type { BoardRow, CatchupDTO, MediaDTO, PersonDTO, PlanDTO, QuestDTO, SubmissionDTO } from "@/lib/questival-api";
+import type { BoardRow, CatchupDTO, MediaDTO, PersonDTO, PlanDTO, QuestDTO, SettingsDTO, SubmissionDTO } from "@/lib/questival-api";
 
 // --------------------------------------------------------- submissions
 
@@ -25,9 +25,18 @@ export type SubmissionRow = {
 export const SUBMISSION_COLUMNS =
   "id, quest_id, instance, uploader_rsvp_id, members, media, caption, note, status, points_override, review_note, created_at";
 
-/** What one proof is worth: 0 when rejected, else override ?? quest points. */
-export function submissionPoints(row: SubmissionRow, quests: Map<string, QuestDTO>): number {
+/** Who is reading: decides whether the organizer's review note is included. */
+export type Viewer = { id: string | null; organizer: boolean };
+
+/** A proof landed before opens_at is saved but never scores ("scoring opens Sat 10:00"). */
+export function beforeOpen(row: Pick<SubmissionRow, "created_at">, settings: SettingsDTO): boolean {
+  return Date.parse(row.created_at) < Date.parse(settings.opens_at);
+}
+
+/** What one proof is worth: 0 when rejected or pre-open, else override ?? quest points. */
+export function submissionPoints(row: SubmissionRow, quests: Map<string, QuestDTO>, settings: SettingsDTO): number {
   if (row.status !== "approved") return 0;
+  if (beforeOpen(row, settings)) return 0;
   if (typeof row.points_override === "number") return row.points_override;
   const q = quests.get(row.quest_id);
   return q && q.status !== "archived" ? q.points : 0;
@@ -37,14 +46,21 @@ export function mediaDTOs(supabase: SupabaseClient, media: SubmissionRow["media"
   return (Array.isArray(media) ? media : []).map((m) => ({ path: m.path, type: m.type, url: publicMediaUrl(supabase, m.path) }));
 }
 
-/** Whitelisted DTOs: names and photos only, never emails. */
+/**
+ * Whitelisted DTOs: names and photos only, never emails. The review note is
+ * for organizers and the people on that proof; everyone else gets null.
+ */
 export async function submissionDTOs(
   supabase: SupabaseClient,
   rows: SubmissionRow[],
   quests: Map<string, QuestDTO>,
+  opts: { settings: SettingsDTO; viewer: Viewer },
 ): Promise<SubmissionDTO[]> {
   const ids = rows.flatMap((r) => [r.uploader_rsvp_id, ...(r.members ?? [])]);
   const people = await personMap(supabase, ids);
+  const { settings, viewer } = opts;
+  const canSeeNote = (r: SubmissionRow) =>
+    viewer.organizer || (viewer.id !== null && (r.uploader_rsvp_id === viewer.id || (r.members ?? []).includes(viewer.id)));
   return rows.map((r) => ({
     id: r.id,
     quest_id: r.quest_id,
@@ -55,8 +71,8 @@ export async function submissionDTOs(
     caption: r.caption ?? null,
     note: r.note ?? null,
     status: r.status,
-    points: submissionPoints(r, quests),
-    review_note: r.review_note ?? null,
+    points: submissionPoints(r, quests, settings),
+    review_note: canSeeNote(r) ? (r.review_note ?? null) : null,
     created_at: new Date(r.created_at).toISOString(),
   }));
 }
@@ -66,10 +82,11 @@ export async function submissionById(
   supabase: SupabaseClient,
   id: string,
   quests: Map<string, QuestDTO>,
+  opts: { settings: SettingsDTO; viewer: Viewer },
 ): Promise<SubmissionDTO | null> {
   const row = must(await supabase.from("q_submissions").select(SUBMISSION_COLUMNS).eq("id", id).maybeSingle()) as SubmissionRow | null;
   if (!row) return null;
-  return (await submissionDTOs(supabase, [row], quests))[0];
+  return (await submissionDTOs(supabase, [row], quests, opts))[0];
 }
 
 // --------------------------------------------------------------- board
@@ -79,14 +96,19 @@ export async function submissionById(
  * by the quest's `repeat`; everyone tagged is credited. Ties share a rank
  * (1, 1, 3). Derived on every read; a few hundred rows at most.
  */
-export function boardRows(rows: SubmissionRow[], quests: Map<string, QuestDTO>, people: Map<string, PersonDTO>): BoardRow[] {
+export function boardRows(
+  rows: SubmissionRow[],
+  quests: Map<string, QuestDTO>,
+  people: Map<string, PersonDTO>,
+  settings: SettingsDTO,
+): BoardRow[] {
   const best = new Map<string, Map<string, number>>(); // person → quest#instance → points
   for (const r of rows) {
     if (r.status !== "approved") continue;
     const q = quests.get(r.quest_id);
     const cap = q?.repeat ?? 1;
     if (r.instance < 1 || r.instance > cap) continue;
-    const pts = submissionPoints(r, quests);
+    const pts = submissionPoints(r, quests, settings);
     const key = `${r.quest_id}#${r.instance}`;
     for (const id of new Set([r.uploader_rsvp_id, ...(r.members ?? [])])) {
       let mine = best.get(id);

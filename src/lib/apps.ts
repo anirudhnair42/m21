@@ -136,7 +136,7 @@ export const APPS: Record<AppId, AppDef> = {
     icon: "photos",
     color: "#ffffff",
     description:
-      "Every Questival proof as it lands, the team board, and after the weekend the memory archive.",
+      "Every Questival proof as it lands, the leaderboard, and after the weekend the memory archive.",
     defaultRect: () => {
       const W = Math.min(1040, window.innerWidth - 60);
       const H = Math.min(680, window.innerHeight - 120);

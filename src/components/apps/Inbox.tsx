@@ -5,10 +5,11 @@ import { MinervaLogo, MinervaWordmark } from "@/components/MinervaLogo";
 import { useIsNarrow } from "@/lib/useIsNarrow";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { getQuest } from "@/lib/questival";
-import { getActivity } from "@/lib/weekend";
+import { CATCHUP_SLOTS, DAYS, getActivity, sessionOf } from "@/lib/weekend";
 import { firstName, timeShort } from "@/components/forum/store";
 import type { CatchupDTO, PlanDTO } from "@/lib/questival-api";
-import { CATCHUP_SLOTS } from "@/lib/weekend";
+
+const DAY_LONG = { fri: "Friday", sat: "Saturday", sun: "Sunday" } as const;
 
 type EmailRow = {
   from: string;
@@ -257,14 +258,14 @@ function MailPaneInvite({ invite, reply, meId, onReply }: { invite: PlanDTO; rep
             <div className="mail-pane-from">{invite.owner.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
             <div className="mail-pane-to">to me{others.length ? `, ${others.join(", ")}` : ""}</div>
           </div>
-          <div className="mail-pane-date">Sat, Sep 12, {timeShort(invite.created_at)}</div>
+          <div className="mail-pane-date">{timeShort(invite.created_at)}</div>
         </div>
       </div>
       <div className="mail-pane-body">
         <div className="mail-invite">
           <p>Hey,</p>
           <p>
-            I&apos;m planning <b>{title}</b> on Saturday{q?.venue ? ` at ${q.venue}` : a?.venue ? ` at ${a.venue}` : ""}{q ? ` (${q.points} pts)` : ""}. Want in?
+            I&apos;m planning <b>{title}</b> on {q ? "Saturday" : DAY_LONG[a?.day ?? "sat"]}{q?.venue ? ` at ${q.venue}` : a?.venue ? ` at ${a.venue}` : ""}{q ? ` (${q.points} pts)` : ""}. Want in?
             {others.length ? ` ${others.join(" and ")} ${others.length > 1 ? "are" : "is"} invited too.` : ""}
           </p>
           <p>{q ? q.prompt : a?.body}</p>
@@ -337,7 +338,7 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
   );
   // Reunion invitations ("Anna wants to do X with you") land in the same
   // inbox, above the 2017 mail. They come from the shared Forum store.
-  const { invites, replyPlan, catchups, replyCatchup, plans, me } = useForumStore();
+  const { invites, replyPlan, catchups, replyCatchup, me } = useForumStore();
   const myReply = (p: PlanDTO) => p.replies[me.id] ?? p.replies["me"];
   const incoming = catchups.filter((c) => c.to.id === me.id);
   const unansweredCount = invites.filter((i) => !myReply(i)).length + incoming.filter((c) => c.status === "pending").length;
@@ -407,7 +408,7 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
           <div className="mail-list">
             <div className="mail-list-header">
               <span>Sort by Date ▾</span>
-              <span>{7 + invites.length + incoming.length + plans.length} messages</span>
+              <span>{1 + OTHER_EMAILS.length + invites.length + incoming.length} messages</span>
             </div>
             {incoming.map((c) => (
               <MailRow
@@ -428,13 +429,16 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
             ))}
             {invites.map((inv) => {
               const title = (inv.kind === "quest" ? getQuest(inv.target_id)?.title : getActivity(inv.target_id)?.title) ?? inv.target_id;
+              const a = inv.kind === "activity" ? getActivity(inv.target_id) : undefined;
+              const when = a ? DAYS.find((d) => d.id === a.day)?.date.replace(", 2026", "") ?? "This weekend" : "Sat, Sep 12";
+              const what = inv.kind === "quest" ? `${getQuest(inv.target_id)?.points ?? ""} pts · Assignment 3: Questival` : `Session ${sessionOf(inv.target_id)?.number ?? ""}`.trim();
               return (
                 <MailRow
                   key={inv.id}
                   email={{
                     from: inv.owner.name,
                     subject: `${firstName(inv.owner.name)} wants to do ${title} with you`,
-                    preview: `Sat, Sep 12 · ${inv.kind === "quest" ? `${getQuest(inv.target_id)?.points ?? ""} pts · Assignment 3: Questival` : "Session 1.2"} — reply I'm in or Maybe.`,
+                    preview: `${when} · ${what} — reply I'm in or Maybe.`,
                     time: timeShort(inv.created_at),
                   }}
                   isUnread={!myReply(inv)}

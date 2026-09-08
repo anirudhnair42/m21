@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { QUESTIVAL, QUESTS, getQuest, questivalWindow, type Quest } from "@/lib/questival";
+import { QUESTIVAL, QUESTS, getQuest, questivalWindowAt, type Quest, type Window } from "@/lib/questival";
 import { ACTIVITIES } from "@/lib/weekend";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getAccessToken } from "@/lib/auth";
@@ -9,6 +9,7 @@ import type {
   CatchupDTO,
   CreatePlanRequest,
   CreateSubmissionRequest,
+  IntentRequest,
   PersonDTO,
   PlanDTO,
   QuestDTO,
@@ -21,6 +22,7 @@ import type {
 import {
   ME,
   ME_ID,
+  proofKey,
   readNowOffset,
   shrinkImage,
   uid,
@@ -56,6 +58,8 @@ export type ForumStore = {
   /** Why we're in local mode, for the preview strip. */
   localReason: "preview" | "no-rsvp" | "tables-missing" | null;
   now: number;
+  /** Where `now` falls against the switches in effect (q_settings when live, the static ones otherwise). */
+  phase: Window;
   me: PersonDTO;
   people: PersonDTO[];
   quests: Quest[];
@@ -93,21 +97,32 @@ const DEFAULT_SETTINGS: SettingsDTO = {
   frozen_at: null,
 };
 
+type ApiErr = Error & { code?: string; status?: number };
+
 async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const token = await getAccessToken();
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      ...(init?.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.json !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body,
-  });
-  const body = await res.json().catch(() => ({}));
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...init,
+      headers: {
+        ...(init?.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.json !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body,
+    });
+  } catch {
+    const err = new Error("You're offline — check the connection and try again.") as ApiErr;
+    err.status = 0;
+    throw err;
+  }
+  const body: unknown = await res.json().catch(() => null);
+  // A `null` or non-object body must not turn into a TypeError on `.error`.
+  const obj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   if (!res.ok) {
-    const err = new Error(body.error ?? `Request failed (${res.status})`) as Error & { code?: string; status?: number };
-    err.code = body.code;
+    const err = new Error(typeof obj.error === "string" ? obj.error : `Request failed (${res.status})`) as ApiErr;
+    err.code = typeof obj.code === "string" ? obj.code : undefined;
     err.status = res.status;
     throw err;
   }
@@ -116,6 +131,16 @@ async function api<T>(path: string, init?: RequestInit & { json?: unknown }): Pr
 
 function toQuest(q: QuestDTO): Quest {
   return { id: q.id, title: q.title, prompt: q.prompt, points: q.points, evidence: q.evidence, venue: q.venue, address: q.address, area: q.area, lat: q.lat, lng: q.lng, repeat: q.repeat, bonus: q.bonus, tip: q.tip };
+}
+
+/** Case/whitespace-insensitive name key, for matching goingSeed hosts to RSVP rows. */
+const nameKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** A file the picker handed over without a MIME type: go by the extension. */
+function guessType(f: File): string {
+  if (f.type) return f.type;
+  const ext = f.name.toLowerCase().split(".").pop() ?? "";
+  return ({ mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime", webm: "video/webm", heic: "image/heic", heif: "image/heic", png: "image/png", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg" } as Record<string, string>)[ext] ?? "";
 }
 
 export function ForumStoreProvider({
@@ -141,6 +166,7 @@ export function ForumStoreProvider({
       const res = await fetch("/api/forum/access", { headers: token ? { Authorization: `Bearer ${token}` } : {} }).catch(() => null);
       if (cancelled || !res) return;
       const b = res.ok ? await res.json().catch(() => ({})) : {};
+      if (cancelled) return;
       setChecked({ enabled: !!b.allowed, name: b.name ?? ME.name, photoUrl: b.photoUrl ?? null, organizer: !!b.organizer, rsvpId: b.rsvpId ?? null, questival: !!b.questival });
     };
     check();
@@ -160,12 +186,21 @@ export function ForumStoreProvider({
   }, []);
   const enabled = enabledProp ?? checked.enabled;
 
-  // ---- clock
+  // ---- clock (America/Los_Angeles is applied at display time; `now` is an instant)
   const [offset] = useState(() => readNowOffset());
   const [now, setNow] = useState(() => Date.now() + offset);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now() + offset), 30_000);
-    return () => clearInterval(t);
+    const tick = () => setNow(Date.now() + offset);
+    const t = setInterval(tick, 30_000);
+    // Background tabs throttle timers; catch the clock up the moment we're visible again.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [offset]);
 
   // ---- the class
@@ -197,42 +232,78 @@ export function ForumStoreProvider({
     }
   }, []);
   useEffect(() => {
-    if (enabled) loadCatalog();
+    if (!enabled) return;
+    // Deferred a tick: the effect body itself never touches state.
+    const kick = setTimeout(() => loadCatalog(), 0);
+    return () => clearTimeout(kick);
   }, [enabled, loadCatalog]);
 
-  // ---- server state (api mode)
+  // ---- server state (api mode) + who's going, fetched as one snapshot
   const [state, setState] = useState<StateResponse | null>(null);
+  const [who, setWho] = useState<WhoAllResponse>({});
   const [localReason, setLocalReason] = useState<ForumStore["localReason"]>("preview");
+  /** Last good snapshot, readable inside loadState without a stale closure. */
+  const lastGood = useRef<StateResponse | null>(null);
+  /** Monotonic load counter: an older response never overwrites a newer one. */
+  const seq = useRef(0);
   const loadState = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const s = await api<StateResponse>("/api/questival/state");
-      if (!s.me) {
+    const mine = ++seq.current;
+    if (!enabled) {
+      // Signed out (or the gate closed): forget the previous person's data.
+      lastGood.current = null;
+      setState(null);
+      setWho({});
+      setLocalReason("preview");
+      return;
+    }
+    const [s, w] = await Promise.allSettled([api<StateResponse>("/api/questival/state"), api<WhoAllResponse>("/api/weekend/plans")]);
+    if (mine !== seq.current) return; // a later load (a write's refetch, the next poll) already answered
+    if (w.status === "fulfilled" && w.value && typeof w.value === "object") setWho(w.value);
+    if (s.status === "fulfilled") {
+      if (!s.value.me) {
+        lastGood.current = null;
         setLocalReason("no-rsvp");
         setState(null);
-        return;
+      } else {
+        lastGood.current = s.value;
+        setState(s.value);
+        setLocalReason(null);
       }
-      setState(s);
-      setLocalReason(null);
-    } catch (e) {
-      const code = (e as { code?: string }).code;
-      setLocalReason(code === "tables-missing" ? "tables-missing" : (e as { status?: number }).status === 401 ? "preview" : "tables-missing");
-      setState(null);
+      return;
     }
+    const e = s.reason as ApiErr;
+    if (e.code === "tables-missing") {
+      lastGood.current = null;
+      setLocalReason("tables-missing");
+      setState(null);
+    } else if (e.status === 401 || e.status === 403 || e.code === "unconfigured") {
+      lastGood.current = null;
+      setLocalReason("preview");
+      setState(null);
+    } else if (!lastGood.current) {
+      // Never had a snapshot: a 500 or a dead network reads as "not connected".
+      setLocalReason("preview");
+    }
+    // Otherwise a blip mid-session (offline, 500): keep the last good
+    // snapshot. Dropping it would flip the UI into preview mode and hide the
+    // person's own proofs until the next poll succeeded.
   }, [enabled]);
   useEffect(() => {
-    loadState();
-    const t = setInterval(() => document.visibilityState === "visible" && loadState(), 45_000);
-    return () => clearInterval(t);
+    const kick = setTimeout(() => loadState(), 0);
+    const poll = () => {
+      if (document.visibilityState === "visible") loadState();
+    };
+    const t = setInterval(poll, 45_000);
+    // Coming back to the tab refreshes right away instead of up to 45s later.
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      clearTimeout(kick);
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", poll);
+      seq.current += 1; // anything still in flight for this closure is stale
+    };
   }, [loadState]);
   const mode: "api" | "local" = state ? "api" : "local";
-
-  // ---- who's going (both modes; public route, local sample fallback)
-  const [who, setWho] = useState<WhoAllResponse>({});
-  useEffect(() => {
-    if (!enabled) return;
-    api<WhoAllResponse>("/api/weekend/plans").then(setWho).catch(() => {});
-  }, [enabled, state]);
 
   // ---- local preview state
   const [lIntents, setLIntents] = usePersisted<Record<string, PlanIntent | undefined>>("intents", {});
@@ -249,36 +320,69 @@ export function ForumStoreProvider({
     return () => clearTimeout(t);
   }, [toast]);
 
-  const me: PersonDTO = state?.me ?? { id: checked.rsvpId ?? ME_ID, name: meProp ?? (checked.enabled ? checked.name : ME.name), photo_url: photoProp ?? checked.photoUrl };
+  const stateMe = state?.me ?? null;
+  const me = useMemo<PersonDTO>(
+    () => stateMe ?? { id: checked.rsvpId ?? ME_ID, name: meProp ?? (checked.enabled ? checked.name : ME.name), photo_url: photoProp ?? checked.photoUrl },
+    [stateMe, checked, meProp, photoProp],
+  );
   const organizer = state?.organizer ?? checked.organizer;
   const questivalOpen = organizer || checked.questival;
+  const phase = useMemo<Window>(
+    () => questivalWindowAt({ opensAt: settings.opens_at, dueAt: settings.due_at, extensionUntil: settings.extension_until }, now),
+    [settings, now],
+  );
 
-  const peopleWithMe = useMemo(() => (people.some((p) => p.id === me.id) ? people : people), [people, me.id]);
+  // The class list with me in it when I have a real RSVP id that
+  // /api/participants didn't return (it caps at 200). Never the preview "You".
+  const peopleWithMe = useMemo(
+    () => (me.id === ME_ID || people.some((p) => p.id === me.id) ? people : [...people, me]),
+    [people, me],
+  );
 
   // ---- derived, by mode
-  const intents = mode === "api" ? (state!.intents as Record<string, PlanIntent | undefined>) : lIntents;
+  const intents: Record<string, PlanIntent | undefined> = mode === "api" ? state!.intents : lIntents;
   const plans = mode === "api" ? state!.plans : lPlans;
   const submissions = mode === "api" ? state!.submissions : lSubs;
   const final = mode === "api" ? state!.final : lFinal;
   // Invitations only come from real people; nothing to show until the API answers.
   const invites = useMemo<PlanDTO[]>(() => (mode === "api" ? state!.invites : []), [mode, state]);
   const catchups = useMemo<CatchupDTO[]>(() => (mode === "api" ? state!.catchups : lCatchups.map((c) => ({ ...c, status: lCatchupReplies[c.id] ?? c.status }))), [mode, state, lCatchups, lCatchupReplies]);
-  const unanswered =
-    invites.filter((p) => !p.replies[me.id] && !p.replies[ME_ID]).length + catchups.filter((c) => c.to.id === me.id && c.status === "pending").length;
+  // Things waiting on me: invitations I haven't answered (never my own
+  // plans), and catch-ups sent to me that are still pending.
+  const unanswered = useMemo(
+    () =>
+      invites.filter((p) => p.owner.id !== me.id && !p.replies[me.id] && !p.replies[ME_ID]).length +
+      catchups.filter((c) => c.to.id === me.id && c.from.id !== me.id && c.status === "pending").length,
+    [invites, catchups, me.id],
+  );
 
-  const failed = (e: unknown) => setToast(e instanceof Error ? e.message : "Something went wrong");
+  const failed = useCallback((e: unknown) => setToast(e instanceof Error ? e.message : "Something went wrong"), []);
 
   // ---- actions
   const setIntent = useCallback(
     (activityId: string, intent: PlanIntent) => {
       const next = intents[activityId] === intent ? null : intent;
       if (mode === "api") {
-        api("/api/weekend/plans", { method: "PUT", json: { activity_id: activityId, intent: next } }).then(loadState).catch(failed);
+        // Optimistic: the button flips now; the refetch after the PUT
+        // reconciles, and on failure puts the server's answer back.
+        setState((s) => {
+          if (!s) return s;
+          const i = { ...s.intents };
+          if (next) i[activityId] = next;
+          else delete i[activityId];
+          return { ...s, intents: i };
+        });
+        api("/api/weekend/plans", { method: "PUT", json: { activity_id: activityId, intent: next } satisfies IntentRequest })
+          .then(loadState)
+          .catch((e) => {
+            failed(e);
+            loadState();
+          });
       } else {
         setLIntents((m) => ({ ...m, [activityId]: next ?? undefined }));
       }
     },
-    [mode, intents, loadState, setLIntents],
+    [mode, intents, loadState, failed, setLIntents],
   );
 
   const addPlan = useCallback(
@@ -298,25 +402,26 @@ export function ForumStoreProvider({
         setToast(msg);
       }
     },
-    [mode, peopleWithMe, me, now, loadState, setLPlans],
+    [mode, peopleWithMe, me, now, loadState, failed, setLPlans],
   );
   const removePlan = useCallback(
     (id: string) => {
       if (mode === "api") api(`/api/questival/plans?id=${encodeURIComponent(id)}`, { method: "DELETE" }).then(loadState).catch(failed);
       else setLPlans((ps) => ps.filter((p) => p.id !== id));
     },
-    [mode, loadState, setLPlans],
+    [mode, loadState, failed, setLPlans],
   );
   const replyPlan = useCallback(
     (planId: string, reply: "in" | "maybe") => {
+      // Local mode has no invitations, so there is nothing to answer.
       if (mode === "api") api("/api/questival/plans/reply", { method: "POST", json: { plan_id: planId, reply } }).then(loadState).catch(failed);
-      else void planId, void reply;
     },
-    [mode, loadState],
+    [mode, loadState, failed],
   );
 
   const saveProof = useCallback(
     async (input: SaveProofInput): Promise<SubmissionDTO> => {
+      if (input.files.length === 0) throw new Error("Attach at least one photo or video.");
       const quest = quests.find((q) => q.id === input.questId) ?? getQuest(input.questId);
       const members = [me, ...input.memberIds.map((id) => peopleWithMe.find((p) => p.id === id)).filter(Boolean)] as PersonDTO[];
       if (mode === "api") {
@@ -325,9 +430,10 @@ export function ForumStoreProvider({
         const media: { path: string; type: "image" | "video" }[] = [];
         let done = 0;
         for (const f of input.files) {
-          const isVideo = f.type.startsWith("video/");
+          const type = guessType(f);
+          const isVideo = type.startsWith("video/");
           const payload = isVideo ? f : (await shrinkImage(f)).blob;
-          const contentType = isVideo ? f.type : "image/jpeg";
+          const contentType = isVideo ? type : "image/jpeg";
           const slot = await api<UploadUrlResponse>("/api/questival/upload-url", {
             method: "POST",
             json: { quest_id: input.questId, content_type: contentType, size: payload.size },
@@ -345,7 +451,9 @@ export function ForumStoreProvider({
           member_ids: input.memberIds,
           caption: input.caption,
           note: input.note,
-          idempotency_key: uid(),
+          // Stable across retries of the same files, so "Save" after a dropped
+          // connection returns the row the first try created.
+          idempotency_key: proofKey(me.id, input.questId, input.instance, input.files),
         };
         const created = await api<SubmissionDTO>("/api/questival/submissions", { method: "POST", json: req });
         setToast("Saved to your list");
@@ -356,7 +464,7 @@ export function ForumStoreProvider({
       const media = [];
       let done = 0;
       for (const f of input.files) {
-        if (f.type.startsWith("video/")) media.push({ path: "", url: "", type: "video" as const });
+        if (guessType(f).startsWith("video/")) media.push({ path: "", url: "", type: "video" as const });
         else media.push({ path: "", url: (await shrinkImage(f, 1200)).dataUrl, type: "image" as const });
         done += 1;
         input.onProgress?.(done, input.files.length);
@@ -386,15 +494,15 @@ export function ForumStoreProvider({
       if (mode === "api") api(`/api/questival/submissions?id=${encodeURIComponent(id)}`, { method: "DELETE" }).then(loadState).catch(failed);
       else setLSubs((ss) => ss.filter((s) => s.id !== id));
     },
-    [mode, loadState, setLSubs],
+    [mode, loadState, failed, setLSubs],
   );
   const submitFinal = useCallback(() => {
     if (mode === "api") {
       api("/api/questival/final", { method: "POST" }).then(() => (setToast("Submitted"), loadState())).catch(failed);
     } else {
-      setLFinal({ submitted_at: new Date(now).toISOString(), extension_used: questivalWindow(now) === "extension" });
+      setLFinal((f) => f ?? { submitted_at: new Date(now).toISOString(), extension_used: phase === "extension" });
     }
-  }, [mode, now, loadState, setLFinal]);
+  }, [mode, now, phase, loadState, failed, setLFinal]);
 
   const requestCatchup = useCallback(
     (toId: string, slot: string, note: string) => {
@@ -406,14 +514,14 @@ export function ForumStoreProvider({
         setToast(`Sent to ${to.name.split(" ")[0]}`);
       }
     },
-    [mode, peopleWithMe, me, now, loadState, setLCatchups],
+    [mode, peopleWithMe, me, now, loadState, failed, setLCatchups],
   );
   const replyCatchup = useCallback(
     (id: string, status: "accepted" | "declined") => {
       if (mode === "api") api("/api/catchups/reply", { method: "POST", json: { id, status } }).then(loadState).catch(failed);
       else setLCatchupReplies((m) => ({ ...m, [id]: status }));
     },
-    [mode, loadState, setLCatchupReplies],
+    [mode, loadState, failed, setLCatchupReplies],
   );
 
   // Who's going: the API's answer, plus the hosts named on an activity
@@ -421,9 +529,10 @@ export function ForumStoreProvider({
   const whoMerged = useMemo<WhoAllResponse>(() => {
     const out: WhoAllResponse = {};
     for (const a of ACTIVITIES) {
-      const going = [...(who[a.id]?.going ?? [])];
+      const w = who[a.id];
+      const going = Array.isArray(w?.going) ? [...w.going] : [];
       for (const n of a.goingSeed ?? []) {
-        const p = people.find((x) => x.name === n);
+        const p = people.find((x) => nameKey(x.name) === nameKey(n));
         if (p && !going.some((g) => g.id === p.id)) going.unshift(p);
       }
       if (mode === "local" && intents[a.id] === "going" && !going.some((g) => g.id === me.id)) going.push(me);
@@ -432,20 +541,19 @@ export function ForumStoreProvider({
         out[a.id] = { going: people, going_count: people.length, interested_count: 0 };
         continue;
       }
-      out[a.id] = { going, going_count: Math.max(going.length, who[a.id]?.going_count ?? 0), interested_count: who[a.id]?.interested_count ?? 0 };
+      out[a.id] = { going, going_count: Math.max(going.length, w?.going_count ?? 0), interested_count: w?.interested_count ?? 0 };
     }
     return out;
   }, [who, people, mode, intents, me]);
 
-  const refreshRef = useRef(() => {});
-  refreshRef.current = () => {
+  const refresh = useCallback(() => {
     loadState();
     loadCatalog();
-  };
+  }, [loadState, loadCatalog]);
 
   const value: ForumStore = {
     enabled, questivalOpen, organizer, mode, localReason: mode === "api" ? null : localReason,
-    now, me, people: peopleWithMe, quests, settings, who: whoMerged,
+    now, phase, me, people: peopleWithMe, quests, settings, who: whoMerged,
     intents, setIntent,
     plans, addPlan, removePlan,
     invites, replyPlan,
@@ -453,7 +561,7 @@ export function ForumStoreProvider({
     final, submitFinal,
     catchups, requestCatchup, replyCatchup,
     unanswered, toast, setToast,
-    refresh: () => refreshRef.current(),
+    refresh,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

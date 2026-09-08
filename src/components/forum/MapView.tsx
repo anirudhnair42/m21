@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LMap, LayerGroup } from "leaflet";
 import { ACTIVITIES, DAYS } from "@/lib/weekend";
@@ -56,7 +56,16 @@ const tiles = tileSource();
  */
 export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: string) => void; onOpenQuest: (id: string) => void }) {
   const { me, plans, who, quests: allQuests, questivalOpen, enabled } = useForumStore();
-  const liveQuests = questivalOpen ? allQuests : [];
+  // Stable identities: the build effect below tears the map down (zoom, pan,
+  // open popup) whenever a dependency changes, so a fresh `[]` or an inline
+  // callback from the parent must not count as a change.
+  const liveQuests = useMemo(() => (questivalOpen ? allQuests : []), [questivalOpen, allQuests]);
+  const openActivityRef = useRef(onOpenActivity);
+  const openQuestRef = useRef(onOpenQuest);
+  useEffect(() => {
+    openActivityRef.current = onOpenActivity;
+    openQuestRef.current = onOpenQuest;
+  }, [onOpenActivity, onOpenQuest]);
   const [mapWho, setMapWho] = useState<MapWhoResponse | null>(null);
   useEffect(() => {
     if (!enabled) return;
@@ -76,70 +85,35 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
   const [on, setOn] = useState<Record<Layer, boolean>>({ anchors: true, quests: true, side: true });
   const [located, setLocated] = useState(false);
 
-  // Build the map once.
+  const [ready, setReady] = useState(false);
+  const leafletRef = useRef<typeof import("leaflet") | null>(null);
+
+  // Build the map once. It keeps its pan/zoom for the life of the view; only
+  // the pins are redrawn when data changes.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const L = (await import("leaflet")).default;
       if (cancelled || !host.current || mapRef.current) return;
+      leafletRef.current = L;
       const map = L.map(host.current, { zoomControl: false, attributionControl: true }).setView([37.7835, -122.437], 12.6);
       L.tileLayer(tiles.url, { attribution: tiles.attribution, maxZoom: 19, tileSize: tiles.tileSize, zoomOffset: tiles.zoomOffset, className: tiles.className }).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
-      const layers = { anchors: L.layerGroup().addTo(map), quests: L.layerGroup().addTo(map), side: L.layerGroup().addTo(map) };
-      layersRef.current = layers;
+      layersRef.current = { anchors: L.layerGroup().addTo(map), quests: L.layerGroup().addTo(map), side: L.layerGroup().addTo(map) };
       mapRef.current = map;
-
-      const faces = (ps: PersonDTO[]) =>
-        ps.slice(0, 6).map((p) => (p.photo_url ? `<img class="fm-face" src="${p.photo_url}" alt="">` : `<span class="fm-face"></span>`)).join("") +
-        (ps.length > 6 ? `<span class="fm-face-more">+${ps.length - 6}</span>` : "");
-
-      const pin = (cls: string, label: string) => L.divIcon({ className: "", html: `<div class="fm-pin ${cls}">${label}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
-
-      // One pin per place: Dahlia Dell hosts breakfast, sports and the
-      // Questival start; Southern Pacific hosts dinner and the bar hop.
-      const spots = new Map<string, typeof ACTIVITIES>();
-      for (const a of ACTIVITIES) {
-        if (a.lat == null || a.lng == null) continue;
-        const key = `${a.lat.toFixed(3)},${a.lng.toFixed(3)}`;
-        spots.set(key, [...(spots.get(key) ?? []), a]);
-      }
-      for (const group of spots.values()) {
-        const lead = group.find((a) => a.required) ?? group.find((a) => a.kind === "anchor") ?? group[0];
-        const first = [...group].sort((a, b) => (a.start ? Date.parse(a.start) : Infinity) - (b.start ? Date.parse(b.start) : Infinity))[0];
-        const d = DAYS.find((x) => x.id === lead.day)!;
-        const going = who[lead.id]?.going ?? [];
-        const mine = group.some((a) => plans.some((p) => p.kind === "activity" && p.target_id === a.id));
-        const cls = lead.required || lead.kind === "anchor" ? "fm-pin-anchor" : lead.kind === "peer" ? "fm-pin-peer" : "fm-pin-opt";
-        const label = `${d.label} ${first.time.split(" ")[0]}${lead.required ? " ★" : ""}`;
-        const lines = group
-          .slice()
-          .sort((a, b) => (a.start ? Date.parse(a.start) : Infinity) - (b.start ? Date.parse(b.start) : Infinity))
-          .map((a) => escapeHtml(`${a.time} ${a.title}${a.required ? " · everyone" : a.kind === "peer" ? " · side quest" : ""}`))
-          .join("<br>");
-        const m = L.marker([lead.lat!, lead.lng!], { icon: pin(cls, label) });
-        m.bindPopup(
-          popupHtml(lead.venue ?? lead.title, "", faces(going), `${lead.required ? `all ${going.length} of us` : `${going.length} going`}${mine ? " · you're in" : ""}`, `activity:${lead.id}`, lines),
-        );
-        m.addTo(lead.kind === "peer" ? layers.side : layers.anchors);
-      }
-      for (const q of liveQuests.filter((x) => x.venue)) {
-        if (q.lat == null || q.lng == null) continue;
-        const mine = plans.some((p) => p.kind === "quest" && p.target_id === q.id);
-        const planning = [...(mapWho?.quests[q.id] ?? [])];
-        if (mine && !planning.some((p) => p.id === me.id)) planning.unshift(me);
-        const m = L.marker([q.lat, q.lng], { icon: pin(`fm-pin-quest${mine ? " fm-pin-mine" : ""}`, `${q.points}`) });
-        m.bindPopup(popupHtml(q.title, `${q.points} pts${q.venue ? ` · ${q.venue}` : ""}`, faces(planning), `${planning.length} planning to go${mine ? " · you too" : ""}`, `quest:${q.id}`));
-        m.addTo(layers.quests);
-      }
 
       map.on("popupopen", (e) => {
         const btn = e.popup.getElement()?.querySelector<HTMLButtonElement>("button[data-open]");
-        btn?.addEventListener("click", () => {
+        if (!btn) return;
+        // Assign, don't addEventListener: Leaflet reuses the popup node, so a
+        // listener per open fired Open N times on the Nth visit.
+        btn.onclick = () => {
           const [kind, id] = (btn.dataset.open ?? "").split(":");
-          if (kind === "activity") onOpenActivity(id);
-          else onOpenQuest(id);
-        });
+          if (kind === "activity") openActivityRef.current(id);
+          else openQuestRef.current(id);
+        };
       });
+      setReady(true);
     })();
     return () => {
       cancelled = true;
@@ -147,8 +121,59 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
       mapRef.current = null;
       layersRef.current = null;
     };
-    // Rebuilding on every plan/people change is fine at this size.
-  }, [me, plans, who, mapWho, liveQuests, onOpenActivity, onOpenQuest]);
+  }, []);
+
+  // Pins. The 45s state poll hands back fresh arrays, so this runs often —
+  // it clears and refills the layer groups without touching the map.
+  useEffect(() => {
+    const L = leafletRef.current;
+    const layers = layersRef.current;
+    if (!ready || !L || !layers) return;
+    for (const g of Object.values(layers)) g.clearLayers();
+
+    const faces = (ps: PersonDTO[]) =>
+      ps.slice(0, 6).map((p) => (p.photo_url ? `<img class="fm-face" src="${p.photo_url}" alt="">` : `<span class="fm-face"></span>`)).join("") +
+      (ps.length > 6 ? `<span class="fm-face-more">+${ps.length - 6}</span>` : "");
+
+    const pin = (cls: string, label: string) => L.divIcon({ className: "", html: `<div class="fm-pin ${cls}">${label}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+
+    // One pin per place: Dahlia Dell hosts breakfast, sports and the
+    // Questival start; Southern Pacific hosts dinner and the bar hop.
+    const spots = new Map<string, typeof ACTIVITIES>();
+    for (const a of ACTIVITIES) {
+      if (a.lat == null || a.lng == null) continue;
+      const key = `${a.lat.toFixed(3)},${a.lng.toFixed(3)}`;
+      spots.set(key, [...(spots.get(key) ?? []), a]);
+    }
+    for (const group of spots.values()) {
+      const lead = group.find((a) => a.required) ?? group.find((a) => a.kind === "anchor") ?? group[0];
+      const first = [...group].sort((a, b) => (a.start ? Date.parse(a.start) : Infinity) - (b.start ? Date.parse(b.start) : Infinity))[0];
+      const d = DAYS.find((x) => x.id === lead.day);
+      const going = who[lead.id]?.going ?? [];
+      const mine = group.some((a) => plans.some((p) => p.kind === "activity" && p.target_id === a.id));
+      const cls = lead.required || lead.kind === "anchor" ? "fm-pin-anchor" : lead.kind === "peer" ? "fm-pin-peer" : "fm-pin-opt";
+      const label = `${d?.label ?? ""} ${first.time.split(" ")[0]}${lead.required ? " ★" : ""}`.trim();
+      const lines = group
+        .slice()
+        .sort((a, b) => (a.start ? Date.parse(a.start) : Infinity) - (b.start ? Date.parse(b.start) : Infinity))
+        .map((a) => escapeHtml(`${a.time} ${a.title}${a.required ? " · everyone" : a.kind === "peer" ? " · side quest" : ""}`))
+        .join("<br>");
+      const m = L.marker([lead.lat!, lead.lng!], { icon: pin(cls, label) });
+      m.bindPopup(
+        popupHtml(lead.venue ?? lead.title, "", faces(going), `${lead.required ? `all ${going.length} of us` : `${going.length} going`}${mine ? " · you're in" : ""}`, `activity:${lead.id}`, lines),
+      );
+      m.addTo(lead.kind === "peer" ? layers.side : layers.anchors);
+    }
+    for (const q of liveQuests.filter((x) => x.venue)) {
+      if (q.lat == null || q.lng == null) continue;
+      const mine = plans.some((p) => p.kind === "quest" && p.target_id === q.id);
+      const planning = [...(mapWho?.quests[q.id] ?? [])];
+      if (mine && !planning.some((p) => p.id === me.id)) planning.unshift(me);
+      const m = L.marker([q.lat, q.lng], { icon: pin(`fm-pin-quest${mine ? " fm-pin-mine" : ""}`, `${q.points}`) });
+      m.bindPopup(popupHtml(q.title, `${q.points} pts${q.venue ? ` · ${q.venue}` : ""}`, faces(planning), `${planning.length} planning to go${mine ? " · you too" : ""}`, `quest:${q.id}`));
+      m.addTo(layers.quests);
+    }
+  }, [ready, me, plans, who, mapWho, liveQuests]);
 
   // Toggle layers.
   useEffect(() => {
@@ -159,7 +184,7 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
       if (on[k]) layers[k].addTo(map);
       else layers[k].remove();
     });
-  }, [on]);
+  }, [on, ready]);
 
   const locate = async () => {
     const map = mapRef.current;

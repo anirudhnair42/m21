@@ -269,7 +269,8 @@ function ReviewAdmin({ onError }: { onError: (e: string | null) => void }) {
 function toLocalInput(iso: string): string {
   // ISO → "YYYY-MM-DDTHH:MM" in San Francisco time for a datetime-local input.
   const d = new Date(iso);
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  // hourCycle h23, not hour12:false — the latter renders midnight as "24:00", which datetime-local rejects.
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }

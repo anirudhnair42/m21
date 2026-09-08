@@ -52,7 +52,7 @@ export const GET = handler(async (request) => {
 
   const qmap = questMap(quests);
   const [submissions, plansOut, invitesOut, catchupsOut] = await Promise.all([
-    submissionDTOs(supabase, (must(subs) ?? []) as SubmissionRow[], qmap),
+    submissionDTOs(supabase, (must(subs) ?? []) as SubmissionRow[], qmap, { settings, viewer: { id: me.id, organizer: caller.organizer } }),
     planDTOs(supabase, (must(plans) ?? []) as PlanRow[]),
     planDTOs(supabase, (must(invites) ?? []) as PlanRow[]),
     catchupDTOs(supabase, (must(catchups) ?? []) as CatchupRow[]),

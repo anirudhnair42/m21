@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { RSVP_CLOSED } from "@/lib/letter";
 
 /**
  * Who am I, according to my Google session? Verifies the bearer token with
@@ -42,6 +43,10 @@ export async function GET(request: Request) {
  * devices no matter what email was typed into Stripe.
  */
 export async function POST(request: Request) {
+  // Registration is closed, so there are no fresh guest rows to claim. Keeping
+  // this open would let any Google account attach an email-less RSVP to itself
+  // by guessing an id, so it is switched off with the RSVP.
+  if (RSVP_CLOSED) return Response.json({ claimed: false, closed: true }, { status: 410 });
   const supabase = getSupabaseAdmin();
   if (!supabase) return Response.json({ claimed: false }, { status: 503 });
 

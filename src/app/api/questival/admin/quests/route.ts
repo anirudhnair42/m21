@@ -1,4 +1,4 @@
-import { fail, handler, json, mergedCatalog, must, questFromRow, questMap, readJson, requireOrganizer } from "@/lib/forum-server";
+import { cleanText, fail, handler, json, mergedCatalog, must, questFromRow, questMap, readJson, requireOrganizer } from "@/lib/forum-server";
 import type { QuestDTO, UpsertQuestRequest } from "@/lib/questival-api";
 
 const EVIDENCE = new Set<QuestDTO["evidence"]>(["photo", "video", "photo-pair", "text-photo", "screenshot"]);
@@ -18,8 +18,7 @@ function slug(title: string): string {
 function text(v: unknown, field: string, max: number): string | null {
   if (v === undefined || v === null) return null;
   if (typeof v !== "string") fail(400, `${field} must be text.`, "bad-request");
-  const t = v.trim().slice(0, max);
-  return t || null;
+  return cleanText(v, max);
 }
 function num(v: unknown, field: string): number | null {
   if (v === undefined || v === null) return null;
@@ -28,7 +27,7 @@ function num(v: unknown, field: string): number | null {
 }
 
 /**
- * Organizer upsert of a quest: a new id (slug from the title, made unique)
+ * Organizer upsert of one quest: a new id (slug from the title, made unique)
  * adds one; an existing id — static or custom — writes an override row on
  * top of the catalog. Fields not sent keep their current value.
  */

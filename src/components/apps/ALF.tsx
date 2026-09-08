@@ -18,12 +18,12 @@ import {
 } from "@/lib/letter";
 import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
-import { SessionList } from "@/components/forum/SessionCards";
+import { SessionList, featuredSession } from "@/components/forum/SessionCards";
 import { Faces } from "@/components/forum/ForumMobile";
 import { GuideView } from "@/components/forum/Guide";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
-import { SESSIONS, getActivity, nextSession, sessionsFor } from "@/lib/weekend";
+import { getActivity, sessionsFor } from "@/lib/weekend";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -813,7 +813,7 @@ function ForumHome({
 /** The rail card that replaced Office Hours: who's coming to the next class. */
 function WhosGoingRail({ onOpenCalendar }: { onOpenCalendar?: () => void }) {
   const { who, now } = useForumStore();
-  const next = nextSession(new Date(now)) ?? SESSIONS[0];
+  const { session: next } = featuredSession(now);
   const anchor = next.activities.map(getActivity).find((a) => a?.kind === "anchor") ?? getActivity(next.activities[0]);
   const going = anchor ? who[anchor.id]?.going ?? [] : [];
   return (
@@ -1432,7 +1432,7 @@ const A11_PROMPT = {
   due: "Due before the reunion · Weight 1x",
   prompt:
     "Who are you most excited to see? Name the classmates you can't wait to catch up with — old housemates, project partners, the people you lost track of somewhere between graduation and now. A few honest sentences is plenty.",
-  note: "Your answer goes to the organizers only. We'll use it to put you in Questival teams with — and near — your people.",
+  note: "Your answer goes to the organizers only. We'll use it to seat you with — and near — your people.",
 };
 
 function AssignmentPage({

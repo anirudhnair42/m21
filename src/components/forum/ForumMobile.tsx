@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { CATCHUP_SLOTS, DAYS, dayOf, directionsUrl, getActivity, getSession, nowNext, sessionsFor, type Activity, type Day } from "@/lib/weekend";
-import { QUESTIVAL, getQuest, questivalWindow } from "@/lib/questival";
-import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker, useLive } from "@/components/forum/Questival";
+import { CATCHUP_SLOTS, DAYS, dayOf, directionsUrl, getActivity, getSession, nowNext, sessionOf, sessionsFor, type Activity, type Day } from "@/lib/weekend";
+import { QUESTIVAL, getQuest } from "@/lib/questival";
+import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
 import { SessionList, SessionCard } from "@/components/forum/SessionCards";
 import { GuideView } from "@/components/forum/Guide";
@@ -11,7 +11,7 @@ import { MapView } from "@/components/forum/MapView";
 import { useAuth, getAccessToken } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { SnackbarProvider } from "@/lib/snackbar";
-import { BookIcon, HomeIcon, ListIcon, MailIcon, MapIcon, PaperclipIcon, PinIcon, ShareIcon } from "@/components/forum/icons";
+import { BookIcon, HomeIcon, ListIcon, MailIcon, MapIcon, PinIcon, ShareIcon } from "@/components/forum/icons";
 import { ME, ME_ID, firstName, readNowOffset, timeShort, type PlanIntent } from "@/components/forum/store";
 import { ForumStoreProvider, ForumToast, useForumStore } from "@/components/forum/ForumStore";
 import type { CatchupDTO, PersonDTO, PlanDTO } from "@/lib/questival-api";
@@ -133,24 +133,24 @@ function ForumGate({ initialTab }: { initialTab: Tab }) {
             ) : access.state === "denied" ? (
               <>
                 <p className="fm-eyebrow">Signed in{access.name ? ` as ${access.name}` : ""}</p>
-                <h2 className="fm-gate-title">This is not really a real ALF LOL</h2>
+                <h2 className="fm-gate-title">Not on the class list</h2>
                 <p className="fm-gate-sub">
                   {access.reason === "no-rsvp"
-                    ? "This Google account isn't on the class list. Try the account you RSVP'd with."
-                    : "The weekend opens to the whole class on Thursday. You're not on the preview list yet — ask Ani."}
+                    ? "This Google account isn't tied to an RSVP. Try the account you RSVP'd with, or ask Ani."
+                    : "Your RSVP is there but this account isn't cleared yet — ask Ani."}
                 </p>
                 <button className="fm-btn" onClick={signOut}>Use another account</button>
               </>
             ) : (
               <>
-                <p className="fm-eyebrow">Session 1.1 starts Fri, Sep 11</p>
-                <h2 className="fm-gate-title">This is not really a real ALF LOL</h2>
-                <p className="fm-gate-sub">The weekend, the map, and Assignment 3 open here on Thursday. Cohosts: sign in to preview.</p>
+                <p className="fm-eyebrow">RU26 · Sept 11–13 · San Francisco</p>
+                <h2 className="fm-gate-title">Sign in to see the weekend</h2>
+                <p className="fm-gate-sub">The run of show, who&apos;s going where, your plans with people, and your assignments.</p>
                 {blockedEmail && <p className="fm-note">{blockedEmail} isn&apos;t allowed here.</p>}
                 <button className="fm-btn fm-btn-blue" onClick={() => signInTo("forum")}>
                   <span className="fm-gate-g">G</span> Sign in with Google
                 </button>
-                <p className="fm-muted">Use the Google account you RSVP&apos;d with. If it fails inside Instagram or Facebook, open this link in Safari or Chrome.</p>
+                <p className="fm-muted">Use the Google account you RSVP&apos;d with.</p>
               </>
             )}
           </div>
@@ -233,7 +233,12 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
       </header>
 
       <main className={`fm-main${isMap ? " fm-main-map" : ""}`}>
-        {shownView.kind === "activity" && <ActivityView activity={getActivity(shownView.id)!} onShare={share} />}
+        {shownView.kind === "activity" &&
+          (getActivity(shownView.id) ? (
+            <ActivityView activity={getActivity(shownView.id)!} onShare={share} />
+          ) : (
+            <section className="alf-card"><p className="fm-empty">That activity isn&apos;t on the run of show anymore.</p></section>
+          ))}
         {shownView.kind === "quest" && <QuestView questId={shownView.id} onOpenMe={() => open({ kind: "me" })} />}
         {shownView.kind === "me" && <MyQuestival onOpenQuest={openQuest} onOpenActivity={openActivity} />}
         {shownView.kind === "live" && <LiveView />}
@@ -298,8 +303,10 @@ function TabButton({ on, label, badge, onClick, children }: { on: boolean; label
 function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, me: string): { title: string; sub: string } {
   if (view.kind === "activity") {
     const a = getActivity(view.id);
-    const d = DAYS.find((x) => x.id === a?.day);
-    return { title: `RU26 Session ${d?.session} – ${a?.title ?? ""}`, sub: a?.venue ?? "" };
+    if (!a) return { title: "RU26 – Activity", sub: "" };
+    // The activity's own class (dinner is 2.2), not the day's first one.
+    const d = DAYS.find((x) => x.id === a.day);
+    return { title: `RU26 Session ${sessionOf(a.id)?.number ?? d?.session ?? ""} – ${a.title}`, sub: a.venue ?? "" };
   }
   if (view.kind === "session") {
     const ss = getSession(view.id);
@@ -336,13 +343,14 @@ export function HomeView({
   onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void; onOpenDay: (d: Day) => void; onOpenGuide: () => void;
   onOpenSession: (id: string) => void;
 }) {
-  const { now, submissions, final, unanswered, settings, catchups, me, questivalOpen, organizer } = useForumStore();
+  const { now, phase, submissions, final, unanswered, settings, catchups, me, organizer } = useForumStore();
   void onOpenAdmin;
   void onOpenWeekend;
-  const { items } = useLive();
+  // (No useLive() here: Home doesn't show the feed, and the hook polls every 20s.)
   const { now: cur, next } = nowNext(new Date(now));
   const today = dayOf(new Date(now));
-  const w = questivalWindow(now);
+  // Settings-aware: organizers can move the switches from the admin panel.
+  const w = phase;
   const daysOut = Math.max(0, Math.ceil((Date.parse("2026-09-11T18:00:00-07:00") - now) / 86_400_000));
   const accepted = catchups.filter((c) => c.status === "accepted");
 
@@ -464,7 +472,7 @@ export function Faces({ people, extra = 0, max = 5 }: { people: PersonDTO[]; ext
 // ----- ACTIVITY --------------------------------------------------------------
 
 export function ActivityView({ activity: a, onShare }: { activity: Activity; onShare: (title: string, text: string) => void }) {
-  const { who, intents, setIntent, plans, addPlan, removePlan, people, me } = useForumStore();
+  const { who, intents, setIntent, plans, addPlan, removePlan, people, me, mode } = useForumStore();
   const d = DAYS.find((x) => x.id === a.day)!;
   const intent = intents[a.id];
   const w = who[a.id];
@@ -503,7 +511,8 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
               <button className={`fm-btn${intent === "going" ? " fm-btn-going" : ""}`} onClick={() => setIntent(a.id, "going")}>{intent === "going" ? "✓ I'm going" : "I'm going"}</button>
               <button className={`fm-btn${intent === "interested" ? " fm-btn-blue" : ""}`} onClick={() => setIntent(a.id, "interested")}>{intent === "interested" ? "✓ Interested" : "Interested"}</button>
             </div>
-            <p className="fm-muted">{(w?.going_count ?? going.length) + (intent === "going" && !going.some((p) => p.id === me.id) ? 1 : 0)} going · {(w?.interested_count ?? 0) + (intent === "interested" ? 1 : 0)} interested</p>
+            {/* In api mode the server's counts already include me once it has refetched; only the local preview needs the +1. */}
+            <p className="fm-muted">{(w?.going_count ?? going.length) + (intent === "going" && !going.some((p) => p.id === me.id) ? 1 : 0)} going · {(w?.interested_count ?? 0) + (mode === "local" && intent === "interested" ? 1 : 0)} interested</p>
           </>
         )}
         <div className="fm-who">
@@ -569,6 +578,7 @@ export function PlanIt({ kind, plan, people, me, onPlan, onUnplan }: { kind: "qu
 export function InboxView({ onOpenQuest, onOpenActivity, onOpenClass }: { onOpenQuest: (id: string) => void; onOpenActivity: (id: string) => void; onOpenClass: () => void }) {
   const { invites, replyPlan, plans, catchups, replyCatchup, me, settings } = useForumStore();
   const label = (kind: "quest" | "activity", id: string) => (kind === "quest" ? getQuest(id)?.title : getActivity(id)?.title) ?? id;
+  const dayLabel = (id: string) => DAYS.find((d) => d.id === getActivity(id)?.day)?.label ?? "";
   const openTarget = (kind: "quest" | "activity", id: string) => (kind === "quest" ? onOpenQuest(id) : onOpenActivity(id));
   const sent = plans.filter((p) => p.with.some((x) => x.id !== me.id));
   const incoming = catchups.filter((c) => c.to.id === me.id);
@@ -594,7 +604,7 @@ export function InboxView({ onOpenQuest, onOpenActivity, onOpenClass }: { onOpen
                     <div className="fm-inv-text">
                       <b>{firstName(inv.owner.name)}</b> wants to do <b className="alf-link" onClick={() => openTarget(inv.kind, inv.target_id)}>{label(inv.kind, inv.target_id)}</b> with you{others.length ? ` and ${others.map((p) => firstName(p.name)).join(", ")}` : ""}.
                     </div>
-                    <div className="fm-inv-meta">{timeShort(inv.created_at)} · {inv.kind === "quest" ? `${getQuest(inv.target_id)?.points ?? ""} pts` : "Saturday"}</div>
+                    <div className="fm-inv-meta">{timeShort(inv.created_at)} · {inv.kind === "quest" ? `${getQuest(inv.target_id)?.points ?? ""} pts` : dayLabel(inv.target_id) || "This weekend"}</div>
                     {r ? (
                       <div className="fm-inv-done">{r === "in" ? "✓ You're in — it's on your list and the map." : "Maybe — we'll remind you when they're nearby."}</div>
                     ) : (

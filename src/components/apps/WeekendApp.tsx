@@ -73,7 +73,7 @@ export function WeekendApp({ initialActivity }: { initialActivity?: string }) {
         </div>
         <div className="fm fm-embed wk-embed-top">
           <main className="fm-main">
-            {activity ? (
+            {activity && getActivity(activity) ? (
               <ActivityView activity={getActivity(activity)!} onShare={share} />
             ) : (
               <WeekendView day={day} onDay={(x) => { setDay(x); setActivity(null); }} onOpen={setActivity} />

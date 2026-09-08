@@ -43,12 +43,26 @@ export function usePersisted<T>(key: string, initial: T) {
   return [value, setValue] as const;
 }
 
-/** `?now=2026-09-12T14:14` lets a demo walk through Saturday. */
-export function readNowOffset(): number {
-  const raw = new URLSearchParams(window.location.search).get("now");
+/**
+ * The `?now=` demo value as epoch ms. "2026-09-12" is noon in San Francisco,
+ * "2026-09-12T14:14" (seconds optional) is that San Francisco wall time, and
+ * an explicit offset or Z is honored as written. NaN when unparsable.
+ */
+export function parseNowParam(raw: string): number {
+  const s = raw.trim().replace(" ", "T");
+  if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return NaN;
+  if (!s.includes("T")) return Date.parse(`${s}T12:00:00-07:00`);
+  if (/(Z|[+-]\d{2}:?\d{2})$/i.test(s)) return Date.parse(s);
+  const time = s.slice(11);
+  return Date.parse(`${s.slice(0, 10)}T${/^\d{2}:\d{2}$/.test(time) ? `${time}:00` : time}-07:00`);
+}
+
+/** `?now=2026-09-12T14:14` lets a demo walk through Saturday. Zero on the server or without the param. */
+export function readNowOffset(search?: string): number {
+  const qs = search ?? (typeof window === "undefined" ? "" : window.location.search);
+  const raw = qs ? new URLSearchParams(qs).get("now") : null;
   if (!raw) return 0;
-  const iso = raw.includes("T") ? `${raw}:00-07:00` : `${raw}T12:00:00-07:00`;
-  const parsed = Date.parse(iso);
+  const parsed = parseNowParam(raw);
   return Number.isFinite(parsed) ? parsed - Date.now() : 0;
 }
 
@@ -58,29 +72,47 @@ export function djb2(s: string): number {
   return h;
 }
 
-/** Shrink to ≤max px JPEG before anything leaves the phone. */
+const UNREADABLE = "This photo format couldn't be read here — try a JPEG.";
+
+/**
+ * Shrink to ≤max px JPEG before anything leaves the phone. Every failure
+ * (HEIC the browser can't decode, an image too big to decode, a canvas that
+ * won't encode) rejects with a sentence the save button can show.
+ */
 export function shrinkImage(file: File, max = 1600): Promise<{ blob: Blob; dataUrl: string }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
+    const done = <T,>(fn: () => T) => {
+      URL.revokeObjectURL(url);
+      return fn();
+    };
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-      const w = Math.round(img.naturalWidth * scale);
-      const h = Math.round(img.naturalHeight * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("no canvas"));
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-      canvas.toBlob((blob) => (blob ? resolve({ blob, dataUrl }) : reject(new Error("encode failed"))), "image/jpeg", 0.82);
+      const iw = img.naturalWidth;
+      const ih = img.naturalHeight;
+      // Safari "loads" an undecodable image as 0×0; a 0×0 canvas encodes to nothing.
+      if (!iw || !ih) return done(() => reject(new Error(UNREADABLE)));
+      const scale = Math.min(1, max / Math.max(iw, ih));
+      const w = Math.max(1, Math.round(iw * scale));
+      const h = Math.max(1, Math.round(ih * scale));
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("no canvas");
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        canvas.toBlob(
+          (blob) => done(() => (blob ? resolve({ blob, dataUrl }) : reject(new Error("Couldn't encode that photo — try a smaller JPEG.")))),
+          "image/jpeg",
+          0.82,
+        );
+      } catch (e) {
+        done(() => reject(new Error(`Couldn't process that photo (${e instanceof Error ? e.message : "canvas error"}) — try a smaller JPEG.`)));
+      }
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("This photo format couldn't be read here — try a JPEG."));
-    };
+    img.onerror = () => done(() => reject(new Error(UNREADABLE)));
     img.src = url;
   });
 }
@@ -98,7 +130,27 @@ export function timeShort(ms: number | string): string {
 }
 
 export function uid(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID().replace(/-/g, "");
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/**
+ * Idempotency key for one proof: the same person, quest, instance and files
+ * always give the same key, so a retry after a dropped connection lands on
+ * the row the first attempt created instead of a duplicate. Caption and
+ * tags are deliberately left out — a retry with an edited caption is still
+ * the same proof. Under the API's 80-character cap.
+ */
+export function proofKey(
+  meId: string,
+  questId: string,
+  instance: number,
+  files: { name: string; size: number; lastModified: number; type: string }[],
+): string {
+  const sig = files.map((f) => `${f.name}|${f.size}|${f.lastModified}|${f.type}`).join("\n");
+  const q = questId.replace(/[^a-z0-9-]/gi, "").slice(0, 24);
+  return `p_${djb2(meId).toString(36)}_${q}_${instance}_${djb2(sig).toString(36)}_${djb2(`${meId}:${questId}:${sig}`).toString(36)}`;
 }
 
 export function questTitle(id: string): string {

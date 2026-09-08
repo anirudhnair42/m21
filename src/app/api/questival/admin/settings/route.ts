@@ -1,4 +1,4 @@
-import { fail, getSettings, handler, json, must, readJson, requireOrganizer } from "@/lib/forum-server";
+import { cleanText, fail, getSettings, handler, json, must, readJson, requireOrganizer } from "@/lib/forum-server";
 import type { UpdateSettingsRequest } from "@/lib/questival-api";
 
 function when(v: unknown, field: string): string | undefined {
@@ -30,7 +30,8 @@ export const POST = handler(async (request) => {
 
   if (body.announcement !== undefined) {
     if (body.announcement !== null && typeof body.announcement !== "string") fail(400, "announcement must be text.", "bad-request");
-    patch.announcement = body.announcement ? body.announcement.trim().slice(0, 500) : null;
+    // Whitespace-only (or NUL-only) clears it too.
+    patch.announcement = cleanText(body.announcement, 500);
   }
   const now = new Date().toISOString();
   if (body.release_results) {

@@ -2,6 +2,7 @@ import {
   CLOSED_MESSAGE,
   MEDIA_BUCKET,
   UUID_RE,
+  cleanText,
   fail,
   getSettings,
   handler,
@@ -20,12 +21,15 @@ import type { CreateSubmissionRequest } from "@/lib/questival-api";
 const MAX_MEDIA = 6;
 const MAX_MEMBERS = 30;
 
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * Create a proof. Server checks: the window is open (from q_settings), the
- * quest exists, media paths are the caller's own uploads, tagged people are
- * confirmed RSVPs. One insert; a retry with the same idempotency key gets
- * the same row back instead of a duplicate. Approved by default; organizers
- * reject after the fact.
+ * quest exists, media paths are the caller's own uploads for this quest,
+ * tagged people are confirmed RSVPs. One insert; a retry with the same
+ * idempotency key gets the same row back instead of a duplicate. The key is
+ * scoped to the uploader, so two phones picking the same key never collide.
+ * Approved by default; organizers reject after the fact.
  */
 export const POST = handler(async (request) => {
   const { supabase, caller, me } = await requireCaller(request, { joined: true });
@@ -33,17 +37,19 @@ export const POST = handler(async (request) => {
   if (windowAt(settings, Date.now()) === "closed") fail(403, CLOSED_MESSAGE, "closed");
 
   const body = await readJson<CreateSubmissionRequest>(request);
-  const key = typeof body.idempotency_key === "string" ? body.idempotency_key.trim().slice(0, 80) : "";
-  if (!key) fail(400, "idempotency_key is required.", "bad-request");
+  const clientKey = typeof body.idempotency_key === "string" ? body.idempotency_key.trim().slice(0, 80) : "";
+  if (!clientKey) fail(400, "idempotency_key is required.", "bad-request");
+  const key = `${me.id}:${clientKey}`;
 
   const quests = questMap(await mergedCatalog(supabase, { organizer: caller.organizer }));
+  const dto = { settings, viewer: { id: me.id, organizer: caller.organizer } };
   const quest = quests.get(typeof body.quest_id === "string" ? body.quest_id : "");
   if (!quest || quest.status === "archived") fail(400, "Unknown quest.", "bad-request");
 
   const existing = must(
     await supabase.from("q_submissions").select(SUBMISSION_COLUMNS).eq("idempotency_key", key).maybeSingle(),
   ) as SubmissionRow | null;
-  if (existing) return json((await submissionDTOs(supabase, [existing], quests))[0]);
+  if (existing) return json((await submissionDTOs(supabase, [existing], quests, dto))[0]);
 
   const instance = body.instance === undefined ? 1 : body.instance;
   const cap = quest.repeat ?? 1;
@@ -51,8 +57,8 @@ export const POST = handler(async (request) => {
     fail(400, cap > 1 ? `instance must be 1–${cap}.` : "This quest has a single instance.", "bad-request");
   }
 
-  // Media must be the caller's own uploads: q/<quest>/<my rsvp id>/<file>.
-  const own = new RegExp(`^q/[a-z0-9-]+/${me.id}/[A-Za-z0-9-]+\\.[a-z0-9]+$`, "i");
+  // Media must be the caller's own uploads for this quest: q/<quest>/<my rsvp id>/<file>.
+  const own = new RegExp(`^q/${escapeRe(quest.id)}/${me.id}/[A-Za-z0-9-]+\\.[a-z0-9]+$`, "i");
   const media = Array.isArray(body.media) ? body.media : [];
   if (media.length === 0) fail(400, "Attach at least one photo or video.", "bad-request");
   if (media.length > MAX_MEDIA) fail(400, `Up to ${MAX_MEDIA} files per proof.`, "bad-request");
@@ -68,8 +74,8 @@ export const POST = handler(async (request) => {
   for (const id of tagged) if (!ok.has(id)) fail(400, "Someone tagged doesn't have a confirmed RSVP.", "bad-request");
   const members = Array.from(new Set([me.id, ...tagged]));
 
-  const caption = typeof body.caption === "string" ? body.caption.trim().slice(0, 280) : "";
-  const note = typeof body.note === "string" ? body.note.trim().slice(0, 1000) : "";
+  const caption = cleanText(body.caption, 280);
+  const note = cleanText(body.note, 1000);
 
   const inserted = await supabase
     .from("q_submissions")
@@ -79,8 +85,8 @@ export const POST = handler(async (request) => {
       uploader_rsvp_id: me.id,
       members,
       media: media.map((m) => ({ path: m.path, type: m.type })),
-      caption: caption || null,
-      note: note || null,
+      caption,
+      note,
       status: "approved",
       idempotency_key: key,
     })
@@ -92,11 +98,11 @@ export const POST = handler(async (request) => {
       const again = must(
         await supabase.from("q_submissions").select(SUBMISSION_COLUMNS).eq("idempotency_key", key).maybeSingle(),
       ) as SubmissionRow | null;
-      if (again) return json((await submissionDTOs(supabase, [again], quests))[0]);
+      if (again) return json((await submissionDTOs(supabase, [again], quests, dto))[0]);
     }
     throw inserted.error;
   }
-  return json((await submissionDTOs(supabase, [inserted.data as SubmissionRow], quests))[0], { status: 201 });
+  return json((await submissionDTOs(supabase, [inserted.data as SubmissionRow], quests, dto))[0], { status: 201 });
 });
 
 /** Remove my own proof while the window is still open. Files go too. */
@@ -108,7 +114,7 @@ export const DELETE = handler(async (request) => {
   if (windowAt(settings, Date.now()) === "closed") fail(403, CLOSED_MESSAGE, "closed");
 
   const quests = questMap(await mergedCatalog(supabase, { organizer: caller.organizer }));
-  const sub = await submissionById(supabase, id, quests);
+  const sub = await submissionById(supabase, id, quests, { settings, viewer: { id: me.id, organizer: caller.organizer } });
   if (!sub) fail(404, "Proof not found.");
   if (sub.uploader.id !== me.id) fail(403, "Only the uploader can remove a proof.", "forbidden");
 

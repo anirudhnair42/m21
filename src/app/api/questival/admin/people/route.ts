@@ -1,4 +1,4 @@
-import { gateLists, handler, json, must, requireOrganizer, sameName } from "@/lib/forum-server";
+import { gateLists, handler, json, must, requireOrganizer } from "@/lib/forum-server";
 import type { PeopleResponse } from "@/lib/questival-api";
 
 type Row = { id: string; name: string; photo_url: string | null; email: string | null; status: string };
@@ -17,13 +17,11 @@ export const GET = handler(async (request) => {
       .order("name", { ascending: true }),
   ) ?? []) as Row[];
 
-  const { testerEmails, testerNames, organizerEmails } = gateLists();
+  // Same rule as resolveCaller: emails only, never the name.
+  const { testerEmails, organizerEmails } = gateLists();
   const isOrganizer = (r: Row) => {
     const email = r.email?.toLowerCase() ?? "";
-    return (
-      (!!email && (organizerEmails.includes(email) || testerEmails.includes(email))) ||
-      testerNames.some((n) => sameName(n, r.name))
-    );
+    return !!email && (organizerEmails.includes(email) || testerEmails.includes(email));
   };
   const body: PeopleResponse = {
     people: rows.map((r) => ({

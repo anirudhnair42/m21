@@ -52,6 +52,12 @@ alter table public.q_plans enable row level security;
 create index if not exists q_plans_with_idx on public.q_plans using gin (with_rsvp_ids);
 create index if not exists q_plans_owner_idx on public.q_plans (rsvp_id);
 create index if not exists q_plans_target_idx on public.q_plans (kind, target_id);
+-- One plan per (owner, kind, target): planning again replaces the earlier
+-- plan. Older duplicates from before this rule go first so the index builds.
+delete from public.q_plans a using public.q_plans b
+  where a.rsvp_id = b.rsvp_id and a.kind = b.kind and a.target_id = b.target_id
+    and (a.created_at, a.id) < (b.created_at, b.id);
+create unique index if not exists q_plans_owner_target_uidx on public.q_plans (rsvp_id, kind, target_id);
 
 -- Answers to an invitation. The inbox itself is derived from q_plans.
 create table if not exists public.q_plan_replies (

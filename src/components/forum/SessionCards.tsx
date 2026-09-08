@@ -12,13 +12,20 @@ function firstAnchor(s: Session) {
   return s.activities.map(getActivity).find((a) => a?.kind === "anchor") ?? getActivity(s.activities[0]);
 }
 
+/** The class to feature: the next/in-progress one, or the last one once the weekend is over (not Friday again). */
+export function featuredSession(now: number): { session: Session; over: boolean } {
+  const next = nextSession(new Date(now));
+  if (next) return { session: next, over: false };
+  return { session: SESSIONS[SESSIONS.length - 1], over: true };
+}
+
 /**
  * The Forum home: the next class, then the rest of the course. Tapping a
  * class opens its full schedule for the day.
  */
 export function SessionList({ onOpenSession }: { onOpenSession: (id: string) => void }) {
   const { now, who, intents, setIntent } = useForumStore();
-  const next = nextSession(new Date(now)) ?? SESSIONS[0];
+  const { session: next, over } = featuredSession(now);
   const rest = SESSIONS.filter((s) => s.id !== next.id);
   const anchor = firstAnchor(next)!;
   const going = who[anchor.id]?.going ?? [];
@@ -26,7 +33,7 @@ export function SessionList({ onOpenSession }: { onOpenSession: (id: string) => 
   return (
     <>
       <section className="alf-card fm-nextclass" onClick={() => onOpenSession(next.id)}>
-        <p className="fm-eyebrow">Upcoming class · {DAY_DATE[next.day]}</p>
+        <p className="fm-eyebrow">{over ? "Last class" : "Upcoming class"} · {DAY_DATE[next.day]}</p>
         <h2 className="fm-nextclass-title">RU26 Session {next.number} – {next.title}</h2>
         <div className="fm-nextclass-meta">
           <span><b>{next.time}</b> · {next.location}</span>

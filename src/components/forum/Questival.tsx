@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EVIDENCE_LABEL, QUESTIVAL, getQuest, questivalWindow, timeLeft, type Quest } from "@/lib/questival";
+import { EVIDENCE_LABEL, QUESTIVAL, getQuest, timeLeft, type Quest, type Window } from "@/lib/questival";
 import { directionsUrl, getActivity } from "@/lib/weekend";
 import { CameraIcon, PinIcon } from "@/components/forum/icons";
 import { Faces, PlanIt } from "@/components/forum/ForumMobile";
@@ -23,11 +23,12 @@ function myPoints(subs: SubmissionDTO[]): number {
   return sum;
 }
 
-export function StatusChip({ final, now, count }: { final: { extension_used: boolean } | null; now: number; count: number }) {
-  const w = questivalWindow(now);
+/** `phase` comes from the store: the switches organizers set, not the static clock. */
+export function StatusChip({ final, phase: w, count }: { final: { extension_used: boolean } | null; phase: Window; count: number }) {
   if (final) {
     if (w === "closed") return <span className="alf-assignment-chip fm-chip-closed">Submitted · Closed</span>;
     if (final.extension_used) return <span className="alf-assignment-chip fm-chip-warn">Submitted · Extension used</span>;
+    if (w === "extension") return <span className="alf-assignment-chip fm-chip-warn">Submitted · 7-minute extension</span>;
     return <span className="alf-assignment-chip">Submitted · Editable until 5:00 PM</span>;
   }
   if (w === "closed") return <span className="alf-assignment-chip fm-chip-closed">Closed</span>;
@@ -47,9 +48,8 @@ export function QuestivalHub({
   onOpenMe: () => void;
   onOpenLive: () => void;
 }) {
-  const { quests, submissions, plans, final, now, settings } = useForumStore();
+  const { quests, submissions, plans, final, now, settings, phase: w } = useForumStore();
   const [filter, setFilter] = useState<"all" | "todo" | "planned" | "saved">("all");
-  const w = questivalWindow(now);
   const doneIds = new Set(submissions.map((s) => s.quest_id));
   const plannedIds = new Set(plans.filter((p) => p.kind === "quest").map((p) => p.target_id));
   const pts = myPoints(submissions);
@@ -76,10 +76,10 @@ export function QuestivalHub({
       <section className="alf-card">
         <div className="fm-assign-head">
           <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
-          <StatusChip final={final} now={now} count={submissions.length} />
+          <StatusChip final={final} phase={w} count={submissions.length} />
         </div>
         <div className="fm-assign-due">
-          Due {QUESTIVAL.dueLabel} · Weight 2x{w === "open" || w === "extension" ? ` · ${timeLeft(now)}` : ""}
+          Due {QUESTIVAL.dueLabel} · Weight 2x{w === "open" || w === "extension" ? ` · ${timeLeft(now, settings.due_at)}` : ""}
         </div>
         <p className="alf-card-body">
           Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, tag whoever
@@ -150,11 +150,11 @@ function QuestRow({ q, saved, planned, final, onOpen }: { q: Quest; saved: boole
 // ----- QUEST -----------------------------------------------------------------
 
 export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: () => void }) {
-  const { quests, people, me, submissions, plans, now, saveProof, addPlan, removePlan } = useForumStore();
+  const { quests, people, me, submissions, plans, now, phase: w, saveProof, addPlan, removePlan } = useForumStore();
   const q = quests.find((x) => x.id === questId) ?? getQuest(questId);
   const plan = plans.find((p) => p.kind === "quest" && p.target_id === questId);
-  const w = questivalWindow(now);
   const mine = submissions.filter((s) => s.quest_id === questId);
+  const others = people.filter((p) => p.id !== me.id);
   const cap = q?.repeat ?? 1;
   const nextInstance = mine.length + 1;
   const canAdd = nextInstance <= cap && w !== "closed";
@@ -175,9 +175,17 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
 
   const onFiles = (list: FileList | null) => {
     if (!list?.length) return;
+    // Snapshot first: the FileList is live, and resetting the input below
+    // empties it before React runs the updater — every pick after the first
+    // was silently dropped (photo-pair could never reach two files).
+    const picked = Array.from(list).map((file) => ({ file, preview: URL.createObjectURL(file) }));
     setError(null);
-    setFiles((f) => [...f, ...Array.from(list).map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
+    setFiles((f) => [...f, ...picked]);
     if (fileRef.current) fileRef.current.value = "";
+  };
+  const removeFile = (i: number) => {
+    URL.revokeObjectURL(files[i]?.preview ?? "");
+    setFiles(files.filter((_, j) => j !== i));
   };
 
   const save = async () => {
@@ -228,12 +236,14 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
       </section>
 
       {mine.length === 0 && (
-        <PlanIt kind="quest" plan={plan} people={people} me={me} onPlan={(ids) => addPlan("quest", q.id, ids)} onUnplan={removePlan} />
+        <PlanIt kind="quest" plan={plan} people={others} me={me} onPlan={(ids) => addPlan("quest", q.id, ids)} onUnplan={removePlan} />
       )}
 
       {mine.length > 0 && (
         <section className="alf-card">
           <h3 className="alf-card-h">On your list</h3>
+          {/* The receipt lives here so a one-shot quest still shows it after the capture card goes away. */}
+          {receipt && <p className="fm-receipt" style={{ margin: "0 0 8px" }}>✓ {receipt}</p>}
           <div className="fm-thumbs">
             {mine.flatMap((s) => s.media.map((m, i) => <Thumb key={`${s.id}-${i}`} url={m.url} type={m.type} />))}
           </div>
@@ -246,7 +256,8 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
       {canAdd ? (
         <section className="alf-card">
           <h3 className="alf-card-h">{q.repeat && mine.length ? `Instance ${nextInstance} of ${cap}` : "Your proof"}</h3>
-          <input ref={fileRef} type="file" accept={accept} capture={q.evidence === "screenshot" ? undefined : "environment"} multiple={multiple} hidden onChange={(e) => onFiles(e.target.files)} />
+          {/* No `capture`: it forces the camera on iOS, and the copy promises the library (recreations and Reels need it). */}
+          <input ref={fileRef} type="file" accept={accept} multiple={multiple} hidden onChange={(e) => onFiles(e.target.files)} />
           <button className="fm-capture" onClick={() => fileRef.current?.click()} disabled={!!busy}>
             <CameraIcon />
             {q.evidence === "video" ? "Record a video" : q.evidence === "screenshot" ? "Add a screenshot" : "Take a photo"}
@@ -256,13 +267,13 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
           {files.length > 0 && (
             <div className="fm-thumbs">
               {files.map((f, i) => (
-                <Thumb key={i} url={f.preview} type={f.file.type.startsWith("video/") ? "video" : "image"} onRemove={() => setFiles(files.filter((_, j) => j !== i))} />
+                <Thumb key={f.preview} url={f.preview} type={f.file.type.startsWith("video/") ? "video" : "image"} onRemove={() => removeFile(i)} />
               ))}
             </div>
           )}
 
           <p className="fm-eyebrow" style={{ marginTop: 16 }}>Who did it with you</p>
-          <TagPicker people={people.filter((p) => p.id !== me.id)} tags={tags} onChange={setTags} />
+          <TagPicker people={others} tags={tags} onChange={setTags} />
 
           {q.evidence === "text-photo" ? (
             <textarea className="fm-input" rows={3} placeholder="Your line…" value={caption} onChange={(e) => setCaption(e.target.value)} style={{ marginTop: 10 }} />
@@ -273,13 +284,19 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
           <div className="fm-btn-row">
             <button className="fm-btn fm-btn-primary" disabled={files.length < needed || !!busy} onClick={save}>{busy ?? "Save to my list"}</button>
           </div>
-          {receipt && <p className="fm-receipt">✓ {receipt}</p>}
-          {w === "before" && <p className="fm-muted" style={{ marginTop: 8 }}>Saving works now; scoring opens Sat 10:00.</p>}
+          {receipt && mine.length === 0 && <p className="fm-receipt">✓ {receipt}</p>}
+          {w === "before" && <p className="fm-muted" style={{ marginTop: 8 }}>Before Sat 10:00 this saves as practice and won&apos;t count. Only proofs captured after 10:00 score.</p>}
           {w === "extension" && <p className="fm-note">It&apos;s past 5:00. This one lands on an extension.</p>}
         </section>
       ) : (
         <section className="alf-card">
-          <p className="fm-empty">{w === "closed" ? "Questival is closed — head to The Loft, go enjoy it." : "You've maxed this one out."}</p>
+          <p className="fm-empty">
+            {w === "closed"
+              ? "Questival is closed — head to The Loft, go enjoy it."
+              : cap === 1
+                ? "Done — this one's on your list. Remove it from My list if you want to redo it."
+                : "You've maxed this one out."}
+          </p>
         </section>
       )}
     </>
@@ -334,9 +351,8 @@ export function TagPicker({ people, tags, onChange }: { people: PersonDTO[]; tag
 // ----- MY QUESTIVAL ----------------------------------------------------------
 
 export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id: string) => void; onOpenActivity: (id: string) => void }) {
-  const { submissions, plans, me, final, now, removeProof, submitFinal } = useForumStore();
+  const { submissions, plans, me, final, phase: w, removeProof, submitFinal } = useForumStore();
   const [confirming, setConfirming] = useState(false);
-  const w = questivalWindow(now);
   const pts = myPoints(submissions);
   const withPeople = useMemo(() => {
     const seen = new Map<string, PersonDTO>();
@@ -353,7 +369,7 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
       <section className="alf-card">
         <div className="fm-assign-head">
           <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
-          <StatusChip final={final} now={now} count={submissions.length} />
+          <StatusChip final={final} phase={w} count={submissions.length} />
         </div>
         <div className="fm-assign-due">
           {final ? `Submitted ${timeShort(final.submitted_at)}${final.extension_used ? " · after the 7th minute" : ""}` : `Due ${QUESTIVAL.dueLabel} · Weight 2x`}
@@ -496,9 +512,13 @@ export function useLive() {
     if (b) setBoard(b);
   }, [mode]);
   useEffect(() => {
-    load();
+    // Kicked from a cleared timeout so the effect body itself doesn't set state.
+    const t0 = setTimeout(load, 0);
     const t = setInterval(() => document.visibilityState === "visible" && load(), 20_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(t0);
+      clearInterval(t);
+    };
   }, [load]);
 
   // Without the API there is nothing live to show but your own proofs.

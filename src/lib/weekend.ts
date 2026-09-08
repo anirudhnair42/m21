@@ -110,20 +110,36 @@ export function sessionsFor(day: Day): Session[] {
 export function sessionOf(activityId: string): Session | undefined {
   return SESSIONS.find((s) => s.activities.includes(activityId) || s.side.includes(activityId));
 }
-/** The next class that hasn't started yet (or the one in progress within 4h). */
+/**
+ * When a class stops being "in progress": four hours after it starts, or an
+ * hour after its last timed activity (run of show or side quest), whichever
+ * is later. Saturday's Questival class runs 10:00 → 17:00, so lunch at the
+ * Res Hall (15:00) is still Session 2.1, not "upcoming: dinner".
+ */
+export function sessionEndsAt(s: Session): number {
+  const start = Date.parse(s.start);
+  let last = start;
+  for (const id of [...s.activities, ...s.side]) {
+    const a = getActivity(id);
+    if (a?.start) last = Math.max(last, Date.parse(a.start));
+  }
+  return Math.max(start + 4 * 3600_000, last + 3600_000);
+}
+
+/** The next class that hasn't started yet, or the one in progress (see sessionEndsAt). */
 export function nextSession(now: Date): Session | null {
   const t = now.getTime();
   for (const s of SESSIONS) {
-    const st = Date.parse(s.start);
-    if (t < st + 4 * 3600_000) return s;
+    if (t < sessionEndsAt(s)) return s;
   }
   return null;
 }
 
 export const DAYS: { id: Day; label: string; session: string; title: string; date: string; sub: string }[] = [
+  // `session` is the day's first class, matching SESSIONS (2.1 for Saturday, not "1.2").
   { id: "fri", label: "Fri", session: "1.1", title: "Arrivals & the welcome dinner", date: "Fri, Sep 11, 2026", sub: "Presidio by day, the Mission by night" },
-  { id: "sat", label: "Sat", session: "1.2", title: "Questival day, with a few anchors", date: "Sat, Sep 12, 2026", sub: "Golden Gate Park → the city → the Marina" },
-  { id: "sun", label: "Sun", session: "1.3", title: "The picnic & goodbyes", date: "Sun, Sep 13, 2026", sub: "Hellman Hollow, Golden Gate Park" },
+  { id: "sat", label: "Sat", session: "2.1", title: "Questival day, with a few anchors", date: "Sat, Sep 12, 2026", sub: "Golden Gate Park → the city → the Marina" },
+  { id: "sun", label: "Sun", session: "3.1", title: "The picnic & goodbyes", date: "Sun, Sep 13, 2026", sub: "Hellman Hollow, Golden Gate Park" },
 ];
 
 export const ACTIVITIES: Activity[] = [
@@ -378,11 +394,21 @@ export function nowNext(now: Date): { now: Activity | null; next: Activity | nul
   return { now: current, next };
 }
 
+const PT_DATE = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "numeric", month: "numeric", day: "numeric" });
+
+/** The San Francisco calendar date of an instant, whatever the browser's zone. */
+export function ptDate(now: Date): { year: number; month: number; day: number } | null {
+  if (!Number.isFinite(now.getTime())) return null;
+  const parts = PT_DATE.formatToParts(now);
+  const num = (type: "year" | "month" | "day") => Number(parts.find((p) => p.type === type)?.value);
+  return { year: num("year"), month: num("month"), day: num("day") };
+}
+
 /** Sep 11 → "fri", etc. Outside the weekend returns null. */
 export function dayOf(now: Date): Day | null {
-  const pt = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-  if (pt.getFullYear() !== 2026 || pt.getMonth() !== 8) return null;
-  return ({ 11: "fri", 12: "sat", 13: "sun" } as Record<number, Day>)[pt.getDate()] ?? null;
+  const pt = ptDate(now);
+  if (!pt || pt.year !== 2026 || pt.month !== 9) return null;
+  return ({ 11: "fri", 12: "sat", 13: "sun" } as Record<number, Day>)[pt.day] ?? null;
 }
 
 /** Open windows for a one-on-one catch-up (Mau's mini-Calendly). */
@@ -390,7 +416,7 @@ export const CATCHUP_SLOTS: { id: string; label: string; day: Day; start: string
   { id: "fri-1600", label: "Fri 4:00–5:00 PM · a coffee in the Mission", day: "fri", start: T("11", "16:00") },
   { id: "fri-1700", label: "Fri 5:00–6:00 PM · Southern Pacific patio, before dinner", day: "fri", start: T("11", "17:00") },
   { id: "sat-1330", label: "Sat 1:30–2:30 PM · Alamo Square", day: "sat", start: T("12", "13:30") },
-  { id: "sat-1600", label: "Sat 4:00–5:00 PM · on the way to the beach", day: "sat", start: T("12", "16:00") },
+  { id: "sat-1600", label: "Sat 4:00–5:00 PM · finishing up, before dinner", day: "sat", start: T("12", "16:00") },
   { id: "sun-1200", label: "Sun 12:00–1:00 PM · Hellman Hollow", day: "sun", start: T("13", "12:00") },
   { id: "sun-1300", label: "Sun 1:00–2:00 PM · Hellman Hollow", day: "sun", start: T("13", "13:00") },
 ];

@@ -1,5 +1,5 @@
 /**
- * Questival — Assignment 2. The quest catalog and the pure rules (deadline
+ * Questival — Assignment 3. The quest catalog and the pure rules (deadline
  * windows, points). No React, no Supabase: this file is testable on its own
  * and shared by the phone, the desktop ALF, and the API.
  *
@@ -91,16 +91,39 @@ export const QUESTIVAL = {
 
 export type Window = "before" | "open" | "extension" | "closed";
 
-export function questivalWindow(now: number): Window {
-  if (now < QUESTIVAL.opensAt) return "before";
-  if (now < QUESTIVAL.dueAt) return "open";
-  if (now < QUESTIVAL.extensionUntil) return "extension";
+/** The three switches, as epoch ms or ISO strings (q_settings ships ISO). */
+export type WindowTimes = {
+  opensAt: number | string;
+  dueAt: number | string;
+  extensionUntil: number | string;
+};
+
+/** Epoch ms for a switch; an unparsable value falls back to the static one rather than closing the event. */
+function switchAt(v: number | string, fallback: number): number {
+  const t = typeof v === "number" ? v : Date.parse(v);
+  return Number.isFinite(t) ? t : fallback;
+}
+
+/**
+ * Where `now` falls, given the switches in effect. Boundaries are
+ * half-open: at `opensAt` it is open, at `dueAt` it is the extension, at
+ * `extensionUntil` it is closed — the same rule as windowAt() on the server.
+ */
+export function questivalWindowAt(times: WindowTimes, now: number): Window {
+  if (now < switchAt(times.opensAt, QUESTIVAL.opensAt)) return "before";
+  if (now < switchAt(times.dueAt, QUESTIVAL.dueAt)) return "open";
+  if (now < switchAt(times.extensionUntil, QUESTIVAL.extensionUntil)) return "extension";
   return "closed";
 }
 
+/** questivalWindowAt against the static switches. */
+export function questivalWindow(now: number): Window {
+  return questivalWindowAt(QUESTIVAL, now);
+}
+
 /** "2h 14m left" style countdown to the due time. */
-export function timeLeft(now: number): string {
-  const ms = QUESTIVAL.dueAt - now;
+export function timeLeft(now: number, dueAt: number | string = QUESTIVAL.dueAt): string {
+  const ms = switchAt(dueAt, QUESTIVAL.dueAt) - now;
   if (ms <= 0) return "Due now";
   const m = Math.floor(ms / 60_000);
   const h = Math.floor(m / 60);

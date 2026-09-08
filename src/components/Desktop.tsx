@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { track } from "@vercel/analytics";
+
+const noopSubscribe = () => () => {};
 import { APPS, DOCK_ORDER, type AppId } from "@/lib/apps";
 import { Window } from "@/components/Window";
 import { MenuBar } from "@/components/MenuBar";
@@ -55,8 +57,7 @@ function emptyWindows(): WindowsMap {
 
 export function Desktop() {
   // Defer mount until window exists — APPS.defaultRect() reads window.innerWidth.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   // Back from Stripe (or Google sign-in)? Mount with the intro skipped and
   // the right window already open.
@@ -319,7 +320,11 @@ export function Desktop() {
               <WeekendApp initialActivity={calActivity ?? undefined} />
             ) : id === "map" ? (
               <MapApp
-                onOpenActivity={() => openApp("itinerary")}
+                onOpenActivity={(aid) => {
+                  // Same path ALF uses: open Calendar on that activity, not just the window.
+                  setCalActivity(aid);
+                  openApp("itinerary", { freshMount: true });
+                }}
                 onOpenQuest={(qid) => {
                   setAlfQuest(qid);
                   openAlfAt("questival");

@@ -8,6 +8,10 @@ const MAX_WITH = 30;
 /**
  * "I want to do this, with these people." Lands in each invitee's inbox
  * (derived from with_rsvp_ids); nobody is committed to anything.
+ *
+ * One plan per (owner, kind, target): planning the same thing again
+ * replaces the earlier plan, replies included — what ForumStore already
+ * assumes locally, and what the unique index in sql/questival.sql enforces.
  */
 export const POST = handler(async (request) => {
   const { supabase, caller, me } = await requireCaller(request, { joined: true });
@@ -28,14 +32,22 @@ export const POST = handler(async (request) => {
   const ok = await joinedIds(supabase, withIds);
   for (const id of withIds) if (!ok.has(id)) fail(400, "Someone invited doesn't have a confirmed RSVP.", "bad-request");
 
-  const row = must(
-    await supabase
-      .from("q_plans")
-      .insert({ rsvp_id: me.id, kind: body.kind, target_id: targetId, with_rsvp_ids: withIds })
-      .select(PLAN_COLUMNS)
-      .single(),
-  ) as PlanRow;
-  return json((await planDTOs(supabase, [row]))[0], { status: 201 });
+  const mine = () => supabase.from("q_plans").select(PLAN_COLUMNS).eq("rsvp_id", me.id).eq("kind", body.kind).eq("target_id", targetId);
+  must(await supabase.from("q_plans").delete().eq("rsvp_id", me.id).eq("kind", body.kind).eq("target_id", targetId));
+  const inserted = await supabase
+    .from("q_plans")
+    .insert({ rsvp_id: me.id, kind: body.kind, target_id: targetId, with_rsvp_ids: withIds })
+    .select(PLAN_COLUMNS)
+    .single();
+  if (inserted.error) {
+    // Lost a race with my own double-tap: the other insert won, return it.
+    if (inserted.error.code === "23505") {
+      const row = must(await mine().maybeSingle()) as PlanRow | null;
+      if (row) return json((await planDTOs(supabase, [row]))[0]);
+    }
+    throw inserted.error;
+  }
+  return json((await planDTOs(supabase, [inserted.data as PlanRow]))[0], { status: 201 });
 });
 
 /** Drop a plan I own. Replies go with it (cascade). */

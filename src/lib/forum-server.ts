@@ -86,12 +86,38 @@ export function must<T>(res: { data: T; error: unknown }): T {
   return res.data;
 }
 
+/**
+ * Free text from a body: trimmed, capped, NUL bytes dropped (Postgres text
+ * rejects \u0000 with 22P05, which would surface as a 500). "" → null.
+ */
+export function cleanText(v: unknown, max: number): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.replace(/\u0000/g, "").trim().slice(0, max);
+  return t || null;
+}
+
+/** Bodies here are a few ids and a caption; anything bigger is a mistake or an attack. */
+const MAX_BODY_BYTES = 256 * 1024;
+
+/** A JSON *object* body (`null`, arrays and scalars are rejected, not 500s). */
 export async function readJson<T>(request: Request): Promise<T> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > MAX_BODY_BYTES) fail(413, "Body too large.", "bad-request");
+  let text: string;
   try {
-    return (await request.json()) as T;
+    text = await request.text();
   } catch {
     return fail(400, "Expected a JSON body.", "bad-request");
   }
+  if (text.length > MAX_BODY_BYTES) fail(413, "Body too large.", "bad-request");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return fail(400, "Expected a JSON body.", "bad-request");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) fail(400, "Expected a JSON object.", "bad-request");
+  return parsed as T;
 }
 
 // ------------------------------------------------------------- the gate
@@ -121,17 +147,16 @@ export function sameName(a: string, b: string): boolean {
   const long = af.length <= bf.length ? bf : af;
   return short.length >= 3 && long.startsWith(short);
 }
-function inNames(names: string[], candidate: string): boolean {
-  return !!candidate && names.some((n) => sameName(n, candidate));
-}
-
 const split = (v: string | undefined) => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-/** The env allowlists, read per request so a redeploy-free `vercel env` change is honored. */
+/**
+ * The env allowlists, read per request so a redeploy-free `vercel env` change
+ * is honored. Emails only: FORUM_TESTER_NAMES used to grant access by Google
+ * profile name, which anyone can edit — it is no longer read.
+ */
 export function gateLists() {
   return {
     testerEmails: split(process.env.FORUM_TESTERS).map((s) => s.toLowerCase()),
-    testerNames: split(process.env.FORUM_TESTER_NAMES),
     organizerEmails: split(process.env.ORGANIZER_EMAILS).map((s) => s.toLowerCase()),
     open: process.env.FORUM_OPEN === "1",
   };
@@ -168,24 +193,36 @@ export type Resolved =
 /**
  * Verify the Google bearer token and decide who this is.
  *
- * A cohost passes before launch if their email is in FORUM_TESTERS, or the
- * email on an RSVP whose name is in FORUM_TESTER_NAMES, or their Google
- * profile name matches a name in FORUM_TESTER_NAMES (classmates sign in with
- * a Gmail or a Minerva account interchangeably). FORUM_OPEN=1 admits every
- * confirmed RSVP. Organizers: testers, plus ORGANIZER_EMAILS.
+ * A cohost passes before launch if their verified email is in FORUM_TESTERS.
+ * FORUM_OPEN=1 admits every confirmed RSVP, matched by verified email.
+ * Organizers: FORUM_TESTERS plus ORGANIZER_EMAILS. Nothing is granted from
+ * the Google profile name (user-editable); it is only used to attach a
+ * *trusted* email to its RSVP row when the two emails differ (classmates
+ * sign in with a Gmail or a Minerva account interchangeably).
  */
 export async function resolveCaller(request: Request): Promise<Resolved> {
   const supabase = getSupabaseAdmin();
   if (!supabase) return { ok: false, status: 503, reason: "unconfigured" };
 
   const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!token) return { ok: false, status: 401, reason: "anon" };
-
-  const { data: userData, error } = await supabase.auth.getUser(token);
+  // Local stress tests only: FORUM_TEST_AUTH=1 (never set on Vercel, and
+  // ignored in production builds) lets a request name its caller with
+  // x-test-email / x-test-name instead of a Google token.
+  const testEmail =
+    process.env.FORUM_TEST_AUTH === "1" && process.env.NODE_ENV !== "production" ? request.headers.get("x-test-email") : null;
+  let userData: { user?: { email?: string; user_metadata?: Record<string, unknown> } | null } | null = null;
+  if (testEmail) {
+    userData = { user: { email: testEmail, user_metadata: { full_name: request.headers.get("x-test-name") ?? undefined } } };
+  } else {
+    if (!token) return { ok: false, status: 401, reason: "anon" };
+    const res = await supabase.auth.getUser(token);
+    if (res.error) return { ok: false, status: 401, reason: "anon" };
+    userData = res.data;
+  }
   const email = userData?.user?.email?.toLowerCase();
-  if (error || !email) return { ok: false, status: 401, reason: "anon" };
+  if (!email) return { ok: false, status: 401, reason: "anon" };
 
-  const { testerEmails, testerNames, organizerEmails, open } = gateLists();
+  const { testerEmails, organizerEmails, open } = gateLists();
 
   const { data: byEmail } = await supabase
     .from("rsvps")
@@ -201,25 +238,28 @@ export async function resolveCaller(request: Request): Promise<Resolved> {
   const googleName =
     (typeof meta.full_name === "string" && meta.full_name) || (typeof meta.name === "string" && meta.name) || "";
 
-  const tester =
-    testerEmails.includes(email) || inNames(testerNames, rsvp?.name ?? "") || inNames(testerNames, googleName);
+  const tester = testerEmails.includes(email);
   const allowed = tester || (open && rsvp !== null) || gateOff();
   const organizer = tester || organizerEmails.includes(email);
   // One line per check in the Vercel logs, so "why can't X get in" is answerable.
   console.log(
-    `forum/access ${allowed ? "ALLOW" : "DENY"} email=${email} google="${googleName}" rsvp="${rsvp?.name ?? "-"}" testers=${testerEmails.length}/${testerNames.length} open=${open}`,
+    `forum/access ${allowed ? "ALLOW" : "DENY"} email=${email} google="${googleName}" rsvp="${rsvp?.name ?? "-"}" testers=${testerEmails.length} open=${open}`,
   );
 
-  // A tester signing in with their non-RSVP account still gets their RSVP
-  // row: look it up by name.
+  // A *trusted* email (FORUM_TESTERS) signing in with their non-RSVP account
+  // still gets their RSVP row: look it up by Google name. Only for trusted
+  // emails — for anyone else the profile name proves nothing. Matched in JS
+  // with sameName (accent/case folded) over the confirmed list — a few
+  // hundred rows, and only for this rare caller — rather than an ilike
+  // prefix, which an accented Google name ("Anirüdh") never satisfies.
   const rsvpByEmail = rsvp !== null;
-  if (allowed && !rsvp && googleName) {
+  if (tester && !rsvp && googleName) {
     const { data: byName } = await supabase
       .from("rsvps")
       .select("id, name, photo_url, status")
       .in("status", ["paid", "processing"])
-      .ilike("name", `${googleName.split(" ")[0]}%`)
-      .limit(5);
+      .order("created_at", { ascending: false })
+      .limit(1000);
     const hit = ((byName ?? []) as CallerRsvp[]).find((r) => sameName(r.name, googleName));
     if (hit) rsvp = hit;
   }
@@ -271,7 +311,8 @@ export async function requireOrganizer(request: Request): Promise<MaybeAuthed> {
 
 /** Public routes that get richer with a bearer: null when anonymous or not allowed. */
 export async function optionalCaller(request: Request): Promise<MaybeAuthed | null> {
-  if (!request.headers.get("authorization")) return null;
+  const seam = process.env.FORUM_TEST_AUTH === "1" && process.env.NODE_ENV !== "production" && !!request.headers.get("x-test-email");
+  if (!request.headers.get("authorization") && !seam) return null;
   const r = await resolveCaller(request);
   if (!r.ok || !r.caller.allowed) return null;
   return { supabase: r.supabase, caller: r.caller, me: r.caller.rsvp };
