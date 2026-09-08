@@ -35,6 +35,8 @@ export type Activity = {
   link?: { label: string; url: string };
   /** Names shown as going even before anyone taps (the host, for one). */
   goingSeed?: string[];
+  /** Everyone's expected: no I'm-going button, the whole class is going. */
+  required?: boolean;
 };
 
 const T = (day: "11" | "12" | "13", hhmm: string) => `2026-09-${day}T${hhmm}:00-07:00`;
@@ -128,6 +130,7 @@ export const ACTIVITIES: Activity[] = [
   // ---------------------------------------------------------------- Friday
   {
     id: "fri-dinner",
+    required: true,
     lat: 37.7606,
     lng: -122.4133,
     day: "fri",
@@ -176,6 +179,7 @@ export const ACTIVITIES: Activity[] = [
   // -------------------------------------------------------------- Saturday
   {
     id: "sat-breakfast",
+    required: true,
     lat: 37.7719,
     lng: -122.46,
     day: "sat",
@@ -229,6 +233,7 @@ export const ACTIVITIES: Activity[] = [
   },
   {
     id: "sat-lunch",
+    required: true,
     lat: 37.7975,
     lng: -122.4241,
     day: "sat",
@@ -266,6 +271,7 @@ export const ACTIVITIES: Activity[] = [
   },
   {
     id: "sat-dinner",
+    required: true,
     day: "sat",
     lat: 37.7996,
     lng: -122.4363,
@@ -296,6 +302,7 @@ export const ACTIVITIES: Activity[] = [
   // ---------------------------------------------------------------- Sunday
   {
     id: "sun-brunch",
+    required: true,
     lat: 37.77,
     lng: -122.488,
     day: "sun",

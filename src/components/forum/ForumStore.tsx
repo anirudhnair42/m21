@@ -427,6 +427,11 @@ export function ForumStoreProvider({
         if (p && !going.some((g) => g.id === p.id)) going.unshift(p);
       }
       if (mode === "local" && intents[a.id] === "going" && !going.some((g) => g.id === me.id)) going.push(me);
+      if (a.required) {
+        // Everyone's expected: the whole class is the head count.
+        out[a.id] = { going: people, going_count: people.length, interested_count: 0 };
+        continue;
+      }
       out[a.id] = { going, going_count: Math.max(going.length, who[a.id]?.going_count ?? 0), interested_count: who[a.id]?.interested_count ?? 0 };
     }
     return out;

@@ -34,12 +34,16 @@ export function SessionList({ onOpenSession }: { onOpenSession: (id: string) => 
         <p className="fm-nextclass-sub">{next.sub}</p>
         <div className="fm-row-foot" style={{ marginTop: 10 }}>
           <Faces people={going} max={6} extra={Math.max(0, (who[anchor.id]?.going_count ?? 0) - going.length)} />
-          <span className="fm-muted">{going.length ? `${going.length} going` : "Be the first to say you're going"}</span>
+          <span className="fm-muted">{anchor.required ? `all ${going.length} of us` : going.length ? `${going.length} going` : "Be the first to say you're going"}</span>
         </div>
         <div className="fm-btn-row" onClick={(e) => e.stopPropagation()}>
-          <button className={`fm-btn${intents[anchor.id] === "going" ? " fm-btn-going" : " fm-btn-primary"}`} onClick={() => setIntent(anchor.id, "going")}>
-            {intents[anchor.id] === "going" ? "✓ I'm going" : "I'm going"}
-          </button>
+          {anchor.required ? (
+            <span className="fm-btn fm-required">Everyone · attendance required</span>
+          ) : (
+            <button className={`fm-btn${intents[anchor.id] === "going" ? " fm-btn-going" : " fm-btn-primary"}`} onClick={() => setIntent(anchor.id, "going")}>
+              {intents[anchor.id] === "going" ? "✓ I'm going" : "I'm going"}
+            </button>
+          )}
           <button className="fm-btn" onClick={() => onOpenSession(next.id)}>Enter class →</button>
         </div>
       </section>
@@ -103,12 +107,16 @@ export function SessionCard({ session: s, onOpenActivity, compactHead }: { sessi
               <span className="fm-daycard-time">{a.time}</span>
               <span className="fm-daycard-main">
                 <span className="fm-daycard-name">{a.title}</span>
-                <span className="fm-daycard-venue">{a.venue ?? "optional"}{anchorRow ? " · everyone" : ""}</span>
+                <span className="fm-daycard-venue">{a.venue ?? "optional"}{a.required ? " · everyone" : anchorRow ? " · main event" : ""}</span>
               </span>
               <Faces people={going} max={3} />
-              <button className={`fm-mini${intents[a.id] === "going" ? " fm-mini-on" : ""}`} onClick={(e) => { e.stopPropagation(); setIntent(a.id, "going"); }}>
-                {intents[a.id] === "going" ? "Going ✓" : "I'm going"}
-              </button>
+              {a.required ? (
+                <span className="fm-mini fm-mini-req">Required</span>
+              ) : (
+                <button className={`fm-mini${intents[a.id] === "going" ? " fm-mini-on" : ""}`} onClick={(e) => { e.stopPropagation(); setIntent(a.id, "going"); }}>
+                  {intents[a.id] === "going" ? "Going ✓" : "I'm going"}
+                </button>
+              )}
             </li>
           );
         })}

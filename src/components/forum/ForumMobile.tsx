@@ -474,7 +474,7 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
   return (
     <>
       <section className="alf-card">
-        <p className="fm-eyebrow">{d.label}, {a.time} · {a.kind === "anchor" ? "Everyone" : a.kind === "optional" ? "Optional" : "Peer-led"}</p>
+        <p className="fm-eyebrow">{d.label}, {a.time} · {a.required ? "Everyone · required" : a.kind === "anchor" ? "Main event" : a.kind === "optional" ? "Optional" : "Peer-led"}</p>
         <h2 className="alf-card-h" style={{ fontSize: 22 }}>{a.title}</h2>
         <div className="fm-detail-meta">
           {a.venue && <span><b>Where</b> · {a.venue}{a.address ? `, ${a.address}` : ""}</span>}
@@ -493,11 +493,19 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
 
       <section className="alf-card">
         <h3 className="alf-card-h">Who&apos;s going</h3>
-        <div className="fm-btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
-          <button className={`fm-btn${intent === "going" ? " fm-btn-going" : ""}`} onClick={() => setIntent(a.id, "going")}>{intent === "going" ? "✓ I'm going" : "I'm going"}</button>
-          <button className={`fm-btn${intent === "interested" ? " fm-btn-blue" : ""}`} onClick={() => setIntent(a.id, "interested")}>{intent === "interested" ? "✓ Interested" : "Interested"}</button>
-        </div>
-        <p className="fm-muted">{(w?.going_count ?? going.length) + (intent === "going" && !going.some((p) => p.id === me.id) ? 1 : 0)} going · {(w?.interested_count ?? 0) + (intent === "interested" ? 1 : 0)} interested</p>
+        {a.required ? (
+          <p className="fm-note" style={{ margin: "0 0 12px", borderColor: "var(--minerva-blue)", background: "rgba(20,99,176,0.06)", color: "#1a3f74" }}>
+            <b>Attendance required.</b> This is one of the anchors — everyone&apos;s there, so there&apos;s nothing to tap. All {going.length} of us.
+          </p>
+        ) : (
+          <>
+            <div className="fm-btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
+              <button className={`fm-btn${intent === "going" ? " fm-btn-going" : ""}`} onClick={() => setIntent(a.id, "going")}>{intent === "going" ? "✓ I'm going" : "I'm going"}</button>
+              <button className={`fm-btn${intent === "interested" ? " fm-btn-blue" : ""}`} onClick={() => setIntent(a.id, "interested")}>{intent === "interested" ? "✓ Interested" : "Interested"}</button>
+            </div>
+            <p className="fm-muted">{(w?.going_count ?? going.length) + (intent === "going" && !going.some((p) => p.id === me.id) ? 1 : 0)} going · {(w?.interested_count ?? 0) + (intent === "interested" ? 1 : 0)} interested</p>
+          </>
+        )}
         <div className="fm-who">
           {intent === "going" && !going.some((p) => p.id === me.id) && <span className="fm-who-item"><span className="fm-face" style={{ margin: 0, width: 22, height: 22, background: "#2e9e5b" }} />You</span>}
           {going.map((p) => (

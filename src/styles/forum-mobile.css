@@ -774,3 +774,6 @@
 .fm-guide-link { display: block; text-align: center; margin: 4px 0 10px; }
 
 .fm-datechip-day, .fm-datechip-mon { display: block; }
+
+.fm-required { background: rgba(20,99,176,0.08); border-color: rgba(20,99,176,0.35); color: #1a3f74; cursor: default; font-weight: 700; }
+.fm-mini-req { background: rgba(20,99,176,0.08); border-color: rgba(20,99,176,0.35); color: #1a3f74; cursor: default; }
