@@ -1739,7 +1739,7 @@ function SessionPage({
                     {enabled && a.activityId && (
                       <div className="fm-row-foot">
                         {a.required ? (
-                          <span className="fm-mini fm-mini-req">Required · everyone</span>
+                          <span className="fm-mini fm-mini-req">Main event · everyone</span>
                         ) : (
                           <button className={`fm-mini${intents[a.activityId] === "going" ? " fm-mini-on" : ""}`} onClick={() => setIntent(a.activityId!, "going")}>
                             {intents[a.activityId] === "going" ? "Going ✓" : "I'm going"}

@@ -45,7 +45,7 @@ export function SessionList({ onOpenSession }: { onOpenSession: (id: string) => 
         </div>
         <div className="fm-btn-row" onClick={(e) => e.stopPropagation()}>
           {anchor.required ? (
-            <span className="fm-btn fm-required">Everyone · attendance required</span>
+            <span className="fm-btn fm-required">Main event · everyone&apos;s there</span>
           ) : (
             <button className={`fm-btn${intents[anchor.id] === "going" ? " fm-btn-going" : " fm-btn-primary"}`} onClick={() => setIntent(anchor.id, "going")}>
               {intents[anchor.id] === "going" ? "✓ I'm going" : "I'm going"}
@@ -114,11 +114,11 @@ export function SessionCard({ session: s, onOpenActivity, compactHead }: { sessi
               <span className="fm-daycard-time">{a.time}</span>
               <span className="fm-daycard-main">
                 <span className="fm-daycard-name">{a.title}</span>
-                <span className="fm-daycard-venue">{a.venue ?? "optional"}{a.required ? " · everyone" : anchorRow ? " · main event" : ""}</span>
+                <span className="fm-daycard-venue">{a.venue ?? "optional"}{a.required ? " · everyone" : ""}</span>
               </span>
               <Faces people={going} max={3} />
               {a.required ? (
-                <span className="fm-mini fm-mini-req">Required</span>
+                <span className="fm-mini fm-mini-req">Main event</span>
               ) : (
                 <button className={`fm-mini${intents[a.id] === "going" ? " fm-mini-on" : ""}`} onClick={(e) => { e.stopPropagation(); setIntent(a.id, "going"); }}>
                   {intents[a.id] === "going" ? "Going ✓" : "I'm going"}

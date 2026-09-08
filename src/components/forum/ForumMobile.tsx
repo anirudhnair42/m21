@@ -482,7 +482,7 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
   return (
     <>
       <section className="alf-card">
-        <p className="fm-eyebrow">{d.label}, {a.time} · {a.required ? "Everyone · required" : a.kind === "anchor" ? "Main event" : a.kind === "optional" ? "Optional" : "Peer-led"}</p>
+        <p className="fm-eyebrow">{d.label}, {a.time} · {a.required ? "Main event · everyone" : a.kind === "anchor" ? "Main event" : a.kind === "optional" ? "Optional" : "Peer-led"}</p>
         <h2 className="alf-card-h" style={{ fontSize: 22 }}>{a.title}</h2>
         <div className="fm-detail-meta">
           {a.venue && <span><b>Where</b> · {a.venue}{a.address ? `, ${a.address}` : ""}</span>}
@@ -503,7 +503,7 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
         <h3 className="alf-card-h">Who&apos;s going</h3>
         {a.required ? (
           <p className="fm-note" style={{ margin: "0 0 12px", borderColor: "var(--minerva-blue)", background: "rgba(20,99,176,0.06)", color: "#1a3f74" }}>
-            <b>Attendance required.</b> This is one of the anchors — everyone&apos;s there, so there&apos;s nothing to tap. All {going.length} of us.
+            <b>Main event.</b> This is key programming — everyone&apos;s there, so there&apos;s nothing to tap. All {going.length} of us.
           </p>
         ) : (
           <>

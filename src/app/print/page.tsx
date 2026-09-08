@@ -34,7 +34,7 @@ export default function PrintPage() {
       </header>
 
       <p className="pr-lede">
-        Four classes over three days. Rows marked <b>Required</b> are the anchors everyone attends; the rest is optional.
+        Four classes over three days. Rows marked <b>Main event</b> are the key programming, where everyone is; the rest is optional.
         Side quests are peer-led extras. The live version, with directions, who&apos;s going, and Assignment 3, is at <b>{SITE}</b>. Sign in with the Google account you RSVP&apos;d with.
       </p>
 
@@ -57,7 +57,7 @@ export default function PrintPage() {
                   <tr key={a.id} className={a.required ? "pr-req" : a.kind === "anchor" ? "" : "pr-opt"}>
                     <td className="pr-time">{a.time}</td>
                     <td className="pr-what">
-                      <div className="pr-name">{a.title}{a.required && <span className="pr-tag">Required</span>}{!a.required && a.kind !== "anchor" && <span className="pr-tag pr-tag-opt">Optional</span>}</div>
+                      <div className="pr-name">{a.title}{a.required && <span className="pr-tag">Main event</span>}{!a.required && a.kind !== "anchor" && <span className="pr-tag pr-tag-opt">Optional</span>}</div>
                       <div className="pr-where">{a.venue}{a.address ? ` · ${a.address}` : ""}{a.host ? ` · ${a.host}` : ""}</div>
                       <div className="pr-body">{a.body}</div>
                     </td>

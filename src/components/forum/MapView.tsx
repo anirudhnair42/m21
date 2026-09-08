@@ -206,7 +206,7 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
         <button className="fm-filter" onClick={locate}>{located ? "◉ You" : "◎ Find me"}</button>
       </div>
       <div className="fm-map-legend">
-        <span><i className="fm-pin fm-pin-anchor fm-pin-mini" /> main event (★ required)</span>
+        <span><i className="fm-pin fm-pin-anchor fm-pin-mini" /> main event (★ key programming)</span>
         {questivalOpen && <span><i className="fm-pin fm-pin-quest fm-pin-mini" /> quest · pts</span>}
         <span><i className="fm-pin fm-pin-peer fm-pin-mini" /> peer-led</span>
       </div>
