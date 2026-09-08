@@ -22,6 +22,7 @@ import { SessionList } from "@/components/forum/SessionCards";
 import { GuideView } from "@/components/forum/Guide";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
+import { sessionsFor } from "@/lib/weekend";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -321,7 +322,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
             <div className="alf-fm-questival">
               <div className="alf-fm-crumbs"><a className="alf-link" onClick={goHome}>Home</a> &gt; How it all works</div>
               <GuideView
-                onOpenDay={(d) => openSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)}
+                onOpenDay={(d) => openSession(`ru26-${sessionsFor(d)[0].id}`)}
                 onOpenClass={() => onOpenPhotos?.()}
                 onOpenMap={onOpenMap}
               />
