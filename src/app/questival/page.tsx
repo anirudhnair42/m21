@@ -4,7 +4,7 @@ import { ForumMobile } from "@/components/forum/ForumMobile";
 export const metadata: Metadata = {
   title: "RU26 · Assignment 3: Questival — Class of 2021",
   description:
-    "Saturday, Sept 12. Capture as you go, tag your crew, submit your final list before the bonfire.",
+    "Saturday, Sept 12. Capture as you go, tag your crew, submit your final list before dinner.",
 };
 
 export default function Page() {

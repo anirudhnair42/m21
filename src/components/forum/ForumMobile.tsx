@@ -239,6 +239,7 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
         {shownView.kind === "live" && <LiveView />}
         {shownView.kind === "class" && <ClassView />}
         {shownView.kind === "admin" && <AdminView />}
+        {shownView.kind === "session" && getSession(shownView.id) && <SessionCard session={getSession(shownView.id)!} onOpenActivity={openActivity} />}
         {shownView.kind === "guide" && <GuideView onOpenDay={goDay} onOpenClass={() => open({ kind: "class" })} onOpenMap={() => goTab("map")} onOpenInbox={() => goTab("inbox")} />}
 
         {shownView.kind === "tab" && tab === "home" && (

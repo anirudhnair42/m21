@@ -117,13 +117,13 @@ const SESSION_NOTES: Record<string, { before: string; assessment: string; resour
   },
   s21: {
     before: "Breakfast at Dahlia Dell opens the day. From there the city is the classroom: quests, points, whoever you want. Final lists are due at 5:00 PM.",
-    assessment: "Assignment 3. Capture as you go, tag who did it with you, submit before the bonfire.",
+    assessment: "Assignment 3. Capture as you go, tag who did it with you, submit before dinner.",
     resources: [{ label: "Dahlia Dell, Golden Gate Park", url: "https://maps.apple.com/?q=Dahlia%20Dell%2C%20Golden%20Gate%20Park" }],
   },
   s22: {
-    before: "Sunset at Ocean Beach, then dinner at Common Space. Bring a layer; it will be cold.",
+    before: "Finish your last quest with your crew, then head straight to the Marina. Doors at six, dinner at seven.",
     assessment: "Grades released at dinner, around 8:30. Trivia, a few performances, prizes.",
-    resources: [{ label: "Ocean Beach", url: "https://maps.apple.com/?q=Ocean%20Beach%2C%20San%20Francisco" }],
+    resources: [{ label: "The Loft, 3108B Fillmore St", url: "https://maps.apple.com/?q=3108B%20Fillmore%20St%2C%20San%20Francisco" }],
   },
   s31: {
     before: "Late brunch, slow exit. Flights start in the afternoon — coordinate rides on the group chat.",
@@ -134,7 +134,8 @@ const SESSION_NOTES: Record<string, { before: string; assessment: string; resour
 
 const COURSE_SESSIONS: Session[] = SESSIONS.map((s) => {
   const notes = SESSION_NOTES[s.id];
-  const rows = [...s.activities, ...s.side].map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
+  const rows = s.activities.map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
+  const side = s.side.map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
   return {
     id: `ru26-${s.id}`,
     courseId: "RU26",
@@ -154,6 +155,13 @@ const COURSE_SESSIONS: Session[] = SESSIONS.map((s) => {
     sections: [
       { heading: "Before Class", body: notes?.before ?? s.sub },
       { heading: "Assessment", body: notes?.assessment ?? "Show up; participate." },
+      ...(side.length
+        ? [{
+            heading: "Side quests (optional, peer-led)",
+            body: side.map((a) => `${a.time} — ${a.title}${a.host ? `, with ${a.host}` : ""}${a.venue ? ` · ${a.venue}` : ""}. ${a.body}`).join(" "),
+            resources: side.filter((a) => a.link).map((a) => ({ label: a.link!.label, url: a.link!.url })),
+          }]
+        : []),
       ...(notes?.resources.length ? [{ heading: "Resources for Class", resources: notes.resources }] : []),
     ],
   };

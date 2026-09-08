@@ -405,7 +405,7 @@ export function windowAt(settings: SettingsDTO, now: number): "before" | "open" 
   return "closed";
 }
 
-export const CLOSED_MESSAGE = "Closed — you're at the bonfire, go enjoy it.";
+export const CLOSED_MESSAGE = "Closed — head to The Loft, go enjoy it.";
 
 // --------------------------------------------------------------- media
 

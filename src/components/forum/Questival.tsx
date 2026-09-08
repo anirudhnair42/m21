@@ -83,7 +83,7 @@ export function QuestivalHub({
         </div>
         <p className="alf-card-body">
           Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, tag whoever
-          did it with you, and submit your final list before the bonfire. Everything is optional; every quest is points.
+          did it with you, and submit your final list before dinner. Everything is optional; every quest is points.
         </p>
         <div className="fm-progress"><span style={{ width: `${Math.min(100, (doneIds.size / Math.max(1, total)) * 100)}%` }} /></div>
         <div className="fm-stats">
@@ -279,7 +279,7 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
         </section>
       ) : (
         <section className="alf-card">
-          <p className="fm-empty">{w === "closed" ? "Questival is closed — you're at the bonfire, go enjoy it." : "You've maxed this one out."}</p>
+          <p className="fm-empty">{w === "closed" ? "Questival is closed — head to The Loft, go enjoy it." : "You've maxed this one out."}</p>
         </section>
       )}
     </>
@@ -343,7 +343,7 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
     for (const s of submissions) for (const p of s.members) if (p.id !== me.id) seen.set(p.id, p);
     return [...seen.values()];
   }, [submissions, me.id]);
-  const bonfire = getActivity("sat-bonfire")!;
+  const dinner = getActivity("sat-dinner")!;
   const editable = w !== "closed";
   const doneIds = new Set(submissions.map((s) => s.quest_id));
   const planned = plans.filter((p) => !(p.kind === "quest" && doneIds.has(p.target_id)));
@@ -380,7 +380,7 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
             <div className="alf-next-card-text">
               <span className="alf-next-card-eyebrow">Confirm</span>
               <span className="alf-next-card-title">{submissions.length} quests · {pts} pts{withPeople.length ? ` · with ${withPeople.map((p) => firstName(p.name)).join(", ")}` : ""}</span>
-              <span className="alf-next-card-sub">Submit before the bonfire? You can still edit until 5:00 PM.</span>
+              <span className="alf-next-card-sub">Submit before dinner? You can still edit until 5:00 PM.</span>
             </div>
             <div className="alf-next-card-actions">
               <button className="alf-next-card-btn" onClick={() => { submitFinal(); setConfirming(false); }}>Submit</button>
@@ -400,12 +400,12 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
         <div className="alf-next-card" style={{ marginBottom: 14, marginTop: 0 }}>
           <div className="alf-next-card-text">
             <span className="alf-next-card-eyebrow">Next up</span>
-            <span className="alf-next-card-title">Session 1.2 — {bonfire.title}</span>
-            <span className="alf-next-card-sub">{bonfire.time} · {bonfire.venue}</span>
+            <span className="alf-next-card-title">Session 2.2 — {dinner.title}</span>
+            <span className="alf-next-card-sub">{dinner.time} · {dinner.venue}</span>
           </div>
           <div className="alf-next-card-actions">
-            <a className="alf-next-card-btn" href={directionsUrl(bonfire.address!)} target="_blank" rel="noreferrer">Directions →</a>
-            <button className="alf-next-card-link" onClick={() => onOpenActivity(bonfire.id)}>Details</button>
+            <a className="alf-next-card-btn" href={directionsUrl(dinner.address!)} target="_blank" rel="noreferrer">Directions →</a>
+            <button className="alf-next-card-link" onClick={() => onOpenActivity(dinner.id)}>Details</button>
           </div>
         </div>
       )}
