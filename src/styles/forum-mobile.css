@@ -772,3 +772,5 @@
 .fm-nextclass-meta { font-size: 13.5px; color: #2a2a2a; }
 .fm-nextclass-sub { font-size: 13px; color: #6b6660; margin: 6px 0 0; line-height: 1.5; }
 .fm-guide-link { display: block; text-align: center; margin: 4px 0 10px; }
+
+.fm-datechip-day, .fm-datechip-mon { display: block; }
