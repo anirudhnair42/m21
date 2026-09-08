@@ -727,7 +727,7 @@
 .fm-steps { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.55; color: #2a2a2a; }
 .fm-steps li { margin-bottom: 8px; }
 .fm-steps b { font-weight: 600; }
-.fm-kbd { display: inline-block; padding: 0 6px; border: 1px solid #d8d4cb; border-radius: 4px; background: #fff; font-size: 12px; line-height: 18px; }
+.fm-kbd { display: inline-block; white-space: nowrap; padding: 0 6px; border: 1px solid #d8d4cb; border-radius: 4px; background: #fff; font-size: 12px; line-height: 18px; }
 .fm-step-done { color: #2e9e5b; font-weight: 600; }
 .fm-daycard { padding: 14px 16px 10px !important; }
 .fm-daycard-head { display: flex; align-items: center; gap: 12px; cursor: pointer; padding-bottom: 10px; border-bottom: 1px solid #efeadf; }
