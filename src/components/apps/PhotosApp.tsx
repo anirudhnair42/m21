@@ -15,7 +15,7 @@ export function PhotosApp() {
         <div className={`ph-item${section === "board" ? " on" : ""}`} onClick={() => setSection("board")}>🏅 Leaderboard</div>
         <div className={`ph-item${section === "class" ? " on" : ""}`} onClick={() => setSection("class")}>👥 The Class of 2021</div>
         <div className="ph-side-h" style={{ marginTop: 12 }}>Albums</div>
-        <div className="ph-item locked locked-below" data-locked="Will be unlocked later">⭐ Best recreations</div>
+        <div className="ph-item locked locked-below" data-locked="This is not really a real ALF LOL">⭐ Best recreations</div>
         <div className="ph-item locked locked-below" data-locked="Unlocks after the reunion">🗂 Memory archive</div>
       </aside>
       <div className="ph-main">

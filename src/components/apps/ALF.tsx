@@ -414,13 +414,13 @@ function ForumSidebar({
           <div className="alf-fs-sub">
             <button
               className="alf-fs-sub-item locked locked-below"
-              data-locked="Will be unlocked later"
+              data-locked="This is not really a real ALF LOL"
             >
               Past Courses
             </button>
             <button
               className="alf-fs-sub-item locked locked-below"
-              data-locked="Will be unlocked later"
+              data-locked="This is not really a real ALF LOL"
             >
               Visiting Courses
             </button>
@@ -454,7 +454,7 @@ function SidebarItem({
       className={`alf-fs-item ${active ? "alf-fs-item-on" : ""} ${
         locked ? "locked locked-below" : ""
       }`}
-      data-locked={locked ? "Will be unlocked later" : undefined}
+      data-locked={locked ? "This is not really a real ALF LOL" : undefined}
       onClick={locked ? undefined : onClick}
     >
       <span className="alf-fs-icon" aria-hidden>
@@ -796,7 +796,7 @@ function ForumHome({
           <p className="alf-card-empty">There are no recent announcements.</p>
           <a
             className="alf-link locked locked-below"
-            data-locked="Will be unlocked later"
+            data-locked="This is not really a real ALF LOL"
           >
             See all announcements
           </a>
@@ -818,7 +818,7 @@ function ForumHome({
           </ul>
           <a
             className="alf-link locked locked-below"
-            data-locked="Will be unlocked later"
+            data-locked="This is not really a real ALF LOL"
           >
             See all office hours
           </a>
@@ -1687,7 +1687,7 @@ function SessionPage({
             </div>
             <button
           className="alf-fm-enter locked locked-below"
-          data-locked="Will be unlocked later"
+          data-locked="This is not really a real ALF LOL"
         >
           Enter Class
         </button>
@@ -1745,13 +1745,13 @@ function SessionPage({
       <aside className="alf-fm-session-side">
         <button
           className="alf-fm-side-btn alf-fm-side-btn-primary locked locked-below"
-          data-locked="Will be unlocked later"
+          data-locked="This is not really a real ALF LOL"
         >
           ◉ View Recording
         </button>
         <button
           className="alf-fm-side-btn locked locked-below"
-          data-locked="Will be unlocked later"
+          data-locked="This is not really a real ALF LOL"
         >
           ▸ Enter Class
         </button>
@@ -1780,7 +1780,7 @@ function ResourceList({ items }: { items: Resource[] }) {
           ) : (
             <span
               className="alf-link locked locked-below"
-              data-locked="Will be unlocked later"
+              data-locked="This is not really a real ALF LOL"
             >
               {r.label}
             </span>
@@ -2020,22 +2020,22 @@ function SyllabusGraderView({
             <div className="alf-sidebar-heading">Resources</div>
             <div className="alf-resource-group">
               <div className="alf-resource-label">Primary resource:</div>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Itinerary.pdf
               </a>
             </div>
             <div className="alf-resource-group">
               <div className="alf-resource-label">Secondary resource:</div>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Travel-and-Visas.pdf
               </a>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Stay.pdf
               </a>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Pre-Trip-Checklist.md
               </a>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Photo-Wall.app
               </a>
             </div>

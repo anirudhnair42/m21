@@ -91,23 +91,23 @@ function MailSidebar({ unread }: { unread: number }) {
         <span>Inbox</span>
         <span className="mail-sidebar-count">{unread}</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">✦</span>
         <span>VIPs</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">🚩</span>
         <span>Flagged</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📝</span>
         <span>Drafts</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📤</span>
         <span>Sent</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">🗑</span>
         <span>Trash</span>
       </div>
@@ -115,11 +115,11 @@ function MailSidebar({ unread }: { unread: number }) {
       <div className="mail-sidebar-section" style={{ marginTop: 14 }}>
         On My Mac
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📁</span>
         <span>Archive</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📁</span>
         <span>College Apps</span>
       </div>
@@ -357,29 +357,29 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
   return (
     <div className="mail-app">
       <div className="mail-toolbar">
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">📨</span>
           <span>Get Mail</span>
         </div>
         <div className="mail-tool-sep" />
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">✉️</span>
           <span>New</span>
         </div>
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">📎</span>
           <span>Archive</span>
         </div>
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">🗑</span>
           <span>Trash</span>
         </div>
         <div className="mail-tool-sep" />
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">↩</span>
           <span>Reply</span>
         </div>
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">↪</span>
           <span>Forward</span>
         </div>

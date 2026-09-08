@@ -133,7 +133,7 @@ function ForumGate({ initialTab }: { initialTab: Tab }) {
             ) : access.state === "denied" ? (
               <>
                 <p className="fm-eyebrow">Signed in{access.name ? ` as ${access.name}` : ""}</p>
-                <h2 className="fm-gate-title">Will be unlocked later</h2>
+                <h2 className="fm-gate-title">This is not really a real ALF LOL</h2>
                 <p className="fm-gate-sub">
                   {access.reason === "no-rsvp"
                     ? "This Google account isn't on the class list. Try the account you RSVP'd with."
@@ -144,7 +144,7 @@ function ForumGate({ initialTab }: { initialTab: Tab }) {
             ) : (
               <>
                 <p className="fm-eyebrow">Session 1.1 starts Fri, Sep 11</p>
-                <h2 className="fm-gate-title">Will be unlocked later</h2>
+                <h2 className="fm-gate-title">This is not really a real ALF LOL</h2>
                 <p className="fm-gate-sub">The weekend, the map, and Assignment 3 open here on Thursday. Cohosts: sign in to preview.</p>
                 {blockedEmail && <p className="fm-note">{blockedEmail} isn&apos;t allowed here.</p>}
                 <button className="fm-btn fm-btn-blue" onClick={() => signInTo("forum")}>
@@ -731,7 +731,7 @@ function QuestivalLocked() {
     <section className="alf-card">
       <div className="fm-gate">
         <p className="fm-eyebrow">Sat, Sep 12 · 10:00 → 17:00</p>
-        <h2 className="fm-gate-title">Will be unlocked later</h2>
+        <h2 className="fm-gate-title">This is not really a real ALF LOL</h2>
         <p className="fm-gate-sub">Assignment 3 is a pick-your-own-adventure through the city with the people you came for. The brief, the map pins, and the scoring drop here this week. Bring shoes you can walk in.</p>
       </div>
     </section>
