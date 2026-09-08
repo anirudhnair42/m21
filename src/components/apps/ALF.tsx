@@ -309,7 +309,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               rsvpCount={rsvpCount}
             />
           )}
-          {view.kind === "session" && (
+          {view.kind === "session" && getSession(view.sessionId) && (
             <SessionPage
               session={getSession(view.sessionId)!}
               course={REUNION_COURSE}
@@ -349,7 +349,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               )}
               {view.kind === "quest" && <QuestView questId={view.questId} onOpenMe={() => setView({ kind: "questival-me" })} />}
               {view.kind === "questival-me" && (
-                <MyQuestival onOpenQuest={(id) => setView({ kind: "quest", questId: id })} onOpenActivity={() => openSession("ru26-1-2")} />
+                <MyQuestival onOpenQuest={(id) => setView({ kind: "quest", questId: id })} onOpenActivity={() => openSession("ru26-s22")} />
               )}
               {view.kind === "questival-live" && <LiveView />}
               {view.kind === "organizers" && <AdminView />}

@@ -24,7 +24,6 @@ Sign in with the Google account you RSVP'd with. On your phone it opens straight
 11:30 Sports Palooza · Dahlia Dell lawn
 13:30 Speed catch-up · Alamo Square
 15:00 Lunch · 2550 Van Ness ← everyone
-17:00 Bonfire · Ocean Beach ← everyone
 18:00 Doors, 19:00 dinner · Common Space (address lands in the app)
 22:00 After party
 
