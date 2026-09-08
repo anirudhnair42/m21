@@ -148,8 +148,8 @@ export const ACTIVITIES: Activity[] = [
   {
     id: "fri-bars",
     day: "fri",
-    start: T("11", "21:00"),
-    time: "21:00",
+    start: T("11", "22:00"),
+    time: "22:00",
     title: "Bar hopping with Nathan",
     kind: "peer",
     venue: "The Mission, from Southern Pacific",

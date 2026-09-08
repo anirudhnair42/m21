@@ -7,7 +7,7 @@ Sign in with the Google account you RSVP'd with. On your phone it opens straight
 
 FRIDAY · Session 1.1 — Arrivals & the welcome dinner
 6:00 PM · Welcome dinner & drinks · Southern Pacific Brewing, 620 Treat Ave (everyone)
-Side quest after: bar hopping around the Mission with Nathan
+10:00 PM · Side quest: bar hopping around the Mission with Nathan
 
 SATURDAY · Session 2.1 — Questival day
 10:00 AM · Breakfast at Dahlia Dell, Golden Gate Park (everyone)
