@@ -1,6 +1,6 @@
 "use client";
 
-import { DAYS } from "@/lib/weekend";
+import { SESSIONS } from "@/lib/weekend";
 import { QUESTIVAL } from "@/lib/questival";
 import { useForumStore } from "@/components/forum/ForumStore";
 
@@ -23,17 +23,17 @@ export function GuideView({ onOpenDay, onOpenClass, onOpenMap, onOpenInbox }: { 
       </section>
 
       <section className="alf-card">
-        <h3 className="alf-card-h">1 · The three days</h3>
+        <h3 className="alf-card-h">1 · Four classes over three days</h3>
         <ul className="fm-quests">
-          {DAYS.map((d) => (
-            <li key={d.id} className="fm-quest" onClick={() => onOpenDay(d.id)}>
+          {SESSIONS.map((s) => (
+            <li key={s.id} className="fm-quest" onClick={() => onOpenDay(s.day)}>
               <span className="fm-dot fm-dot-planned" />
-              <span><div className="fm-quest-title">{d.label === "Fri" ? "Friday" : d.label === "Sat" ? "Saturday" : "Sunday"} · {d.title}</div><div className="fm-quest-meta">{d.sub}</div></span>
+              <span><div className="fm-quest-title">Session {s.number} · {s.title}</div><div className="fm-quest-meta">{s.day === "fri" ? "Friday" : s.day === "sat" ? "Saturday" : "Sunday"} {s.time} · {s.location}</div></span>
               <span className="fm-muted">→</span>
             </li>
           ))}
         </ul>
-        <p className="fm-muted" style={{ marginTop: 8 }}>Rows marked <b>everyone</b> are the anchors. The rest is optional. Each has the address and a Directions button.</p>
+        <p className="fm-muted" style={{ marginTop: 8 }}>Friday is one class: dinner at Southern Pacific at six. Rows marked <b>everyone</b> are the anchors; the rest is optional. Side quests are peer-led extras after a class.</p>
       </section>
 
       <section className="alf-card">

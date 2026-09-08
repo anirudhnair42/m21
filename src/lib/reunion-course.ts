@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react";
-import { DAYS, activitiesFor } from "@/lib/weekend";
+import { SESSIONS, getActivity } from "@/lib/weekend";
 
 export type Resource = {
   label: string;
@@ -100,128 +100,71 @@ export type Course = {
 };
 
 // ---------------------------------------------------------------------------
-// RU26 — the Reunion as a class.
-// Replace the stub `sections` content per day with real material.
+// RU26 — the Reunion as a class. Sessions come from the shared weekend data
+// so the desktop ALF, Calendar and the phone never disagree.
 // ---------------------------------------------------------------------------
 
-const FRI: Session = {
-  id: "ru26-1-1",
-  courseId: "RU26",
-  number: "1.1",
-  title: DAYS[0].title,
-  date: "Fri, Sep 11, 2026",
-  status: "upcoming",
-  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: DAYS[0].sub,
-  agenda: activitiesFor("fri").map((a) => ({
-    time: a.time,
-    title: a.title,
-    location: a.venue,
-    body: a.body,
-    optional: a.kind !== "anchor",
-  })),
-  sections: [
-    {
-      heading: "Before Class",
-      body:
-        "Land in San Francisco. Drop bags wherever you're staying. Dinner at 6 at Southern Pacific Brewing is the one thing on the books — informal, no name tags. Altın Gün plays the Regency at 8 if you're still going. Come think about your opening line: one sentence on where the last five years took you.",
-    },
-    {
-      heading: "Assessment",
-      body:
-        "No formal HC scoring tonight — but bring that opening line. We'll go around the room once.",
-    },
-    {
-      heading: "Resources for Class",
-      resources: [
-        { label: "Southern Pacific Brewing · 620 Treat Ave", url: "https://www.google.com/maps/search/?api=1&query=620+Treat+Ave+San+Francisco" },
-        { label: "Altın Gün · tickets on AXS", url: "https://www.axs.com/events/1352783/altin-gun-tickets" },
-        { label: "Playlist · Class of 2021 throwbacks", note: "Link goes here" },
-      ],
-    },
-  ],
+const DAY_DATE = { fri: "Fri, Sep 11, 2026", sat: "Sat, Sep 12, 2026", sun: "Sun, Sep 13, 2026" } as const;
+
+const SESSION_NOTES: Record<string, { before: string; assessment: string; resources: Resource[] }> = {
+  s11: {
+    before: "Land in San Francisco. Drop bags wherever you're staying. The only thing on the books is dinner at 6 — informal, no name tags. Come think about your opening line: one sentence on where the last five years took you.",
+    assessment: "No formal HC scoring tonight — but bring that opening line. We'll go around the room once.",
+    resources: [
+      { label: "Southern Pacific Brewing", url: "https://maps.apple.com/?q=620%20Treat%20Ave%2C%20San%20Francisco" },
+      { label: "Altın Gün at The Regency — tickets", url: "https://www.axs.com/events/1352783/altin-gun-tickets" },
+    ],
+  },
+  s21: {
+    before: "Breakfast at Dahlia Dell opens the day. From there the city is the classroom: quests, points, whoever you want. Final lists are due at 5:00 PM.",
+    assessment: "Assignment 3. Capture as you go, tag who did it with you, submit before the bonfire.",
+    resources: [{ label: "Dahlia Dell, Golden Gate Park", url: "https://maps.apple.com/?q=Dahlia%20Dell%2C%20Golden%20Gate%20Park" }],
+  },
+  s22: {
+    before: "Sunset at Ocean Beach, then dinner at Common Space. Bring a layer; it will be cold.",
+    assessment: "Grades released at dinner, around 8:30. Trivia, a few performances, prizes.",
+    resources: [{ label: "Ocean Beach", url: "https://maps.apple.com/?q=Ocean%20Beach%2C%20San%20Francisco" }],
+  },
+  s31: {
+    before: "Late brunch, slow exit. Flights start in the afternoon — coordinate rides on the group chat.",
+    assessment: "Assignment 4, the closing line, unlocks at the closing moment.",
+    resources: [{ label: "Hellman Hollow, Golden Gate Park", url: "https://maps.apple.com/?q=Hellman%20Hollow%2C%20Golden%20Gate%20Park" }],
+  },
 };
 
-const SAT: Session = {
-  id: "ru26-1-2",
-  courseId: "RU26",
-  number: "1.2",
-  title: DAYS[1].title,
-  date: "Sat, Sep 12, 2026",
-  status: "upcoming",
-  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: DAYS[1].sub,
-  agenda: activitiesFor("sat").map((a) => ({
-    time: a.time,
-    title: a.title,
-    location: a.venue,
-    body: a.body,
-    optional: a.kind !== "anchor",
-  })),
-  sections: [
-    {
-      heading: "Before Class",
-      body:
-        "Questival day. Breakfast at Dahlia Dell, lunch at the Res Hall, the bonfire at Ocean Beach, dinner at Common Space are the anchors; everything in between is Assignment 3, with whoever you want.",
-    },
-    {
-      heading: "Assignment 3 · Questival",
-      body:
-        "Pick your own adventure through nostalgic M21 stops. Capture as you go, tag whoever did it with you, submit your final list before the bonfire. Grades at dinner.",
-    },
-    {
-      heading: "Resources for Class",
-      resources: [
-        { label: "The quest catalog", note: "Unlocks this week" },
-        { label: "The map", url: "/?open=map" },
-      ],
-    },
-  ],
-};
-
-const SUN: Session = {
-  id: "ru26-1-3",
-  courseId: "RU26",
-  number: "1.3",
-  title: DAYS[2].title,
-  date: "Sun, Sep 13, 2026",
-  status: "upcoming",
-  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: DAYS[2].sub,
-  agenda: activitiesFor("sun").map((a) => ({
-    time: a.time,
-    title: a.title,
-    location: a.venue,
-    body: a.body,
-    optional: a.kind !== "anchor",
-  })),
-  sections: [
-    {
-      heading: "Before Class",
-      body:
-        "Late brunch at Hellman Hollow, four tables booked, same spot as the graduation feast. Slow exit; coordinate rides in the group chat.",
-    },
-    {
-      heading: "Assignment · Closing line",
-      body:
-        "Self-report only: write one line about what you're taking home from the weekend. That's the final exercise.",
-    },
-    {
-      heading: "Resources for Class",
-      resources: [
-        { label: "Shared rides spreadsheet" },
-        { label: "Post-reunion feedback form" },
-      ],
-    },
-  ],
-};
+const COURSE_SESSIONS: Session[] = SESSIONS.map((s) => {
+  const notes = SESSION_NOTES[s.id];
+  const rows = [...s.activities, ...s.side].map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
+  return {
+    id: `ru26-${s.id}`,
+    courseId: "RU26",
+    number: s.number,
+    title: s.title,
+    date: DAY_DATE[s.day],
+    status: "upcoming",
+    presenters: "Nair / Urdaneta / Muthukumaran / Rivera / Torento / Graves",
+    location: `${s.time} · ${s.location}`,
+    agenda: rows.map((a) => ({
+      time: a.time,
+      title: a.title,
+      location: a.venue,
+      body: a.body,
+      optional: a.kind !== "anchor",
+    })),
+    sections: [
+      { heading: "Before Class", body: notes?.before ?? s.sub },
+      { heading: "Assessment", body: notes?.assessment ?? "Show up; participate." },
+      ...(notes?.resources.length ? [{ heading: "Resources for Class", resources: notes.resources }] : []),
+    ],
+  };
+});
 
 export const REUNION_COURSE: Course = {
   id: "RU26",
   code: "RU26",
   title: "Alumni Reunifications",
   sectionTitle:
-    "Nair / Urdaneta / Mangos / Torento / Graves · Fri/Sat/Sun",
+    "Nair / Urdaneta / Muthukumaran / Rivera / Torento / Graves · Fri/Sat/Sun",
   term: "Fall 2026",
   greeting:
     "Welcome to the weekend. Three sessions, Fri–Sun, in San Francisco.",
@@ -247,7 +190,7 @@ export const REUNION_COURSE: Course = {
       },
     ],
   },
-  sessions: [FRI, SAT, SUN],
+  sessions: COURSE_SESSIONS,
   assignments: [
     { id: "a11", title: "Assignment 1: opening-line reflection", weight: "1x", status: "Not started" },
     { id: "a12", title: "Assignment 2: the class, live", weight: "1x", status: "Not started" },

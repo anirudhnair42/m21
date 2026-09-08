@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { CATCHUP_SLOTS, DAYS, activitiesFor, dayOf, directionsUrl, getActivity, nowNext, type Activity, type Day } from "@/lib/weekend";
+import { CATCHUP_SLOTS, DAYS, dayOf, directionsUrl, getActivity, getSession, nowNext, sessionsFor, type Activity, type Day } from "@/lib/weekend";
 import { QUESTIVAL, getQuest, questivalWindow } from "@/lib/questival";
-import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker, Feed, useLive } from "@/components/forum/Questival";
+import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker, useLive } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
-import { DayCards } from "@/components/forum/DayCards";
+import { SessionList, SessionCard } from "@/components/forum/SessionCards";
 import { GuideView } from "@/components/forum/Guide";
 import { MapView } from "@/components/forum/MapView";
 import { useAuth, getAccessToken } from "@/lib/auth";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { SnackbarProvider } from "@/lib/snackbar";
-import { BookIcon, HomeIcon, ListIcon, LockIcon, MailIcon, MapIcon, PaperclipIcon, PinIcon, ShareIcon } from "@/components/forum/icons";
+import { BookIcon, HomeIcon, ListIcon, MailIcon, MapIcon, PaperclipIcon, PinIcon, ShareIcon } from "@/components/forum/icons";
 import { ME, ME_ID, firstName, readNowOffset, timeShort, type PlanIntent } from "@/components/forum/store";
 import { ForumStoreProvider, ForumToast, useForumStore } from "@/components/forum/ForumStore";
 import type { CatchupDTO, PersonDTO, PlanDTO } from "@/lib/questival-api";
@@ -26,7 +26,8 @@ type View =
   | { kind: "live" }
   | { kind: "class" }
   | { kind: "admin" }
-  | { kind: "guide" };
+  | { kind: "guide" }
+  | { kind: "session"; id: string };
 
 const noop = () => () => {};
 const TABS: Tab[] = ["home", "weekend", "map", "questival", "inbox"];
@@ -178,6 +179,7 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
   const back = () => setView({ kind: "tab" });
   const openActivity = (id: string) => open({ kind: "activity", id });
   const openQuest = (id: string) => open({ kind: "quest", id });
+  const openSession = (id: string) => open({ kind: "session", id });
 
   const share = async (title: string, text: string) => {
     const url = window.location.href;
@@ -251,6 +253,7 @@ function ForumApp({ initialTab, signedIn, onSignOut }: { initialTab: Tab; signed
             onOpenAdmin={() => open({ kind: "admin" })}
             onOpenDay={goDay}
             onOpenGuide={() => open({ kind: "guide" })}
+            onOpenSession={openSession}
           />
         )}
         {shownView.kind === "tab" && tab === "weekend" && <WeekendView day={day} onDay={setDay} onOpen={openActivity} />}
@@ -297,6 +300,10 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
     const d = DAYS.find((x) => x.id === a?.day);
     return { title: `RU26 Session ${d?.session} – ${a?.title ?? ""}`, sub: a?.venue ?? "" };
   }
+  if (view.kind === "session") {
+    const ss = getSession(view.id);
+    return { title: `RU26 Session ${ss?.number} – ${ss?.title ?? ""}`, sub: ss ? `${ss.time} · ${ss.location}` : "" };
+  }
   if (view.kind === "quest") return { title: "RU26 – Assignment 3: Questival", sub: "One quest, one proof" };
   if (view.kind === "me") return { title: "RU26 – Assignment 3: My Questival", sub: `Due ${QUESTIVAL.dueLabel}` };
   if (view.kind === "live") return { title: "RU26 – The class, live", sub: "Everyone's proofs, as they land" };
@@ -305,7 +312,7 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
   if (view.kind === "guide") return { title: "RU26 – How it all works", sub: "The weekend, in six steps" };
   if (tab === "weekend") {
     const d = DAYS.find((x) => x.id === day)!;
-    return { title: `RU26 Session ${d.session} – ${d.title}`, sub: d.sub };
+    return { title: `RU26 – ${d.title}`, sub: d.date };
   }
   if (tab === "map") return { title: "RU26 – The map", sub: "Where we meet, where the points are, who's going" };
   if (tab === "questival") return { title: "RU26 – Assignment 3: Questival", sub: `Due ${QUESTIVAL.dueLabel} · Weight 2x` };
@@ -322,12 +329,13 @@ function bannerFor(view: View, tab: Tab, day: Day, now: number, count: number, m
 // ----- HOME ------------------------------------------------------------------
 
 export function HomeView({
-  onOpenActivity, onOpenQuestival, onOpenMe, onOpenWeekend, onOpenInbox, onOpenClass, onOpenLive, onOpenAdmin, onOpenDay, onOpenGuide,
+  onOpenActivity, onOpenQuestival, onOpenMe, onOpenWeekend, onOpenInbox, onOpenClass, onOpenLive, onOpenAdmin, onOpenDay, onOpenGuide, onOpenSession,
 }: {
   onOpenActivity: (id: string) => void; onOpenQuestival: () => void; onOpenMe: () => void; onOpenWeekend: () => void;
   onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void; onOpenDay: (d: Day) => void; onOpenGuide: () => void;
+  onOpenSession: (id: string) => void;
 }) {
-  const { now, submissions, final, unanswered, settings, catchups, me, questivalOpen } = useForumStore();
+  const { now, submissions, final, unanswered, settings, catchups, me, questivalOpen, organizer } = useForumStore();
   void onOpenAdmin;
   void onOpenWeekend;
   const { items } = useLive();
@@ -344,44 +352,36 @@ export function HomeView({
       : w === "before" ? { result: "Opens Sat 10:00", done: false } : w === "closed" ? { result: "Closed", done: false } : { result: "Open", done: false };
 
   const focus = cur ?? next;
+  void daysOut; void a3; void onOpenActivity; void onOpenQuestival; void onOpenMe; void onOpenWeekend; void onOpenDay; void onOpenLive; void onOpenClass; void onOpenAdmin;
 
   return (
     <>
-      {today ? (
+      {today && focus && (
         <div className="fm-now">
           <div className="fm-now-eyebrow">{cur ? "Happening now" : "Up next"}</div>
-          <div className="fm-now-title">{focus?.title ?? "See you tomorrow"}</div>
-          <div className="fm-now-sub">{focus?.time} · {focus?.venue ?? "San Francisco"}</div>
+          <div className="fm-now-title">{focus.title}</div>
+          <div className="fm-now-sub">{focus.time} · {focus.venue ?? "San Francisco"}</div>
           {cur && next && <div className="fm-now-next">Next: {next.title} · {next.time}{next.venue ? ` · ${next.venue}` : ""}</div>}
           <div className="fm-now-actions">
-            {focus?.address && <a className="fm-btn" href={directionsUrl(focus.address)} target="_blank" rel="noreferrer"><PinIcon /> Directions</a>}
-            {focus && <button className="fm-btn" onClick={() => onOpenActivity(focus.id)}>Details</button>}
-            <button className="fm-btn" onClick={onOpenGuide}>✦ Guide</button>
+            {focus.address && <a className="fm-btn" href={directionsUrl(focus.address)} target="_blank" rel="noreferrer"><PinIcon /> Directions</a>}
+            <button className="fm-btn" onClick={() => onOpenActivity(focus.id)}>Details</button>
           </div>
-        </div>
-      ) : (
-        <div className="fm-now">
-          <div className="fm-now-eyebrow">Welcome to the weekend</div>
-          <div className="fm-now-title">Fri Sep 11 – Sun Sep 13 · San Francisco</div>
-          <div className="fm-now-sub">Three sessions. Dinner Friday at six, Questival Saturday, the picnic Sunday.</div>
-          <div className="fm-now-next">{daysOut} {daysOut === 1 ? "day" : "days"} to go. Tap <b>I&apos;m going</b> on anything below.</div>
-          <button className="fm-shiny" onClick={onOpenGuide}>✦ How it all works</button>
         </div>
       )}
 
       {settings.announcement && <div className="fm-announce"><b>From the cohosts:</b> {settings.announcement}</div>}
-
 
       {unanswered > 0 && (
         <div className="alf-next-card" style={{ marginTop: 0, marginBottom: 14 }}>
           <div className="alf-next-card-text">
             <span className="alf-next-card-eyebrow">Inbox</span>
             <span className="alf-next-card-title">{unanswered} {unanswered === 1 ? "classmate wants" : "classmates want"} to do something with you</span>
-            <span className="alf-next-card-sub">Say you&apos;re in, and it lands on your list and the map.</span>
           </div>
           <div className="alf-next-card-actions"><button className="alf-next-card-btn" onClick={onOpenInbox}>Open inbox</button></div>
         </div>
       )}
+
+      <SessionList onOpenSession={onOpenSession} />
 
       {accepted.length > 0 && (
         <section className="alf-card">
@@ -389,7 +389,7 @@ export function HomeView({
           <ul className="fm-quests">
             {accepted.map((c) => {
               const other = c.from.id === me.id ? c.to : c.from;
-              const slot = CATCHUP_SLOTS.find((s) => s.id === c.slot);
+              const slot = CATCHUP_SLOTS.find((x) => x.id === c.slot);
               return (
                 <li key={c.id} className="fm-quest" style={{ cursor: "default", gridTemplateColumns: "28px 1fr" }}>
                   <Face p={other} size={26} />
@@ -401,53 +401,8 @@ export function HomeView({
         </section>
       )}
 
-      <DayCards onOpenDay={onOpenDay} onOpenActivity={onOpenActivity} />
-
-      <section className="alf-card">
-        <h2 className="alf-card-h">Assignments Due</h2>
-        <table className="fm-due">
-          <tbody>
-            <tr className="fm-due-done">
-              <td className="fm-due-icon"><span className="fm-check">✓</span></td>
-              <td><span className="fm-due-title">RU26 — Assignment 1: opening-line reflection</span><span className="fm-due-sub">Who are you most excited to see?</span></td>
-              <td className="fm-due-result">Submitted · Editable</td>
-            </tr>
-            {questivalOpen ? (
-              <tr className={a3.done ? "fm-due-done" : ""} onClick={final || submissions.length ? onOpenMe : onOpenQuestival}>
-                <td className="fm-due-icon">{a3.done ? <span className="fm-check">✓</span> : <PaperclipIcon />}</td>
-                <td><span className="fm-due-title">RU26 — Assignment 3: Questival</span><span className="fm-due-sub">Due {QUESTIVAL.dueLabel}</span></td>
-                <td className="fm-due-result">{a3.result}</td>
-              </tr>
-            ) : (
-              <tr className="fm-due-locked">
-                <td className="fm-due-icon"><LockIcon /></td>
-                <td><span className="fm-due-title">RU26 — Assignment 3: Questival</span><span className="fm-due-sub">Saturday · the brief drops here this week</span></td>
-                <td className="fm-due-result">Locked</td>
-              </tr>
-            )}
-            <tr className="fm-due-locked">
-              <td className="fm-due-icon"><LockIcon /></td>
-              <td><span className="fm-due-title">RU26 — Assignment 4: closing line</span><span className="fm-due-sub">Unlocks Sunday at the closing moment</span></td>
-              <td className="fm-due-result">Locked</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-
-      {questivalOpen && (
-        <section className="alf-card">
-          <div className="fm-assign-head"><h2 className="alf-card-h" style={{ margin: 0 }}>Latest from the class</h2><button className="fm-link-btn" style={{ marginLeft: "auto" }} onClick={onOpenLive}>The feed →</button></div>
-          <div style={{ marginTop: 10 }}><Feed items={items} limit={3} /></div>
-        </section>
-      )}
-
-      <section className="alf-card">
-        <h2 className="alf-card-h">The Class of 2021</h2>
-        <p className="fm-muted">Everyone who&apos;s confirmed. Tap a face to request a catch-up.</p>
-        <button className="fm-link-btn" onClick={onOpenClass}>Open the class list →</button>
-        <button className="fm-link-btn" style={{ marginLeft: 14 }} onClick={() => window.open("/?open=stay", "_blank")}>Housing at the Res Hall →</button>
-      </section>
+      <button className="fm-shiny" onClick={onOpenGuide}>✦ How it all works</button>
+      <p className="fm-guide-link fm-muted" style={{ marginTop: 10 }}>{organizer ? "Organizers: the gear button, bottom right." : "Sign in with the Google account you RSVP'd with."}</p>
     </>
   );
 }
@@ -457,56 +412,23 @@ export function HomeView({
 export function WeekendView({ day, onDay, onOpen }: { day: Day; onDay: (d: Day) => void; onOpen: (id: string) => void }) {
   const d = DAYS.find((x) => x.id === day)!;
   const [mon, dd] = d.date.split(", ")[1].split(" ");
-  const main = activitiesFor(day).filter((a) => a.kind !== "peer");
-  const side = activitiesFor(day).filter((a) => a.kind === "peer");
-
+  const sessions = sessionsFor(day);
   return (
     <>
       <div className="fm-seg">
         {DAYS.map((x) => (
-          <button key={x.id} className={`fm-seg-btn${x.id === day ? " fm-seg-on" : ""}`} onClick={() => onDay(x.id)}><b>{x.label}</b><span>Session {x.session}</span></button>
+          <button key={x.id} className={`fm-seg-btn${x.id === day ? " fm-seg-on" : ""}`} onClick={() => onDay(x.id)}><b>{x.label}</b><span>{sessionsFor(x.id).map((s) => s.number).join(" · ")}</span></button>
         ))}
       </div>
       <div className="fm-session-head">
         <div>
-          <h2 className="fm-session-title">RU26 Session {d.session} – {d.title}</h2>
-          <div className="fm-muted">Class starts {d.date} · {d.sub}</div>
+          <h2 className="fm-session-title">{d.label === "Fri" ? "Friday" : d.label === "Sat" ? "Saturday" : "Sunday"} – {d.title}</h2>
+          <div className="fm-muted">{d.date} · {sessions.length === 1 ? "one class" : `${sessions.length} classes`}</div>
         </div>
         <div className="fm-datechip"><div className="fm-datechip-day">{dd}</div><div className="fm-datechip-mon">{mon.slice(0, 3)}</div></div>
       </div>
-      <section className="alf-card">
-        <h3 className="alf-card-h">Run of show</h3>
-        <ul className="alf-agenda">{main.map((a) => <AgendaRow key={a.id} a={a} onOpen={onOpen} />)}</ul>
-      </section>
-      {side.length > 0 && (
-        <section className="alf-card">
-          <h3 className="alf-card-h">Side sessions</h3>
-          <p className="fm-muted" style={{ marginBottom: 8 }}>Peer-led and proposed. Say you&apos;re interested and the host will rally people.</p>
-          <ul className="alf-agenda">{side.map((a) => <AgendaRow key={a.id} a={a} onOpen={onOpen} />)}</ul>
-        </section>
-      )}
+      {sessions.map((s) => <SessionCard key={s.id} session={s} onOpenActivity={onOpen} />)}
     </>
-  );
-}
-
-function AgendaRow({ a, onOpen }: { a: Activity; onOpen: (id: string) => void }) {
-  const { who, intents } = useForumStore();
-  const intent = intents[a.id];
-  const going = who[a.id]?.going ?? [];
-  const more = (who[a.id]?.going_count ?? going.length) - going.length;
-  return (
-    <li className={`alf-agenda-item${a.kind === "optional" ? " alf-agenda-optional" : ""}`} onClick={() => onOpen(a.id)}>
-      <div className="alf-agenda-time">{a.time}</div>
-      <div className="alf-agenda-content">
-        <div className="alf-agenda-title">{a.title}{a.venue && <span className="alf-agenda-loc">{a.venue}</span>}</div>
-        <div className="alf-agenda-body"><p>{a.body}</p></div>
-        <div className="fm-row-foot">
-          <span className={`fm-kind fm-kind-${a.kind}`}>{a.kind === "anchor" ? "Everyone" : a.kind === "optional" ? "Optional" : "Peer-led"}</span>
-          <Faces people={going} extra={Math.max(0, more)} />
-          {intent && <span className="fm-row-going">{intent === "going" ? "You're going" : "Interested"}</span>}
-        </div>
-      </div>
-    </li>
   );
 }
 

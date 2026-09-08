@@ -765,3 +765,10 @@
   transform: skewX(-20deg); animation: fm-shine 3.2s ease-in-out infinite;
 }
 @keyframes fm-shine { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+
+/* ---------- home: the next class ---------- */
+.fm-nextclass { cursor: pointer; border-left: 4px solid var(--minerva-blue) !important; }
+.fm-nextclass-title { font-family: var(--serif-font-family); font-size: 22px; line-height: 1.2; margin: 2px 0 6px; color: #1a1a1a; }
+.fm-nextclass-meta { font-size: 13.5px; color: #2a2a2a; }
+.fm-nextclass-sub { font-size: 13px; color: #6b6660; margin: 6px 0 0; line-height: 1.5; }
+.fm-guide-link { display: block; text-align: center; margin: 4px 0 10px; }

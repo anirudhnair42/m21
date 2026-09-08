@@ -37,42 +37,95 @@ export type Activity = {
   goingSeed?: string[];
 };
 
+const T = (day: "11" | "12" | "13", hhmm: string) => `2026-09-${day}T${hhmm}:00-07:00`;
+
+/**
+ * A class. Days have one or two; the run of show is the session's
+ * activities in order. Side quests hang off the session they follow.
+ */
+export type Session = {
+  id: string;
+  number: string; // "1.1", "2.1", "2.2", "3.1"
+  day: Day;
+  title: string;
+  /** Header line under the title. */
+  sub: string;
+  /** Class start, ISO with offset. */
+  start: string;
+  time: string;
+  location: string;
+  /** Activities in the run of show, in order (anchor + optional). */
+  activities: string[];
+  /** Peer-led side quests attached to this class. */
+  side: string[];
+};
+
+export const SESSIONS: Session[] = [
+  {
+    id: "s11", number: "1.1", day: "fri",
+    title: "Arrivals & the welcome dinner",
+    sub: "One thing on the books: dinner at six. Come reconnect.",
+    start: T("11", "18:00"), time: "18:00",
+    location: "Southern Pacific Brewing, 620 Treat Ave",
+    activities: ["fri-dinner"],
+    side: ["fri-altin-gun", "fri-bars"],
+  },
+  {
+    id: "s21", number: "2.1", day: "sat",
+    title: "Questival day",
+    sub: "Breakfast in the park, then the city is the classroom.",
+    start: T("12", "10:00"), time: "10:00",
+    location: "Dahlia Dell, Golden Gate Park",
+    activities: ["sat-breakfast", "sat-questival", "sat-sports", "sat-catchup", "sat-lunch", "sat-sidequests"],
+    side: [],
+  },
+  {
+    id: "s22", number: "2.2", day: "sat",
+    title: "The bonfire & dinner",
+    sub: "Questival closes at five. Sunset, then dinner, trivia and results.",
+    start: T("12", "17:00"), time: "17:00",
+    location: "Ocean Beach → Common Space",
+    activities: ["sat-bonfire", "sat-doors", "sat-dinner"],
+    side: ["sat-after"],
+  },
+  {
+    id: "s31", number: "3.1", day: "sun",
+    title: "The picnic & goodbyes",
+    sub: "Where we ended Minerva, to end this.",
+    start: T("13", "11:00"), time: "11:00",
+    location: "Hellman Hollow, Golden Gate Park",
+    activities: ["sun-brunch", "sun-closing", "sun-park"],
+    side: ["sun-disc-golf"],
+  },
+];
+
+export function getSession(id: string): Session | undefined {
+  return SESSIONS.find((s) => s.id === id);
+}
+export function sessionsFor(day: Day): Session[] {
+  return SESSIONS.filter((s) => s.day === day);
+}
+export function sessionOf(activityId: string): Session | undefined {
+  return SESSIONS.find((s) => s.activities.includes(activityId) || s.side.includes(activityId));
+}
+/** The next class that hasn't started yet (or the one in progress within 4h). */
+export function nextSession(now: Date): Session | null {
+  const t = now.getTime();
+  for (const s of SESSIONS) {
+    const st = Date.parse(s.start);
+    if (t < st + 4 * 3600_000) return s;
+  }
+  return null;
+}
+
 export const DAYS: { id: Day; label: string; session: string; title: string; date: string; sub: string }[] = [
   { id: "fri", label: "Fri", session: "1.1", title: "Arrivals & the welcome dinner", date: "Fri, Sep 11, 2026", sub: "Presidio by day, the Mission by night" },
   { id: "sat", label: "Sat", session: "1.2", title: "Questival day, with a few anchors", date: "Sat, Sep 12, 2026", sub: "Golden Gate Park → the city → Ocean Beach" },
   { id: "sun", label: "Sun", session: "1.3", title: "The picnic & goodbyes", date: "Sun, Sep 13, 2026", sub: "Hellman Hollow, Golden Gate Park" },
 ];
 
-const T = (day: "11" | "12" | "13", hhmm: string) => `2026-09-${day}T${hhmm}:00-07:00`;
-
 export const ACTIVITIES: Activity[] = [
   // ---------------------------------------------------------------- Friday
-  {
-    id: "fri-lunch",
-    lat: 37.8027,
-    lng: -122.4655,
-    day: "fri",
-    start: T("11", "12:00"),
-    time: "12:00",
-    title: "Arrival lunch",
-    kind: "optional",
-    venue: "Presidio food trucks",
-    address: "Presidio Tunnel Tops, San Francisco, CA 94129",
-    host: "Nathan",
-    body: "People trickle in. Grab lunch from the trucks and find the group on the lawn. Self-pay.",
-    pending: "Spark Social vs. Presidio trucks — final pick by Friday.",
-  },
-  {
-    id: "fri-wander",
-    day: "fri",
-    start: T("11", "14:00"),
-    time: "14:00",
-    title: "Neighborhood wander or a museum",
-    kind: "optional",
-    host: "Nathan",
-    body: "Free-flow afternoon in small groups. Nathan is curating a short list of neighborhoods and museums.",
-    pending: "Suggestions list lands here by Friday.",
-  },
   {
     id: "fri-dinner",
     lat: 37.7606,
@@ -94,11 +147,14 @@ export const ACTIVITIES: Activity[] = [
     day: "fri",
     start: T("11", "21:00"),
     time: "21:00",
-    title: "Bar hopping",
-    kind: "optional",
-    venue: "Mission bars, decided at dinner",
-    host: "Nathan + Ani",
-    body: "For those still going — we'll make our way around the neighborhood.",
+    title: "Bar hopping with Nathan",
+    kind: "peer",
+    venue: "The Mission, from Southern Pacific",
+    host: "Nathan",
+    body: "After dinner, Nathan leads whoever's still going around the Mission. Bars decided on the spot. Say you're in and he knows how many to herd.",
+    goingSeed: ["Nathan Torento"],
+    lat: 37.7606,
+    lng: -122.4133,
   },
   {
     id: "fri-altin-gun",
@@ -350,9 +406,8 @@ export function dayOf(now: Date): Day | null {
 
 /** Open windows for a one-on-one catch-up (Mau's mini-Calendly). */
 export const CATCHUP_SLOTS: { id: string; label: string; day: Day; start: string }[] = [
-  { id: "fri-1400", label: "Fri 2:00–3:00 PM · around the Presidio", day: "fri", start: T("11", "14:00") },
-  { id: "fri-1500", label: "Fri 3:00–4:00 PM · around the Presidio", day: "fri", start: T("11", "15:00") },
-  { id: "fri-1700", label: "Fri 5:00–6:00 PM · before dinner, Mission", day: "fri", start: T("11", "17:00") },
+  { id: "fri-1600", label: "Fri 4:00–5:00 PM · a coffee in the Mission", day: "fri", start: T("11", "16:00") },
+  { id: "fri-1700", label: "Fri 5:00–6:00 PM · Southern Pacific patio, before dinner", day: "fri", start: T("11", "17:00") },
   { id: "sat-1330", label: "Sat 1:30–2:30 PM · Alamo Square", day: "sat", start: T("12", "13:30") },
   { id: "sat-1600", label: "Sat 4:00–5:00 PM · on the way to the beach", day: "sat", start: T("12", "16:00") },
   { id: "sun-1200", label: "Sun 12:00–1:00 PM · Hellman Hollow", day: "sun", start: T("13", "12:00") },

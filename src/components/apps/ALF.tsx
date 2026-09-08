@@ -18,7 +18,7 @@ import {
 } from "@/lib/letter";
 import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
-import { DayCards } from "@/components/forum/DayCards";
+import { SessionList } from "@/components/forum/SessionCards";
 import { GuideView } from "@/components/forum/Guide";
 import { useForumStore } from "@/components/forum/ForumStore";
 import { QUESTIVAL } from "@/lib/questival";
@@ -669,16 +669,8 @@ function ForumHome({
       <div className="alf-fm-home-main">
         {joined && (
           <div className="alf-fm-questival" style={{ maxWidth: "none" }}>
-            <div className="fm-now" style={{ marginBottom: 14 }}>
-              <div className="fm-now-eyebrow">Welcome to the weekend</div>
-              <div className="fm-now-title">Fri Sep 11 – Sun Sep 13 · San Francisco</div>
-              <div className="fm-now-sub">Three sessions. Dinner Friday at six, Questival Saturday, the picnic Sunday. Tap <b>I&apos;m going</b> on anything below.</div>
-              <button className="fm-shiny" style={{ maxWidth: 360 }} onClick={onOpenGuide}>✦ How it all works</button>
-            </div>
-            <DayCards onOpenDay={(d) => onOpenSession(`ru26-1-${d === "fri" ? 1 : d === "sat" ? 2 : 3}`)} onOpenActivity={onOpenActivity} />
-            <p className="alf-card-para" style={{ margin: "0 0 14px" }}>
-              Every venue, with directions and who&apos;s going, is also in <b>Calendar</b>; the map is in <b>Maps</b>. Both are in the dock.
-            </p>
+            <SessionList onOpenSession={(id) => onOpenSession(`ru26-${id}`)} />
+            <button className="fm-shiny" style={{ maxWidth: 360, marginTop: 0, marginBottom: 16 }} onClick={onOpenGuide}>✦ How it all works</button>
           </div>
         )}
         <section className="alf-card">
