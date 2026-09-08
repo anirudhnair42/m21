@@ -140,7 +140,7 @@ export const ACTIVITIES: Activity[] = [
     kind: "anchor",
     venue: "Southern Pacific Brewing",
     address: "620 Treat Ave, San Francisco, CA 94110",
-    host: "Dulce + Anna",
+    host: "Dulce, Amal, Mau, Nathan, Anna and Ani",
     body: "The grand opening. Patio space for mingling, ~50 of us, no name tags. Come reconnect, and bring your opening line.",
     cost: "Dinner covered by your RSVP. Drinks on you.",
     pending: "Reservation being finalized.",
