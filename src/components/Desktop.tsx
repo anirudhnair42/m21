@@ -95,6 +95,11 @@ export function Desktop() {
     }
   }, [paymentReturn, hotelReturn, authReturn, deepLink]);
 
+  // The 2017 rewind is an easter egg now: the  menu, or ?relive. The
+  // desktop opens straight onto the Forum with the weekend.
+  const [relive] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("relive"));
+  const [introOpen, setIntroOpen] = useState(relive);
+
   const [windows, setWindows] = useState<WindowsMap>(() => {
     const map = emptyWindows();
     const initial: AppId | null = paymentReturn
@@ -105,17 +110,17 @@ export function Desktop() {
         ? deepLink
         : authReturn
           ? authReturn
-          : null;
+          : relive
+            ? null
+            : "alf";
     if (initial) {
       map[initial] = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
     }
     return map;
   });
-  const [topZ, setTopZ] = useState(
-    paymentReturn || hotelReturn || authReturn || deepLink ? 2 : 1,
-  );
+  const [topZ, setTopZ] = useState(2);
   const [activeId, setActiveId] = useState<AppId | null>(
-    paymentReturn ? "rsvp" : hotelReturn ? "stay" : deepLink ? deepLink : authReturn,
+    paymentReturn ? "rsvp" : hotelReturn ? "stay" : deepLink ? deepLink : authReturn ? authReturn : relive ? null : "alf",
   );
 
   // Reunion invitations + plans, shared with Calendar/Maps/Photos/ALF.
@@ -124,13 +129,7 @@ export function Desktop() {
 
   // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
   // and the "Turn back time" gate).
-  const flow = useReunionFlow({
-    skipIntro:
-      paymentReturn !== null ||
-      hotelReturn !== null ||
-      authReturn !== null ||
-      deepLink !== null,
-  });
+  const flow = useReunionFlow({ skipIntro: !relive });
   const {
     now,
     rsvpCount,
@@ -252,6 +251,7 @@ export function Desktop() {
         appName={menuAppName}
         rsvpCount={rsvpCount}
         currentTime={now}
+        onApple={() => setIntroOpen(true)}
       />
 
       <div className="desktop-icons">
@@ -390,13 +390,20 @@ export function Desktop() {
         </div>
       )}
 
-      {!started && (
+      {introOpen && (
         <IntroDialog
           variant="macos"
-          onStart={flow.start}
+          onStart={() => {
+            setIntroOpen(false);
+            closeApp("alf");
+            flow.relive();
+          }}
           onSkip={() => {
-            flow.skipIntro();
-            openAlfAt("home");
+            setIntroOpen(false);
+            if (!started) {
+              flow.skipIntro();
+              openAlfAt("home");
+            }
           }}
         />
       )}

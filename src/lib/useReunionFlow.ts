@@ -83,6 +83,14 @@ export function useReunionFlow(opts?: {
   /** Land on the desktop with no scripted intro (e.g. back from checkout). */
   const skipIntro = useCallback(() => setIntroMode("skipped"), []);
 
+  /** The easter egg: replay the 2017 rewind from a running desktop. */
+  const relive = useCallback(() => {
+    handedOffRef.current = false;
+    setIntroMode("idle");
+    // Next tick so the "idle" → "scripted" transition re-fires the effect.
+    setTimeout(() => setIntroMode("scripted"), 0);
+  }, []);
+
   const dismissNotification = useCallback(() => {
     setNotifClosing((closing) => {
       if (closing) return closing;
@@ -135,6 +143,7 @@ export function useReunionFlow(opts?: {
     // actions
     start,
     skipIntro,
+    relive,
     setAlfInitialView,
     dismissNotification,
     showMailNotification,

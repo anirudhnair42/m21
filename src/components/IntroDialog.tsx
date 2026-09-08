@@ -52,7 +52,7 @@ export function IntroDialog({ variant, onStart, onSkip }: Props) {
             className="introdlg-btn-ghost"
             onClick={() => dismiss(onSkip)}
           >
-            I&apos;ve relived it already — straight to the Forum
+            Not now — back to the weekend
           </button>
         </div>
       </div>

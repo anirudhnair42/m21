@@ -40,8 +40,8 @@ export function MobileShell() {
   }, []);
 
   if (openParam === "stay") return <MobileHotel />;
-  if (!openParam && forum === "yes") return <ForumMobile initialTab="home" />;
-  if (!openParam && forum === "checking") return <div style={{ minHeight: "100dvh", background: "#f6f3ec" }} />;
+  // The weekend is live: the root is the Forum (its gate handles sign-in).
+  if (!openParam || openParam === "alf") return <ForumMobile initialTab="home" />;
   if (openParam === "aid") {
     return (
       <div style={{ minHeight: "100dvh", background: "var(--minerva-paper)" }}>

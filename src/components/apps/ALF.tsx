@@ -279,7 +279,10 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               joined={my.joined}
               pendingPayment={my.status === "pending"}
               a11Submitted={a11.submitted}
+              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, submitted: forum.final !== null } : null}
               onOpenCourse={() => openCourse(REUNION_COURSE.id)}
+              onOpenSession={openSession}
+              onOpenQuestival={openQuestival}
               onOpenRSVP={onOpenRSVP}
               onOpenAssignment={openAssignment}
             />
@@ -535,7 +538,7 @@ function ForumBanner({
   const firstName = identity.name?.split(" ")[0];
   let title = firstName ? `Welcome, ${firstName}` : "Welcome back";
   let sub = joined
-    ? "You're in — one reflection due before September 11."
+    ? "Welcome to the weekend. The run of show is below and in Calendar; your assignments are due here."
     : RSVP_CLOSED
       ? `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.`
       : "One course this fall, one thing due — your RSVP.";
@@ -614,14 +617,21 @@ function ForumHome({
   joined,
   pendingPayment,
   a11Submitted,
+  questival,
   onOpenCourse,
+  onOpenSession,
+  onOpenQuestival,
   onOpenRSVP,
   onOpenAssignment,
 }: {
   joined: boolean;
   pendingPayment: boolean;
   a11Submitted: boolean;
+  /** Assignment 3 state when it's open to this person; null while locked. */
+  questival: { proofs: number; submitted: boolean } | null;
   onOpenCourse: () => void;
+  onOpenSession: (id: string) => void;
+  onOpenQuestival: () => void;
   onOpenRSVP: () => void;
   onOpenAssignment: (id: string) => void;
 }) {
@@ -629,6 +639,25 @@ function ForumHome({
   return (
     <div className="alf-fm-home">
       <div className="alf-fm-home-main">
+        {joined && (
+          <section className="alf-card">
+            <h2 className="alf-card-h">This weekend</h2>
+            <p className="alf-card-para">
+              Three sessions, one per day. The full run of show with venues, directions and who&apos;s going is in{" "}
+              <b>Calendar</b>; the map is in <b>Maps</b>. Both are in the dock.
+            </p>
+            <ul className="alf-office-list">
+              {course.sessions.map((s) => (
+                <li key={s.id} className="alf-office-item">
+                  <a className="alf-link" onClick={() => onOpenSession(s.id)}>
+                    Session {s.number} — {s.title}
+                  </a>
+                  <div className="alf-office-meta">{s.date}{s.location ? ` · ${s.location}` : ""}</div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <section className="alf-card">
           <h2 className="alf-card-h">
             {joined ? "Assignments Due" : "Assignments Due in the Next 7 Days"}
@@ -673,6 +702,29 @@ function ForumHome({
                     >
                       {a11Submitted ? "Submitted · Editable" : "Open"}
                     </td>
+                  </tr>
+                  {questival ? (
+                    <tr className={`alf-graded-row${questival.submitted ? " alf-graded-row-done" : ""}`} onClick={onOpenQuestival}>
+                      <td className={`alf-graded-iconcell${questival.submitted ? " alf-done-check" : ""}`}>{questival.submitted ? "✓" : <PaperclipIcon />}</td>
+                      <td className="alf-graded-title">
+                        <a className="alf-link">{course.code} — Assignment 3: Questival</a>
+                        <span className="guide-chip">Sat, Sep 12</span>
+                      </td>
+                      <td className={`alf-graded-result${questival.submitted ? " alf-graded-result-done" : ""}`}>
+                        {questival.submitted ? "Submitted" : questival.proofs ? `In progress · ${questival.proofs} saved` : "Open"}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr className="alf-graded-row alf-row-disabled locked locked-below" data-locked="The brief drops here this week">
+                      <td className="alf-graded-iconcell">🔒</td>
+                      <td className="alf-graded-title"><span className="alf-link alf-link-disabled">{course.code} — Assignment 3: Questival</span></td>
+                      <td className="alf-graded-result"><span className="alf-status-muted">Locked · Sat, Sep 12</span></td>
+                    </tr>
+                  )}
+                  <tr className="alf-graded-row alf-row-disabled locked locked-below" data-locked="Unlocks Sunday at the closing moment">
+                    <td className="alf-graded-iconcell">🔒</td>
+                    <td className="alf-graded-title"><span className="alf-link alf-link-disabled">{course.code} — Assignment 4: closing line</span></td>
+                    <td className="alf-graded-result"><span className="alf-status-muted">Locked · Sun, Sep 13</span></td>
                   </tr>
                 </>
               ) : (
