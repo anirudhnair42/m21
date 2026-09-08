@@ -95,14 +95,32 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
 
       const pin = (cls: string, label: string) => L.divIcon({ className: "", html: `<div class="fm-pin ${cls}">${label}</div>`, iconSize: [0, 0], iconAnchor: [0, 0] });
 
+      // One pin per place: Dahlia Dell hosts breakfast, sports and the
+      // Questival start; Southern Pacific hosts dinner and the bar hop.
+      const spots = new Map<string, typeof ACTIVITIES>();
       for (const a of ACTIVITIES) {
         if (a.lat == null || a.lng == null) continue;
-        const going = who[a.id]?.going ?? [];
-        const mine = plans.some((p) => p.kind === "activity" && p.target_id === a.id);
-        const d = DAYS.find((x) => x.id === a.day)!;
-        const m = L.marker([a.lat, a.lng], { icon: pin(a.kind === "peer" ? "fm-pin-peer" : a.kind === "anchor" ? "fm-pin-anchor" : "fm-pin-opt", `${d.label} ${a.time.split(" ")[0]}`) });
-        m.bindPopup(popupHtml(a.title, `${d.label} ${a.time}${a.venue ? ` · ${a.venue}` : ""}`, faces(going), `${going.length} going${mine ? " · you're in" : ""}`, `activity:${a.id}`));
-        m.addTo(a.kind === "peer" ? layers.side : layers.anchors);
+        const key = `${a.lat.toFixed(3)},${a.lng.toFixed(3)}`;
+        spots.set(key, [...(spots.get(key) ?? []), a]);
+      }
+      for (const group of spots.values()) {
+        const lead = group.find((a) => a.required) ?? group.find((a) => a.kind === "anchor") ?? group[0];
+        const first = [...group].sort((a, b) => (a.start ? Date.parse(a.start) : Infinity) - (b.start ? Date.parse(b.start) : Infinity))[0];
+        const d = DAYS.find((x) => x.id === lead.day)!;
+        const going = who[lead.id]?.going ?? [];
+        const mine = group.some((a) => plans.some((p) => p.kind === "activity" && p.target_id === a.id));
+        const cls = lead.required || lead.kind === "anchor" ? "fm-pin-anchor" : lead.kind === "peer" ? "fm-pin-peer" : "fm-pin-opt";
+        const label = `${d.label} ${first.time.split(" ")[0]}${lead.required ? " ★" : ""}`;
+        const lines = group
+          .slice()
+          .sort((a, b) => (a.start ? Date.parse(a.start) : Infinity) - (b.start ? Date.parse(b.start) : Infinity))
+          .map((a) => escapeHtml(`${a.time} ${a.title}${a.required ? " · everyone" : a.kind === "peer" ? " · side quest" : ""}`))
+          .join("<br>");
+        const m = L.marker([lead.lat!, lead.lng!], { icon: pin(cls, label) });
+        m.bindPopup(
+          popupHtml(lead.venue ?? lead.title, "", faces(going), `${lead.required ? `all ${going.length} of us` : `${going.length} going`}${mine ? " · you're in" : ""}`, `activity:${lead.id}`, lines),
+        );
+        m.addTo(lead.kind === "peer" ? layers.side : layers.anchors);
       }
       for (const q of liveQuests.filter((x) => x.venue)) {
         if (q.lat == null || q.lng == null) continue;
@@ -163,7 +181,7 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
         <button className="fm-filter" onClick={locate}>{located ? "◉ You" : "◎ Find me"}</button>
       </div>
       <div className="fm-map-legend">
-        <span><i className="fm-pin fm-pin-anchor fm-pin-mini" /> everyone</span>
+        <span><i className="fm-pin fm-pin-anchor fm-pin-mini" /> main event (★ required)</span>
         {questivalOpen && <span><i className="fm-pin fm-pin-quest fm-pin-mini" /> quest · pts</span>}
         <span><i className="fm-pin fm-pin-peer fm-pin-mini" /> peer-led</span>
       </div>
@@ -171,10 +189,11 @@ export function MapView({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: 
   );
 }
 
-function popupHtml(title: string, sub: string, faces: string, who: string, open: string): string {
+function popupHtml(title: string, sub: string, faces: string, who: string, open: string, linesHtml?: string): string {
   return `<div class="fm-popup">
     <div class="fm-popup-title">${escapeHtml(title)}</div>
-    <div class="fm-popup-sub">${escapeHtml(sub)}</div>
+    ${sub ? `<div class="fm-popup-sub">${escapeHtml(sub)}</div>` : ""}
+    ${linesHtml ? `<div class="fm-popup-lines">${linesHtml}</div>` : ""}
     <div class="fm-popup-who"><span class="fm-faces">${faces}</span><span>${escapeHtml(who)}</span></div>
     <button class="fm-btn fm-btn-blue fm-popup-btn" data-open="${open}">Open</button>
   </div>`;
