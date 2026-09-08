@@ -179,7 +179,7 @@ describe("nowNext (3h 'now' window)", () => {
     assert.ok(r.now && ["sat-breakfast", "sat-questival"].includes(r.now.id), "one of the two 10:00 starts");
     assert.equal(r.next?.id, "sat-sports");
     r = nowNext(pt(12, "14:30"));
-    assert.equal(r.now?.id, "sat-catchup");
+    assert.equal(r.now?.id, "sat-sports");
     assert.equal(r.next?.id, "sat-lunch");
     r = nowNext(pt(12, "19:30"));
     assert.equal(r.now?.id, "sat-dinner");
@@ -224,7 +224,7 @@ describe("timezone independence (nothing uses the browser's local clock)", () =>
       process.env.TZ = tz;
       assert.equal(dayOf(new Date("2026-09-12T06:59:59Z")), "fri");
       assert.equal(dayOf(new Date("2026-09-12T07:00:00Z")), "sat");
-      assert.equal(nowNext(pt(12, "14:30")).now?.id, "sat-catchup");
+      assert.equal(nowNext(pt(12, "14:30")).now?.id, "sat-sports");
       assert.equal(nextSession(pt(12, "15:10"))?.id, "s21");
       // The T() helper writes the offset, so an overseas browser never moves a meetup.
       assert.equal(new Date(getActivity("sat-breakfast")!.start!).toISOString(), "2026-09-12T17:00:00.000Z");

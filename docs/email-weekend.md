@@ -12,8 +12,8 @@ FRIDAY · Session 1.1 — Arrivals & the welcome dinner
 SATURDAY · Session 2.1 — Questival day
 10:00 AM · Breakfast at Dahlia Dell, Golden Gate Park (everyone)
 10:00–5:00 · Questival, all over the city (Assignment 3 — brief drops this week)
-11:30 · Sports Palooza · 1:30 · Speed catch-up at Alamo Square
-3:00 PM · Lunch at the Res Hall, 2550 Van Ness (everyone)
+11:30 · Sports Palooza on the Dahlia Dell lawn, with Mau (everyone)
+3:00 PM · Lunch & speed mingling at the Res Hall, 2550 Van Ness (everyone), then you're free to explore
 
 SATURDAY · Session 2.2 — Dinner at The Loft, then Chug Pub
 Finish your last quest with your crew, then head to the Marina.
@@ -22,7 +22,7 @@ Finish your last quest with your crew, then head to the Marina.
 
 SUNDAY · Session 3.1 — The picnic & goodbyes
 11:00 AM · Faculty brunch & picnic · Hellman Hollow, Golden Gate Park (everyone)
-Then the park until your flight. Side quest: disc golf with Mau.
+12:30 · Closing moment, then the park until your flight. Side quest: disc golf with Mau.
 
 Three things to do on the site before Friday:
 1. Tap "I'm going" on the optional stuff so we know numbers.
