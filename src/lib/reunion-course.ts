@@ -215,9 +215,21 @@ const SAT: Session = {
     {
       heading: "Resources for Class",
       resources: [
-        { label: "Questival challenge list", note: "Link goes here" },
-        { label: "Nostalgic stops map (851, 1412, Corona Heights…)", note: "TBD" },
-        { label: "Photo wall — submit your recreation" },
+        {
+          label: "Questival challenge list",
+          url: "https://www.walkspotter.com/e/UPBYAA",
+          note: "Tap your own name once — that phone is you for the day",
+        },
+        {
+          label: "Nostalgic stops map (851, 1412, Corona Heights…)",
+          url: "https://www.walkspotter.com/e/UPBYAA/map",
+          note: "Plots what's left and walks you between them",
+        },
+        {
+          label: "Photo wall — submit your recreation",
+          url: "https://www.walkspotter.com/e/UPBYAA/feed",
+          note: "Everyone's proofs, newest first",
+        },
       ],
     },
   ],
@@ -303,7 +315,7 @@ export const REUNION_COURSE: Course = {
     { name: "Anirudh Nair" },
     { name: "Mau Urdaneta" },
     { name: "Amal Muthukumaran" },
-    { name: "Dulce Riviera" },
+    { name: "Dulce Rivera" },
     { name: "Nathan Torento" },
     { name: "Anna Graves" },
   ],
