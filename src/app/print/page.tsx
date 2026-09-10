@@ -33,11 +33,6 @@ export default function PrintPage() {
         </div>
       </header>
 
-      <p className="pr-lede">
-        Four classes over three days. Rows marked <b>Main event</b> are the key programming, where everyone is; the rest is optional.
-        Side quests are peer-led extras. The live version, with directions, who&apos;s going, and Assignment 3, is at <b>{SITE}</b>. Sign in with the Google account you RSVP&apos;d with.
-      </p>
-
       {SESSIONS.map((s) => {
         const rows = s.activities.map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
         const side = s.side.map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
@@ -79,21 +74,6 @@ export default function PrintPage() {
         );
       })}
 
-      <section className="pr-session pr-assign">
-        <h2 className="pr-session-title">Assignments</h2>
-        <table className="pr-table">
-          <tbody>
-            <tr><td className="pr-time">1</td><td className="pr-what"><div className="pr-name">Opening-line reflection</div><div className="pr-body">Who are you most excited to see? Due before Friday, on the site.</div></td></tr>
-            <tr><td className="pr-time">3</td><td className="pr-what"><div className="pr-name">Questival</div><div className="pr-body">Saturday, 10:00 AM to 5:00 PM. Quests across the city, points for every one, tag whoever did it with you. Submit your final list before dinner. Results at The Loft.</div></td></tr>
-            <tr><td className="pr-time">4</td><td className="pr-what"><div className="pr-name">Closing line</div><div className="pr-body">Sunday at the closing moment. One line about what you&apos;re taking home.</div></td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      <footer className="pr-foot">
-        <span>Housing: Minerva Res Hall, 2550 Van Ness Ave, Fri–Mon, $200 per room.</span>
-        <span>Questions: the cohosts, or {SITE}</span>
-      </footer>
     </main>
   );
 }
