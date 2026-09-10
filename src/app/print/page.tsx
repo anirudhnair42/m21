@@ -31,7 +31,8 @@ export default function PrintPage() {
         <div>
           <div className="pr-eyebrow">Reunion course · Fall 2026 · San Francisco</div>
           <h1 className="pr-title">RU26 · Alumni Reunifications</h1>
-          <div className="pr-sub">The run of show · September 11–13, 2026 · Nair / Urdaneta / Muthukumaran / Rivera / Torento / Graves</div>
+          <div className="pr-sub">The run of show · September 11–13, 2026</div>
+          <div className="pr-sub-2">Nair / Urdaneta / Muthukumaran / Rivera / Torento / Graves</div>
         </div>
         <div className="pr-qr">
           {/* eslint-disable-next-line @next/next/no-img-element */}

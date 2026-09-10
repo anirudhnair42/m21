@@ -14,11 +14,12 @@
   user-select: text;
   -webkit-user-select: text;
 }
-.pr-head { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #1a2530; }
-.pr-mark { width: 92px; height: auto; display: block; }
+.pr-head { display: grid; grid-template-columns: 58px 1fr auto; gap: 0 14px; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #1a2530; }
+.pr-mark { width: 56px; height: auto; display: block; }
 .pr-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6660; }
 .pr-title { font-family: "Chronicle Display", serif; font-weight: 400; font-size: 30px; line-height: 1.05; margin: 2px 0 4px; }
 .pr-sub { font-size: 11px; color: #4a4a4a; }
+.pr-sub-2 { font-size: 10px; color: #6b6660; margin-top: 1px; }
 .pr-qr { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #6b6660; }
 .pr-lede { margin: 14px 0 18px; font-size: 12px; color: #2a2a2a; max-width: 720px; }
 .pr-session { margin: 0 0 18px; }
