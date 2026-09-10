@@ -59,7 +59,7 @@ export default function PrintPage() {
                   <tr key={a.id} className={a.required ? "pr-req" : a.kind === "anchor" ? "" : "pr-opt"}>
                     <td className="pr-time">{a.time}</td>
                     <td className="pr-what">
-                      <div className="pr-name">{a.title}{a.required && <span className="pr-tag">Main event</span>}{!a.required && a.kind !== "anchor" && <span className="pr-tag pr-tag-opt">Optional</span>}</div>
+                      <div className="pr-name">{a.title}{a.required && <span className="pr-tag">Main event</span>}</div>
                       <div className="pr-where">{where(a.venue, a.address)}{a.host ? ` · ${a.host}` : ""}</div>
                       <div className="pr-body">{a.body}</div>
                     </td>

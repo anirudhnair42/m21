@@ -114,7 +114,7 @@ export function SessionCard({ session: s, onOpenActivity, compactHead }: { sessi
               <span className="fm-daycard-time">{a.time}</span>
               <span className="fm-daycard-main">
                 <span className="fm-daycard-name">{a.title}</span>
-                <span className="fm-daycard-venue">{a.venue ?? "optional"}{a.required ? " · everyone" : ""}</span>
+                <span className="fm-daycard-venue">{a.venue ?? ""}{a.required ? " · everyone" : ""}</span>
               </span>
               <Faces people={going} max={3} />
               {a.required ? (

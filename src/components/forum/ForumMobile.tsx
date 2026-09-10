@@ -482,7 +482,7 @@ export function ActivityView({ activity: a, onShare }: { activity: Activity; onS
   return (
     <>
       <section className="alf-card">
-        <p className="fm-eyebrow">{d.label}, {a.time} · {a.required ? "Main event · everyone" : a.kind === "anchor" ? "Main event" : a.kind === "optional" ? "Optional" : "Peer-led"}</p>
+        <p className="fm-eyebrow">{d.label}, {a.time}{a.required ? " · Main event · everyone" : a.kind === "peer" ? " · Side quest" : ""}</p>
         <h2 className="alf-card-h" style={{ fontSize: 22 }}>{a.title}</h2>
         <div className="fm-detail-meta">
           {a.venue && <span><b>Where</b> · {a.venue}{a.address ? `, ${a.address}` : ""}</span>}

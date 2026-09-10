@@ -59,9 +59,8 @@ export function WeekendApp({ initialActivity }: { initialActivity?: string }) {
           </button>
         ))}
         <div className="wk-side-h" style={{ marginTop: 14 }}>Calendars</div>
-        <div className="wk-day-btn"><span className="wk-dot" style={{ background: "#1463b0" }} />Everyone</div>
-        <div className="wk-day-btn"><span className="wk-dot" style={{ background: "#8a8680" }} />Optional</div>
-        <div className="wk-day-btn"><span className="wk-dot" style={{ background: "#8b4789" }} />Peer-led</div>
+        <div className="wk-day-btn"><span className="wk-dot" style={{ background: "#1463b0" }} />Main events</div>
+        <div className="wk-day-btn"><span className="wk-dot" style={{ background: "#8b4789" }} />Side quests</div>
       </aside>
       <div className="wk-main">
         <div className="wk-head">
