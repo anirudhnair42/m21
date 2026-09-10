@@ -10,6 +10,13 @@ export const metadata: Metadata = {
 const DAY = { fri: "Friday, September 11", sat: "Saturday, September 12", sun: "Sunday, September 13" } as const;
 const SITE = "https://www.m2021.co";
 
+/** "Dahlia Dell · Dahlia Dell, Golden Gate Park…" reads twice; collapse when the address already starts with the venue. */
+function where(venue?: string, address?: string): string {
+  if (!venue) return address ?? "";
+  if (!address) return venue;
+  return address.toLowerCase().startsWith(venue.split(",")[0].toLowerCase()) ? address : `${venue} · ${address}`;
+}
+
 /**
  * The weekend on paper: the same course, sessions and run of show as the
  * Forum, laid out for a letter-size page. Print it, or save it as a PDF and
@@ -53,7 +60,7 @@ export default function PrintPage() {
                     <td className="pr-time">{a.time}</td>
                     <td className="pr-what">
                       <div className="pr-name">{a.title}{a.required && <span className="pr-tag">Main event</span>}{!a.required && a.kind !== "anchor" && <span className="pr-tag pr-tag-opt">Optional</span>}</div>
-                      <div className="pr-where">{a.venue}{a.address ? ` · ${a.address}` : ""}{a.host ? ` · ${a.host}` : ""}</div>
+                      <div className="pr-where">{where(a.venue, a.address)}{a.host ? ` · ${a.host}` : ""}</div>
                       <div className="pr-body">{a.body}</div>
                     </td>
                   </tr>
@@ -63,7 +70,7 @@ export default function PrintPage() {
                     <td className="pr-time">{a.time}</td>
                     <td className="pr-what">
                       <div className="pr-name">{a.title}<span className="pr-tag pr-tag-side">Side quest</span></div>
-                      <div className="pr-where">{a.venue}{a.address ? ` · ${a.address}` : ""}{a.host ? ` · with ${a.host}` : ""}{a.cost ? ` · ${a.cost}` : ""}</div>
+                      <div className="pr-where">{where(a.venue, a.address)}{a.host ? ` · with ${a.host}` : ""}{a.cost ? ` · ${a.cost}` : ""}</div>
                       <div className="pr-body">{a.body}</div>
                     </td>
                   </tr>
