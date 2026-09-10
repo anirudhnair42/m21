@@ -14,8 +14,8 @@
   user-select: text;
   -webkit-user-select: text;
 }
-.pr-head { display: grid; grid-template-columns: 58px 1fr auto; gap: 0 14px; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #1a2530; }
-.pr-mark { width: 56px; height: auto; display: block; }
+.pr-head { display: grid; grid-template-columns: 44px 1fr auto; gap: 0 14px; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #1a2530; }
+.pr-mark { width: 44px; height: auto; display: block; margin: 0 auto; }
 .pr-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6660; }
 .pr-title { font-family: "Chronicle Display", serif; font-weight: 400; font-size: 30px; line-height: 1.05; margin: 2px 0 4px; }
 .pr-sub { font-size: 11px; color: #4a4a4a; }
@@ -33,7 +33,7 @@
 .pr-session-sub { font-size: 11px; color: #6b6660; }
 .pr-table { width: 100%; border-collapse: collapse; }
 .pr-table td { padding: 7px 0; border-top: 1px solid #e6e1d5; vertical-align: top; }
-.pr-time { width: 58px; font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; color: #8a8680; padding-top: 9px !important; }
+.pr-time { width: 58px; padding-right: 0 !important; font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; color: #8a8680; padding-top: 9px !important; }
 .pr-name { font-size: 12.5px; font-weight: 600; color: #1a1a1a; }
 .pr-opt .pr-name { font-weight: 500; color: #4a4a4a; }
 .pr-where { font-size: 10.5px; color: #6b6660; margin-top: 1px; }
