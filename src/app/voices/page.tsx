@@ -6,6 +6,9 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 type Person = { id: string; name: string; photo_url: string | null; voice_url: string | null };
 
+/** Kahoot clip order. Numbers only on screen, so the room can't read the answer. */
+const CLIPS = ["Haruna Katayama", "Hung Nguyen", "Kevin Yang", "Michelle", "Luis Gonzalez", "Nathan Torento", "Megan Cho"];
+
 /**
  * Organizers only: every voice note recorded at RSVP, with a player, so the
  * Kahoot "whose voice is this" clips can be picked. Data is the public
@@ -29,7 +32,8 @@ export default function VoicesPage() {
       }
       const p = await fetch("/api/participants").then((x) => (x.ok ? x.json() : { participants: [] })).catch(() => ({ participants: [] }));
       if (cancelled) return;
-      setPeople((p.participants as Person[]).filter((x) => x.voice_url));
+      const all = (p.participants as Person[]).filter((x) => x.voice_url);
+      setPeople(CLIPS.map((n) => all.find((x) => x.name === n)).filter((x): x is Person => !!x));
       setState("ok");
     })();
     return () => {
@@ -45,8 +49,8 @@ export default function VoicesPage() {
           <img src="/assets/minerva-wordmark.png" alt="Minerva University" className="alf-fb-brand-img" />
         </div>
         <div className="alf-fb-inner">
-          <h1 className="alf-fb-title">RU26 – The voice notes</h1>
-          <p className="alf-fb-sub">Organizers only · recorded at RSVP</p>
+          <h1 className="alf-fb-title">RU26 – Whose voice is this?</h1>
+          <p className="alf-fb-sub">Kahoot clips 1–7 · play, then reveal the options</p>
         </div>
         <div className="alf-fb-user" />
       </header>
@@ -57,21 +61,12 @@ export default function VoicesPage() {
         )}
         {state === "ok" && (
           <section className="alf-card">
-            <h2 className="alf-card-h">{people.length} voice notes</h2>
+            <h2 className="alf-card-h">{people.length} clips</h2>
             <ul className="fm-quests">
               {people.map((p, i) => (
-                <li key={p.id} className="fm-quest" style={{ cursor: "default", gridTemplateColumns: "28px 1fr", alignItems: "start" }}>
-                  <span className="fm-muted" style={{ fontFamily: "var(--font-mono)" }}>{i + 1}</span>
+                <li key={p.id} className="fm-quest" style={{ cursor: "default", gridTemplateColumns: "1fr", alignItems: "start" }}>
                   <span>
-                    <div className="fm-quest-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {p.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.photo_url} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />
-                      ) : (
-                        <span className="fm-face" style={{ margin: 0, width: 26, height: 26 }} />
-                      )}
-                      {p.name}
-                    </div>
+                    <div className="fm-quest-title">Clip {i + 1}</div>
                     <audio controls preload="none" src={p.voice_url ?? undefined} style={{ width: "100%", marginTop: 6 }} />
                   </span>
                 </li>
