@@ -15,6 +15,8 @@ type ProofOwners = { id: string; uploader_rsvp_id: string; members: string[] };
  * before results at 8:30 instead of drifting through the reveal.
  */
 async function shift3(request: Request, give: boolean): Promise<Response> {
+  // Off until sql/questival.sql has created q_shift3 (see /api/forum/access).
+  if (process.env.SHIFT3_OPEN !== "1") fail(503, "Shift 3 isn't switched on yet.", "unconfigured");
   const { supabase, me } = await requireCaller(request, { joined: true });
   const settings = await getSettings(supabase);
   if (windowAt(settings, Date.now()) === "closed") fail(403, CLOSED_MESSAGE, "closed");

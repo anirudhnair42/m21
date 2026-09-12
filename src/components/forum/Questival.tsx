@@ -45,7 +45,7 @@ export function QuestivalHub({
   onOpenMe: () => void;
   onOpenLive: () => void;
 }) {
-  const { quests, submissions, plans, now, settings, phase: w } = useForumStore();
+  const { quests, submissions, plans, now, settings, phase: w, shift3Enabled } = useForumStore();
   const [filter, setFilter] = useState<"all" | "todo" | "planned" | "saved">("all");
   const doneIds = new Set(submissions.map((s) => s.quest_id));
   const plannedIds = new Set(plans.filter((p) => p.kind === "quest").map((p) => p.target_id));
@@ -81,7 +81,7 @@ export function QuestivalHub({
         <p className="alf-card-body">
           Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, and tag
           whoever did it with you. Every proof counts the moment it uploads — there is nothing to submit at the end.
-          Everything is optional; every quest is points, and every Shift 3 the class gives you is one more.
+          Everything is optional; every quest is points{shift3Enabled ? ", and every Shift 3 the class gives you is one more" : ""}.
         </p>
         <div className="fm-progress"><span style={{ width: `${Math.min(100, (doneIds.size / Math.max(1, total)) * 100)}%` }} /></div>
         <div className="fm-stats">
@@ -523,7 +523,7 @@ export function useLive() {
 }
 
 export function LiveView({ initial = "feed" }: { initial?: "feed" | "board" }) {
-  const { me } = useForumStore();
+  const { me, shift3Enabled } = useForumStore();
   const [seg, setSeg] = useState<"feed" | "board">(initial);
   const { items, rows, frozen } = useLive();
 
@@ -564,8 +564,8 @@ export function LiveView({ initial = "feed" }: { initial?: "feed" | "board" }) {
             </tbody>
           </table>
           <p className="fm-muted" style={{ marginTop: 10 }}>
-            Everyone tagged on a proof gets its points, plus one for every Shift 3 it draws. Prizes at dinner for the top
-            three, and for the best recreation.
+            Everyone tagged on a proof gets its points{shift3Enabled ? ", plus one for every Shift 3 it draws" : ""}. Prizes
+            at dinner for the top three, and for the best recreation.
           </p>
         </section>
       )}
@@ -581,7 +581,7 @@ export function LiveView({ initial = "feed" }: { initial?: "feed" | "board" }) {
  * own would be minting points.
  */
 function Shift3Button({ proof }: { proof: SubmissionDTO }) {
-  const { shift3, me } = useForumStore();
+  const { shift3, shift3Enabled, me } = useForumStore();
   const [busy, setBusy] = useState(false);
   /**
    * The optimistic override, tagged with the server numbers it was based on.
@@ -592,6 +592,8 @@ function Shift3Button({ proof }: { proof: SubmissionDTO }) {
   const [optimistic, setOptimistic] = useState<{ from: string; count: number; mine: boolean } | null>(null);
   const serverKey = `${proof.shift3}:${proof.shift3_by_me}`;
   const shown = optimistic && optimistic.from === serverKey ? optimistic : { count: proof.shift3, mine: proof.shift3_by_me };
+
+  if (!shift3Enabled) return null;
 
   const onIt = proof.uploader.id === me.id || proof.members.some((p) => p.id === me.id);
   if (onIt) {
@@ -630,6 +632,7 @@ function Shift3Button({ proof }: { proof: SubmissionDTO }) {
 }
 
 export function Feed({ items, limit }: { items: SubmissionDTO[]; limit?: number }) {
+  const { shift3Enabled } = useForumStore();
   const shown = limit ? items.slice(0, limit) : items;
   return (
     <ul className="fm-feed">
@@ -669,7 +672,7 @@ export function Feed({ items, limit }: { items: SubmissionDTO[]; limit?: number 
               <span>{q?.title ?? f.quest_id}{f.caption ? ` · “${f.caption}”` : ""}{f.note ? ` · “${f.note}”` : ""}</span>
               <span className="fm-pts">+{f.points}</span>
             </div>
-            <div className="fm-card-proof-actions"><Shift3Button proof={f} /></div>
+            {shift3Enabled && <div className="fm-card-proof-actions"><Shift3Button proof={f} /></div>}
           </li>
         );
       })}

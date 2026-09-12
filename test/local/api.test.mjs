@@ -1,6 +1,7 @@
 // Stress/contract tests for the weekend Forum API against the ISOLATED local
 // stack (see test/local/README in the PR description): `next dev` on :3300 with
-// FORUM_TEST_AUTH=1, PostgREST behind the proxy on :3002, Postgres on /tmp:5433.
+// FORUM_TEST_AUTH=1 and SHIFT3_OPEN=1 (the Shift 3 block needs the switch on),
+// PostgREST behind the proxy on :3002, Postgres on /tmp:5433.
 //
 //   corepack pnpm test:api
 //

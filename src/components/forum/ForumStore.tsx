@@ -75,6 +75,8 @@ export type ForumStore = {
   submissions: SubmissionDTO[];
   saveProof: (input: SaveProofInput) => Promise<SubmissionDTO>;
   removeProof: (id: string) => void;
+  /** SHIFT3_OPEN=1 on the server: the heart needs the q_shift3 table. */
+  shift3Enabled: boolean;
   /** Give (or take back) a Shift 3. Resolves to the proof's fresh count. */
   shift3: (id: string, give: boolean) => Promise<Shift3Response | null>;
   catchups: CatchupDTO[];
@@ -156,8 +158,10 @@ export function ForumStoreProvider({
   children: ReactNode;
 }) {
   // ---- the flag + identity
-  const [checked, setChecked] = useState<{ enabled: boolean; name: string; photoUrl: string | null; organizer: boolean; rsvpId: string | null; questival: boolean }>({
-    enabled: false, name: ME.name, photoUrl: null, organizer: false, rsvpId: null, questival: false,
+  const [checked, setChecked] = useState<{
+    enabled: boolean; name: string; photoUrl: string | null; organizer: boolean; rsvpId: string | null; questival: boolean; shift3: boolean;
+  }>({
+    enabled: false, name: ME.name, photoUrl: null, organizer: false, rsvpId: null, questival: false, shift3: false,
   });
   useEffect(() => {
     let cancelled = false;
@@ -167,7 +171,10 @@ export function ForumStoreProvider({
       if (cancelled || !res) return;
       const b = res.ok ? await res.json().catch(() => ({})) : {};
       if (cancelled) return;
-      setChecked({ enabled: !!b.allowed, name: b.name ?? ME.name, photoUrl: b.photoUrl ?? null, organizer: !!b.organizer, rsvpId: b.rsvpId ?? null, questival: !!b.questival });
+      setChecked({
+        enabled: !!b.allowed, name: b.name ?? ME.name, photoUrl: b.photoUrl ?? null, organizer: !!b.organizer,
+        rsvpId: b.rsvpId ?? null, questival: !!b.questival, shift3: !!b.shift3,
+      });
     };
     check();
     const supabase = getSupabaseBrowser();
@@ -572,7 +579,7 @@ export function ForumStoreProvider({
     intents, setIntent,
     plans, addPlan, removePlan,
     invites, replyPlan,
-    submissions, saveProof, removeProof, shift3,
+    submissions, saveProof, removeProof, shift3, shift3Enabled: checked.shift3,
     catchups, requestCatchup, replyCatchup,
     unanswered, toast, setToast,
     refresh,

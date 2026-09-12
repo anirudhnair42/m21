@@ -224,15 +224,14 @@ function ReviewAdmin({ onError }: { onError: (e: string | null) => void }) {
   };
 
   const items = (data?.submissions ?? []).filter((s) => filter === "all" || s.status === "rejected");
+  const hearts = (data?.submissions ?? []).reduce((n, s) => n + s.shift3, 0);
 
   return (
     <>
       <section className="alf-card">
         <div className="fm-assign-head">
           <h3 className="alf-card-h" style={{ margin: 0 }}>Proofs</h3>
-          <span className="fm-muted">
-            {data?.submissions.length ?? 0} total · {(data?.submissions ?? []).reduce((n, s) => n + s.shift3, 0)} Shift 3 given
-          </span>
+          <span className="fm-muted">{data?.submissions.length ?? 0} total{hearts > 0 ? ` · ${hearts} Shift 3 given` : ""}</span>
         </div>
         <div className="fm-filters" style={{ marginTop: 10, marginBottom: 0 }}>
           <button className={`fm-filter${filter === "all" ? " fm-filter-on" : ""}`} onClick={() => setFilter("all")}>All</button>
