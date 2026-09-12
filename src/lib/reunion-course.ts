@@ -118,8 +118,8 @@ const SESSION_NOTES: Record<string, { before: string; assessment: string; resour
     ],
   },
   s21: {
-    before: "Breakfast at Dahlia Dell opens the day. From there the city is the classroom: quests, points, whoever you want. Final lists are due at 5:00 PM.",
-    assessment: "Assignment 3. Capture as you go, tag who did it with you, submit before dinner.",
+    before: "Breakfast at Dahlia Dell opens the day. From there the city is the classroom: quests, points, whoever you want. Quests close at 7:00 PM.",
+    assessment: "Assignment 3. Capture as you go and tag who did it with you — every proof counts on upload.",
     resources: [{ label: "Dahlia Dell, Golden Gate Park", url: "https://maps.apple.com/?q=Dahlia%20Dell%2C%20Golden%20Gate%20Park" }],
   },
   s22: {

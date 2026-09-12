@@ -60,8 +60,11 @@ export type SubmissionDTO = {
   caption: string | null;
   note: string | null;
   status: "approved" | "rejected";
-  points: number; // derived: override ?? quest points; 0 when rejected
-  review_note: string | null;
+  points: number; // derived: the quest's catalog value; 0 when rejected
+  /** Shift 3s received. Each one is +1 point for everyone in `members`. */
+  shift3: number;
+  /** Whether the calling classmate has already given this one a Shift 3. */
+  shift3_by_me: boolean;
   created_at: string;
 };
 
@@ -100,7 +103,6 @@ export type StateResponse = {
   catchups: CatchupDTO[];
   /** activity intents I've set */
   intents: Record<string, "going" | "interested">;
-  final: { submitted_at: string; extension_used: boolean } | null;
   settings: SettingsDTO;
 };
 
@@ -122,11 +124,15 @@ export type CreateSubmissionRequest = {
   idempotency_key: string;
 };
 
-/** PATCH /api/questival/submissions/[id] (organizer) */
-export type ReviewSubmissionRequest = { status?: "approved" | "rejected"; points_override?: number | null; review_note?: string | null };
+/** PATCH /api/questival/submissions/[id] (organizer): take down or restore. */
+export type ReviewSubmissionRequest = { status: "approved" | "rejected" };
 
-/** POST /api/questival/final (bearer) */
-export type FinalResponse = { submitted_at: string; extension_used: boolean };
+/**
+ * POST /api/questival/shift3?id=<submission_id> gives one, DELETE takes it
+ * back (bearer). Idempotent either way: the table's primary key is
+ * (submission_id, giver_rsvp_id).
+ */
+export type Shift3Response = { submission_id: string; shift3: number; shift3_by_me: boolean };
 
 /** PUT /api/weekend/plans (bearer) */
 export type IntentRequest = { activity_id: string; intent: "going" | "interested" | null };
@@ -150,7 +156,7 @@ export type CatchupReplyRequest = { id: string; status: "accepted" | "declined" 
 /** GET /api/questival/feed?cursor=<created_at> (bearer) */
 export type FeedResponse = { items: SubmissionDTO[]; next_cursor: string | null };
 /** GET /api/questival/board (bearer) */
-export type BoardRow = { person: PersonDTO; points: number; completed: number; rank: number };
+export type BoardRow = { person: PersonDTO; points: number; completed: number; rank: number; shift3: number };
 export type BoardResponse = { rows: BoardRow[]; frozen: boolean };
 /** GET /api/map (public; bearer adds faces) */
 export type MapWhoResponse = { activities: Record<string, PersonDTO[]>; quests: Record<string, PersonDTO[]> };
@@ -166,7 +172,7 @@ export type UpdateSettingsRequest = Partial<Pick<SettingsDTO, "opens_at" | "due_
   freeze?: boolean;
 };
 /** GET /api/questival/admin/review (organizer) */
-export type ReviewResponse = { submissions: SubmissionDTO[]; finals: { person: PersonDTO; submitted_at: string; extension_used: boolean }[] };
+export type ReviewResponse = { submissions: SubmissionDTO[] };
 /** GET /api/questival/admin/people (organizer) */
 export type PeopleResponse = { people: (PersonDTO & { email: string | null; status: string; organizer: boolean })[] };
 

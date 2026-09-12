@@ -71,7 +71,7 @@ export function GuideView({ onOpenDay, onOpenClass, onOpenMap, onOpenInbox }: { 
         <h3 className="alf-card-h">6 · Saturday: Assignment 3, Questival</h3>
         <p className="alf-card-body">
           {questivalOpen
-            ? `A catalog of quests across the city, each worth points. Take a photo or video, tag whoever did it with you (everyone tagged gets the points), and it lands on your list. Submit your final list by ${QUESTIVAL.dueLabel}, before dinner at The Loft. Results at dinner.`
+            ? `A catalog of quests across the city, each worth points. Take a photo or video, tag whoever did it with you (everyone tagged gets the points), and it counts the moment it uploads — there is nothing to submit at the end. Give a Shift 3 to anything you love on the feed: each one is another point for everyone on that proof. Quests close ${QUESTIVAL.dueLabel}, an hour into dinner at The Loft. Results around 8:30.`
             : "A pick-your-own-adventure through nostalgic M21 stops, with whoever you want. The brief, the points, and the map pins unlock this week. Bring walking shoes."}
         </p>
       </section>

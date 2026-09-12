@@ -9,7 +9,7 @@ export function MapApp({ onOpenActivity, onOpenQuest }: { onOpenActivity: (id: s
       <div className="mp-toolbar">
         <div className="mp-seg"><span className="on">Map</span><span>Transit</span><span>Satellite</span></div>
         <input className="mp-search" readOnly value="San Francisco, CA — RU26" />
-        <span style={{ marginLeft: "auto", color: "#777" }}>Sat, Sep 12 · Questival 10:00 → 17:00</span>
+        <span style={{ marginLeft: "auto", color: "#777" }}>Sat, Sep 12 · Questival 10:00 → 19:00</span>
       </div>
       <div className="mp-body">
         <div className="fm-main fm-main-map" style={{ position: "absolute", inset: 0 }}>

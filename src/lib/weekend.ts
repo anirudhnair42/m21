@@ -113,8 +113,9 @@ export function sessionOf(activityId: string): Session | undefined {
 /**
  * When a class stops being "in progress": four hours after it starts, or an
  * hour after its last timed activity (run of show or side quest), whichever
- * is later. Saturday's Questival class runs 10:00 → 17:00, so lunch at the
- * Res Hall (15:00) is still Session 2.1, not "upcoming: dinner".
+ * is later. Saturday's last timed Questival activity is 16:00, so lunch at the
+ * Res Hall (15:00) is still Session 2.1, not "upcoming: dinner". (Quests
+ * themselves stay open until 19:00, into the first hour of dinner.)
  */
 export function sessionEndsAt(s: Session): number {
   const start = Date.parse(s.start);
@@ -208,12 +209,12 @@ export const ACTIVITIES: Activity[] = [
     id: "sat-questival",
     day: "sat",
     start: T("12", "10:00"),
-    time: "10:00 → 17:00",
+    time: "10:00 → 19:00",
     title: "Questival",
     kind: "anchor",
     venue: "All over the city",
     host: "Amal + Ani",
-    body: "Assignment 3. Pick your own adventure through nostalgic M21 stops. Capture as you go, tag whoever did it with you, submit your final list before dinner.",
+    body: "Assignment 3. Pick your own adventure through nostalgic M21 stops. Capture as you go and tag whoever did it with you — every proof counts the moment it uploads. Quests stay open until 7, an hour into dinner.",
   },
   {
     id: "sat-lunch",
@@ -237,7 +238,7 @@ export const ACTIVITIES: Activity[] = [
     title: "Finish your Questival together",
     kind: "optional",
     venue: "Wherever you are",
-    body: "The last stretch. Wrap up your list with your crew — final lists are due at 5:00 PM, and yes, the 7-minute extension applies — then head straight to the Marina.",
+    body: "The last stretch. Wrap up your list with your crew, then head for the Marina whenever you like — quests close at 7:00 PM and yes, the 7-minute extension applies, so the first hour of dinner still counts.",
   },
   {
     id: "sat-dinner",
@@ -252,7 +253,7 @@ export const ACTIVITIES: Activity[] = [
     venue: "The Loft, Marina",
     address: "3108B Fillmore St, San Francisco, CA 94123",
     host: "Mau + Ani",
-    body: "Doors at 6 — come straight from your last quest. Dinner served at 7, then M21 trivia, a few performances, and grades released at 8:30 — prizes for the top three and the best recreation.",
+    body: "Doors at 6 — come mid-hunt if you like, quests stay open until 7. Dinner served at 7, then M21 trivia, a few performances, and grades released at 8:30 — prizes for the top three and the best recreation.",
     cost: "Covered by your RSVP.",
   },
   {

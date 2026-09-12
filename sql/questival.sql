@@ -69,7 +69,9 @@ create table if not exists public.q_plan_replies (
 );
 alter table public.q_plan_replies enable row level security;
 
--- One proof. Points are derived at read time (override ?? quest points).
+-- One proof. Points are derived at read time from the quest's catalog value.
+-- points_override and review_note are retired (organizers reject, they no
+-- longer re-price); the columns stay so live rows aren't rewritten mid-event.
 create table if not exists public.q_submissions (
   id               uuid primary key default gen_random_uuid(),
   quest_id         text not null,
@@ -93,7 +95,21 @@ create index if not exists q_submissions_members_idx on public.q_submissions usi
 create index if not exists q_submissions_uploader_idx on public.q_submissions (uploader_rsvp_id);
 create index if not exists q_submissions_quest_idx on public.q_submissions (quest_id, instance);
 
--- The "Submit final list" act. Ceremony plus a nudge; proofs count either way.
+-- One Shift 3: the heart on the feed. The primary key makes it idempotent, so
+-- giving twice is a no-op and taking it back is a plain delete. Every row is
+-- +1 point for everyone in the proof's `members` (see shift3Points), uncapped.
+create table if not exists public.q_shift3 (
+  submission_id uuid not null references public.q_submissions(id) on delete cascade,
+  giver_rsvp_id uuid not null references public.rsvps(id) on delete cascade,
+  created_at    timestamptz not null default now(),
+  primary key (submission_id, giver_rsvp_id)
+);
+alter table public.q_shift3 enable row level security;
+create index if not exists q_shift3_submission_idx on public.q_shift3 (submission_id);
+create index if not exists q_shift3_giver_idx on public.q_shift3 (giver_rsvp_id);
+
+-- RETIRED: the "Submit final list" act. Nothing reads or writes this any more;
+-- every proof counts the moment it uploads. Kept so the live rows survive.
 create table if not exists public.q_finals (
   rsvp_id        uuid primary key references public.rsvps(id) on delete cascade,
   submitted_at   timestamptz not null default now(),
@@ -102,12 +118,13 @@ create table if not exists public.q_finals (
 alter table public.q_finals enable row level security;
 
 -- Event switches. Exactly one row (id = 1). Times are Sat Sep 12, 2026 in
--- San Francisco (PDT, UTC-7): opens 10:00, due 17:00, extension to 17:07.
+-- San Francisco (PDT, UTC-7): opens 10:00, due 19:00, extension to 19:07.
+-- Quests run into the first hour of dinner, which has doors at 6.
 create table if not exists public.q_settings (
   id                  int primary key default 1 check (id = 1),
   opens_at            timestamptz not null default '2026-09-12 10:00:00-07',
-  due_at              timestamptz not null default '2026-09-12 17:00:00-07',
-  extension_until     timestamptz not null default '2026-09-12 17:07:00-07',
+  due_at              timestamptz not null default '2026-09-12 19:00:00-07',
+  extension_until     timestamptz not null default '2026-09-12 19:07:00-07',
   announcement        text,
   results_released_at timestamptz,
   frozen_at           timestamptz

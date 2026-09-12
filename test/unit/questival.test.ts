@@ -10,10 +10,12 @@ import {
   proofPoints,
   questivalWindow,
   questivalWindowAt,
+  shift3Points,
   timeLeft,
   totalPoints,
   type Evidence,
   type Proof,
+  type Shift3Proof,
 } from "../../src/lib/questival";
 
 const H = 3600_000;
@@ -22,8 +24,8 @@ const M = 60_000;
 describe("QUESTIVAL switches", () => {
   test("are Saturday Sep 12 2026, San Francisco time (PDT, UTC-7)", () => {
     assert.equal(new Date(QUESTIVAL.opensAt).toISOString(), "2026-09-12T17:00:00.000Z");
-    assert.equal(new Date(QUESTIVAL.dueAt).toISOString(), "2026-09-13T00:00:00.000Z");
-    assert.equal(new Date(QUESTIVAL.extensionUntil).toISOString(), "2026-09-13T00:07:00.000Z");
+    assert.equal(new Date(QUESTIVAL.dueAt).toISOString(), "2026-09-13T02:00:00.000Z");
+    assert.equal(new Date(QUESTIVAL.extensionUntil).toISOString(), "2026-09-13T02:07:00.000Z");
     assert.equal(new Date(QUESTIVAL.resultsAt).toISOString(), "2026-09-13T03:30:00.000Z");
     assert.equal(QUESTIVAL.extensionUntil - QUESTIVAL.dueAt, 7 * M, "the 7th minute");
   });
@@ -40,12 +42,12 @@ describe("questivalWindow boundaries (half-open, like the server's windowAt)", (
   });
 
   test("questivalWindowAt follows organizer-moved switches given as ISO strings", () => {
-    const moved = { opensAt: "2026-09-12T09:00:00-07:00", dueAt: "2026-09-12T18:00:00-07:00", extensionUntil: "2026-09-12T18:07:00-07:00" };
-    // 17:30 PT: closed by the static clock, still open by the moved one.
-    const t = Date.parse("2026-09-12T17:30:00-07:00");
+    const moved = { opensAt: "2026-09-12T09:00:00-07:00", dueAt: "2026-09-12T20:00:00-07:00", extensionUntil: "2026-09-12T20:07:00-07:00" };
+    // 19:30 PT: closed by the static clock, still open by the moved one.
+    const t = Date.parse("2026-09-12T19:30:00-07:00");
     assert.equal(questivalWindow(t), "closed");
     assert.equal(questivalWindowAt(moved, t), "open");
-    assert.equal(questivalWindowAt(moved, Date.parse("2026-09-12T18:03:00-07:00")), "extension");
+    assert.equal(questivalWindowAt(moved, Date.parse("2026-09-12T20:03:00-07:00")), "extension");
     assert.equal(questivalWindowAt(moved, Date.parse("2026-09-12T08:59:59-07:00")), "before");
   });
 
@@ -71,26 +73,30 @@ describe("timeLeft", () => {
     assert.equal(timeLeft(QUESTIVAL.dueAt + 3 * M), "Due now");
   });
   test("honors a moved due time", () => {
-    assert.equal(timeLeft(QUESTIVAL.dueAt, "2026-09-12T18:00:00-07:00"), "1h 0m left");
+    assert.equal(timeLeft(QUESTIVAL.dueAt, "2026-09-12T20:00:00-07:00"), "1h 0m left");
   });
 });
 
 describe("points", () => {
-  const approved = (questId: string, instance = 1, pointsOverride?: number | null): Proof => ({ questId, instance, status: "approved", pointsOverride });
+  const approved = (questId: string, instance = 1): Proof => ({ questId, instance, status: "approved" });
 
-  test("proofPoints: rejected and draft are worth nothing, override wins when approved", () => {
-    assert.equal(proofPoints({ questId: "851", instance: 1, status: "rejected", pointsOverride: 99 }), 0);
+  test("proofPoints: only approved proofs score, always at the catalog value", () => {
+    assert.equal(proofPoints({ questId: "851", instance: 1, status: "rejected" }), 0);
     assert.equal(proofPoints({ questId: "851", instance: 1, status: "draft" }), 0);
     assert.equal(proofPoints(approved("851")), 15);
-    assert.equal(proofPoints(approved("851", 1, 40)), 40);
-    assert.equal(proofPoints(approved("851", 1, 0)), 0, "an explicit 0 override is 0, not the quest's points");
-    assert.equal(proofPoints(approved("851", 1, null)), 15);
     assert.equal(proofPoints(approved("nope")), 0);
   });
 
+  test("proofPoints: a stale organizer points override is ignored", () => {
+    // points_override left the model, but the column still exists on q_submissions.
+    // A value left behind there must not score.
+    const stale = { questId: "851", instance: 1, status: "approved", pointsOverride: 40 } as unknown as Proof;
+    assert.equal(proofPoints(stale), 15, "the catalog value wins");
+  });
+
   test("totalPoints: best proof per (quest, instance)", () => {
-    assert.equal(totalPoints([approved("851"), approved("851"), approved("851", 1, 5)]), 15);
-    assert.equal(totalPoints([approved("851", 1, 5), approved("851", 1, 30)]), 30);
+    assert.equal(totalPoints([approved("851"), approved("851")]), 15, "the same quest twice scores once");
+    assert.equal(totalPoints([approved("851"), approved("grace")]), 30);
   });
 
   test("totalPoints: instances capped by repeat, out-of-range instances ignored", () => {
@@ -109,6 +115,32 @@ describe("points", () => {
 
   test("totalPoints of nothing is 0", () => {
     assert.equal(totalPoints([]), 0);
+  });
+});
+
+describe("Shift 3", () => {
+  const proof = (members: string[], shift3: number, status: Proof["status"] = "approved"): Shift3Proof => ({ status, members, shift3 });
+
+  test("one point per Shift 3, to everyone tagged on the proof", () => {
+    assert.equal(shift3Points([proof(["mau", "ani"], 4)], "mau"), 4);
+    assert.equal(shift3Points([proof(["mau", "ani"], 4)], "ani"), 4, "everyone tagged gets the full count");
+    assert.equal(shift3Points([proof(["mau", "ani"], 4)], "dulce"), 0, "not tagged, nothing earned");
+  });
+
+  test("hearts stack across proofs, including a second proof of the same quest", () => {
+    // Deliberately outside totalPoints' best-per-(quest, instance) rule, so a
+    // repeat proof still earns the hearts it collected.
+    assert.equal(shift3Points([proof(["mau"], 3), proof(["mau"], 5)], "mau"), 8);
+  });
+
+  test("a proof that doesn't score earns no hearts either", () => {
+    assert.equal(shift3Points([proof(["mau"], 9, "rejected")], "mau"), 0);
+    assert.equal(shift3Points([proof(["mau"], 9, "draft")], "mau"), 0);
+  });
+
+  test("nothing to tally is 0", () => {
+    assert.equal(shift3Points([], "mau"), 0);
+    assert.equal(shift3Points([proof(["mau"], 0)], "mau"), 0);
   });
 });
 

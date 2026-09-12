@@ -13,7 +13,6 @@ import { getQuest } from "@/lib/questival";
 
 export type { PersonDTO as Person };
 export type PlanIntent = "going" | "interested";
-export type Final = { submitted_at: string; extension_used: boolean } | null;
 
 export const ME_ID = "me";
 export const ME_NAME = "You";

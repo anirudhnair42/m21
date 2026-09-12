@@ -3,38 +3,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EVIDENCE_LABEL, QUESTIVAL, getQuest, timeLeft, type Quest, type Window } from "@/lib/questival";
 import { directionsUrl, getActivity } from "@/lib/weekend";
-import { CameraIcon, PinIcon } from "@/components/forum/icons";
+import { CameraIcon, HeartIcon, PinIcon } from "@/components/forum/icons";
 import { Faces, PlanIt } from "@/components/forum/ForumMobile";
 import { useForumStore } from "@/components/forum/ForumStore";
-import type { BoardResponse, FeedResponse, PersonDTO, SubmissionDTO } from "@/lib/questival-api";
+import type { BoardResponse, BoardRow, FeedResponse, PersonDTO, SubmissionDTO } from "@/lib/questival-api";
 import { ME_ID, djb2, firstName, timeShort } from "@/components/forum/store";
 import { getAccessToken } from "@/lib/auth";
 
-function myPoints(subs: SubmissionDTO[]): number {
+export function myPoints(subs: SubmissionDTO[]): number {
   // Best proof per (quest, instance); everyone tagged is credited.
   const best = new Map<string, number>();
+  let hearts = 0;
   for (const s of subs) {
     if (s.status !== "approved") continue;
     const k = `${s.quest_id}#${s.instance}`;
     best.set(k, Math.max(best.get(k) ?? 0, s.points));
+    // Shift 3s are counted per proof, not per quest — see shift3Points().
+    hearts += s.shift3;
   }
-  let sum = 0;
+  let sum = hearts;
   for (const v of best.values()) sum += v;
   return sum;
 }
 
 /** `phase` comes from the store: the switches organizers set, not the static clock. */
-export function StatusChip({ final, phase: w, count }: { final: { extension_used: boolean } | null; phase: Window; count: number }) {
-  if (final) {
-    if (w === "closed") return <span className="alf-assignment-chip fm-chip-closed">Submitted · Closed</span>;
-    if (final.extension_used) return <span className="alf-assignment-chip fm-chip-warn">Submitted · Extension used</span>;
-    if (w === "extension") return <span className="alf-assignment-chip fm-chip-warn">Submitted · 7-minute extension</span>;
-    return <span className="alf-assignment-chip">Submitted · Editable until 5:00 PM</span>;
-  }
+export function StatusChip({ phase: w, count }: { phase: Window; count: number }) {
   if (w === "closed") return <span className="alf-assignment-chip fm-chip-closed">Closed</span>;
   if (w === "extension") return <span className="alf-assignment-chip fm-chip-warn">Extension window · 7 min</span>;
   if (w === "before") return <span className="alf-assignment-chip fm-chip-closed">Opens Sat 10:00</span>;
-  return <span className="alf-assignment-chip fm-chip-warn">{count ? `In progress · ${count} saved` : "Open"}</span>;
+  return <span className="alf-assignment-chip fm-chip-warn">{count ? `${count} counted` : "Open"}</span>;
 }
 
 // ----- HUB -------------------------------------------------------------------
@@ -48,7 +45,7 @@ export function QuestivalHub({
   onOpenMe: () => void;
   onOpenLive: () => void;
 }) {
-  const { quests, submissions, plans, final, now, settings, phase: w } = useForumStore();
+  const { quests, submissions, plans, now, settings, phase: w } = useForumStore();
   const [filter, setFilter] = useState<"all" | "todo" | "planned" | "saved">("all");
   const doneIds = new Set(submissions.map((s) => s.quest_id));
   const plannedIds = new Set(plans.filter((p) => p.kind === "quest").map((p) => p.target_id));
@@ -76,14 +73,15 @@ export function QuestivalHub({
       <section className="alf-card">
         <div className="fm-assign-head">
           <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
-          <StatusChip final={final} phase={w} count={submissions.length} />
+          <StatusChip phase={w} count={submissions.length} />
         </div>
         <div className="fm-assign-due">
           Due {QUESTIVAL.dueLabel} · Weight 2x{w === "open" || w === "extension" ? ` · ${timeLeft(now, settings.due_at)}` : ""}
         </div>
         <p className="alf-card-body">
-          Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, tag whoever
-          did it with you, and submit your final list before dinner. Everything is optional; every quest is points.
+          Pick your own adventure through the city. Plan what you want to do and with whom, capture as you go, and tag
+          whoever did it with you. Every proof counts the moment it uploads — there is nothing to submit at the end.
+          Everything is optional; every quest is points, and every Shift 3 the class gives you is one more.
         </p>
         <div className="fm-progress"><span style={{ width: `${Math.min(100, (doneIds.size / Math.max(1, total)) * 100)}%` }} /></div>
         <div className="fm-stats">
@@ -92,8 +90,8 @@ export function QuestivalHub({
           <span><b>{pts}</b> pts</span>
         </div>
         <div className="fm-btn-row">
-          <button className="fm-btn fm-btn-primary" onClick={onOpenMe}>{final ? "My submission" : "My list"}</button>
-          <button className="fm-btn" onClick={onOpenLive}>The class, live</button>
+          <button className="fm-btn fm-btn-primary" onClick={onOpenMe}>My list</button>
+          <button className="fm-btn" onClick={onOpenLive}>Feed</button>
         </div>
       </section>
 
@@ -114,7 +112,7 @@ export function QuestivalHub({
             <div key={area}>
               <p className="fm-eyebrow" style={{ marginTop: 10 }}>{area}</p>
               <ul className="fm-quests">
-                {vis.map((q) => <QuestRow key={q.id} q={q} saved={doneIds.has(q.id)} planned={plannedIds.has(q.id)} final={!!final} onOpen={onOpenQuest} />)}
+                {vis.map((q) => <QuestRow key={q.id} q={q} saved={doneIds.has(q.id)} planned={plannedIds.has(q.id)} onOpen={onOpenQuest} />)}
               </ul>
             </div>
           );
@@ -124,15 +122,15 @@ export function QuestivalHub({
       <section className="alf-card">
         <h3 className="alf-card-h">Anywhere</h3>
         <ul className="fm-quests">
-          {anywhere.filter(show).map((q) => <QuestRow key={q.id} q={q} saved={doneIds.has(q.id)} planned={plannedIds.has(q.id)} final={!!final} onOpen={onOpenQuest} />)}
+          {anywhere.filter(show).map((q) => <QuestRow key={q.id} q={q} saved={doneIds.has(q.id)} planned={plannedIds.has(q.id)} onOpen={onOpenQuest} />)}
         </ul>
       </section>
     </>
   );
 }
 
-function QuestRow({ q, saved, planned, final, onOpen }: { q: Quest; saved: boolean; planned: boolean; final: boolean; onOpen: (id: string) => void }) {
-  const dot = saved ? (final ? " fm-dot-done" : " fm-dot-saved") : planned ? " fm-dot-planned" : "";
+function QuestRow({ q, saved, planned, onOpen }: { q: Quest; saved: boolean; planned: boolean; onOpen: (id: string) => void }) {
+  const dot = saved ? " fm-dot-done" : planned ? " fm-dot-planned" : "";
   return (
     <li className="fm-quest" onClick={() => onOpen(q.id)}>
       <span className={`fm-dot${dot}`} />
@@ -286,7 +284,7 @@ export function QuestView({ questId, onOpenMe }: { questId: string; onOpenMe: ()
           </div>
           {receipt && mine.length === 0 && <p className="fm-receipt">✓ {receipt}</p>}
           {w === "before" && <p className="fm-muted" style={{ marginTop: 8 }}>Before Sat 10:00 this saves as practice and won&apos;t count. Only proofs captured after 10:00 score.</p>}
-          {w === "extension" && <p className="fm-note">It&apos;s past 5:00. This one lands on an extension.</p>}
+          {w === "extension" && <p className="fm-note">It&apos;s past 7:00. This one lands on an extension.</p>}
         </section>
       ) : (
         <section className="alf-card">
@@ -351,8 +349,7 @@ export function TagPicker({ people, tags, onChange }: { people: PersonDTO[]; tag
 // ----- MY QUESTIVAL ----------------------------------------------------------
 
 export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id: string) => void; onOpenActivity: (id: string) => void }) {
-  const { submissions, plans, me, final, phase: w, removeProof, submitFinal } = useForumStore();
-  const [confirming, setConfirming] = useState(false);
+  const { submissions, plans, me, phase: w, removeProof } = useForumStore();
   const pts = myPoints(submissions);
   const withPeople = useMemo(() => {
     const seen = new Map<string, PersonDTO>();
@@ -369,11 +366,9 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
       <section className="alf-card">
         <div className="fm-assign-head">
           <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
-          <StatusChip final={final} phase={w} count={submissions.length} />
+          <StatusChip phase={w} count={submissions.length} />
         </div>
-        <div className="fm-assign-due">
-          {final ? `Submitted ${timeShort(final.submitted_at)}${final.extension_used ? " · after the 7th minute" : ""}` : `Due ${QUESTIVAL.dueLabel} · Weight 2x`}
-        </div>
+        <div className="fm-assign-due">Due {QUESTIVAL.dueLabel} · Weight 2x</div>
         <div className="fm-stats" style={{ marginTop: 6 }}>
           <span><b>{submissions.length}</b> quests</span>
           <span><b>{pts}</b> pts</span>
@@ -386,33 +381,17 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
           </div>
         )}
 
-        {!final && !confirming && (
-          <div className="fm-btn-row">
-            <button className="fm-btn fm-btn-primary" disabled={submissions.length === 0 || w === "closed"} onClick={() => setConfirming(true)}>Submit final list</button>
+        <div className="fm-sealed">
+          <div className="fm-sealed-big">{submissions.length ? "All counted." : "Nothing yet."}</div>
+          <div className="fm-sealed-sub">
+            {w === "closed"
+              ? "Quests are closed. Results at dinner, around 8:30."
+              : "Every proof counted the moment it uploaded — there is nothing to submit. Keep capturing until 7:00."}
           </div>
-        )}
-        {!final && confirming && (
-          <div className="alf-next-card" style={{ marginTop: 12 }}>
-            <div className="alf-next-card-text">
-              <span className="alf-next-card-eyebrow">Confirm</span>
-              <span className="alf-next-card-title">{submissions.length} quests · {pts} pts{withPeople.length ? ` · with ${withPeople.map((p) => firstName(p.name)).join(", ")}` : ""}</span>
-              <span className="alf-next-card-sub">Submit before dinner? You can still edit until 5:00 PM.</span>
-            </div>
-            <div className="alf-next-card-actions">
-              <button className="alf-next-card-btn" onClick={() => { submitFinal(); setConfirming(false); }}>Submit</button>
-              <button className="alf-next-card-link" onClick={() => setConfirming(false)}>Not yet</button>
-            </div>
-          </div>
-        )}
-        {final && (
-          <div className="fm-sealed">
-            <div className="fm-sealed-big">Submitted.</div>
-            <div className="fm-sealed-sub">{final.extension_used ? "Right at the deadline — in the Ani tradition." : "Grades released at dinner, around 8:30."}</div>
-          </div>
-        )}
+        </div>
       </section>
 
-      {final && (
+      {w !== "before" && (
         <div className="alf-next-card" style={{ marginBottom: 14, marginTop: 0 }}>
           <div className="alf-next-card-text">
             <span className="alf-next-card-eyebrow">Next up</span>
@@ -426,7 +405,7 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
         </div>
       )}
 
-      {planned.length > 0 && !final && (
+      {planned.length > 0 && (
         <section className="alf-card">
           <h3 className="alf-card-h">Planned</h3>
           <p className="fm-muted" style={{ marginBottom: 6 }}>What you intend to do. Nothing here counts until you capture it.</p>
@@ -476,10 +455,13 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
                     <div className="fm-proof-title">{q?.title ?? s.quest_id}{q?.repeat ? ` · ${s.instance}` : ""}</div>
                     <div className="fm-proof-meta">
                       {timeShort(s.created_at)}{others.length ? ` · with ${others.map((p) => firstName(p.name)).join(", ")}` : ""}{s.caption ? ` · “${s.caption}”` : ""}
-                      {s.status === "rejected" ? ` · not counted${s.review_note ? `: ${s.review_note}` : ""}` : ""}
+                      {s.status === "rejected" ? " · not counted" : ""}
                     </div>
                   </div>
                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    {s.shift3 > 0 && (
+                      <span className="fm-shift3-tally" title={`${s.shift3} Shift 3 from the class`}><HeartIcon filled /> {s.shift3}</span>
+                    )}
                     <span className="fm-pts">{s.points}</span>
                     {editable && s.uploader.id === me.id && <button className="fm-proof-remove" onClick={() => removeProof(s.id)} aria-label="Remove">×</button>}
                   </span>
@@ -497,7 +479,7 @@ export function MyQuestival({ onOpenQuest, onOpenActivity }: { onOpenQuest: (id:
 
 /** Feed + board, from the API when possible, else sample + my local proofs. */
 export function useLive() {
-  const { mode, submissions, people, now, me } = useForumStore();
+  const { mode, submissions, people, now, me, phase } = useForumStore();
   const [feed, setFeed] = useState<SubmissionDTO[] | null>(null);
   const [board, setBoard] = useState<BoardResponse | null>(null);
   const load = useCallback(async () => {
@@ -512,6 +494,9 @@ export function useLive() {
     if (b) setBoard(b);
   }, [mode]);
   useEffect(() => {
+    // Home renders the feed now, so don't poll its landing screen before the
+    // Questival is running. Polling continues after close, for the 8:30 reveal.
+    if (phase === "before") return;
     // Kicked from a cleared timeout so the effect body itself doesn't set state.
     const t0 = setTimeout(load, 0);
     const t = setInterval(() => document.visibilityState === "visible" && load(), 20_000);
@@ -519,11 +504,19 @@ export function useLive() {
       clearTimeout(t0);
       clearInterval(t);
     };
-  }, [load]);
+  }, [load, phase]);
 
   // Without the API there is nothing live to show but your own proofs.
   const items: SubmissionDTO[] = feed ?? [...submissions].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
-  const rows = board?.rows ?? [{ person: me, points: myPoints(submissions), completed: submissions.length, rank: 1 }];
+  const rows: BoardRow[] = board?.rows ?? [
+    {
+      person: me,
+      points: myPoints(submissions),
+      completed: submissions.length,
+      rank: 1,
+      shift3: submissions.reduce((n, s) => n + s.shift3, 0),
+    },
+  ];
   void people;
   void now;
   return { items, rows, frozen: board?.frozen ?? false, refresh: load };
@@ -560,7 +553,9 @@ export function LiveView({ initial = "feed" }: { initial?: "feed" | "board" }) {
                         <span className="fm-face" style={{ margin: 0, width: 26, height: 26, background: r.person.id === me.id ? "#2e9e5b" : undefined }} />
                       )}
                       {r.person.name}
-                      <span className="fm-muted" style={{ fontSize: 11 }}>{r.completed} quests</span>
+                      <span className="fm-muted" style={{ fontSize: 11 }}>
+                        {r.completed} quests{r.shift3 > 0 ? ` · ${r.shift3} from Shift 3` : ""}
+                      </span>
                     </span>
                   </td>
                   <td className="fm-board-pts">{r.points}</td>
@@ -568,10 +563,69 @@ export function LiveView({ initial = "feed" }: { initial?: "feed" | "board" }) {
               ))}
             </tbody>
           </table>
-          <p className="fm-muted" style={{ marginTop: 10 }}>Everyone tagged on a proof gets its points. Prizes at dinner for the top three, and for the best recreation.</p>
+          <p className="fm-muted" style={{ marginTop: 10 }}>
+            Everyone tagged on a proof gets its points, plus one for every Shift 3 it draws. Prizes at dinner for the top
+            three, and for the best recreation.
+          </p>
         </section>
       )}
     </>
+  );
+}
+
+/**
+ * The Shift 3. Optimistic: the heart fills and the count moves on tap, then
+ * settles on whatever the server says, so a double tap or a lost race can't
+ * leave a wrong number on screen. Proofs you're credited on show the count
+ * without a button — each heart is +1 for everyone tagged, so hearting your
+ * own would be minting points.
+ */
+function Shift3Button({ proof }: { proof: SubmissionDTO }) {
+  const { shift3, me } = useForumStore();
+  const [busy, setBusy] = useState(false);
+  /**
+   * The optimistic override, tagged with the server numbers it was based on.
+   * Once a poll delivers different numbers the tag stops matching and the
+   * override drops itself — so the server always wins without an effect
+   * copying props into state.
+   */
+  const [optimistic, setOptimistic] = useState<{ from: string; count: number; mine: boolean } | null>(null);
+  const serverKey = `${proof.shift3}:${proof.shift3_by_me}`;
+  const shown = optimistic && optimistic.from === serverKey ? optimistic : { count: proof.shift3, mine: proof.shift3_by_me };
+
+  const onIt = proof.uploader.id === me.id || proof.members.some((p) => p.id === me.id);
+  if (onIt) {
+    return (
+      <span className="fm-shift3 fm-shift3-own" title="Your proof — the class hearts this one">
+        <HeartIcon filled={shown.count > 0} />
+        {shown.count > 0 ? ` ${shown.count}` : " —"}
+      </span>
+    );
+  }
+
+  const toggle = async () => {
+    if (busy) return;
+    const give = !shown.mine;
+    setBusy(true);
+    setOptimistic({ from: serverKey, count: Math.max(0, shown.count + (give ? 1 : -1)), mine: give });
+    const fresh = await shift3(proof.id, give);
+    // The response is the truth until the next poll catches up; a failure
+    // drops the override and falls back to what the server last said.
+    setOptimistic(fresh ? { from: serverKey, count: fresh.shift3, mine: fresh.shift3_by_me } : null);
+    setBusy(false);
+  };
+
+  return (
+    <button
+      className={`fm-shift3${shown.mine ? " fm-shift3-on" : ""}`}
+      onClick={toggle}
+      disabled={busy}
+      aria-pressed={shown.mine}
+      aria-label={shown.mine ? "Take back your Shift 3" : "Give a Shift 3"}
+    >
+      <HeartIcon filled={shown.mine} />
+      Shift 3{shown.count > 0 ? ` · ${shown.count}` : ""}
+    </button>
   );
 }
 
@@ -615,6 +669,7 @@ export function Feed({ items, limit }: { items: SubmissionDTO[]; limit?: number 
               <span>{q?.title ?? f.quest_id}{f.caption ? ` · “${f.caption}”` : ""}{f.note ? ` · “${f.note}”` : ""}</span>
               <span className="fm-pts">+{f.points}</span>
             </div>
+            <div className="fm-card-proof-actions"><Shift3Button proof={f} /></div>
           </li>
         );
       })}

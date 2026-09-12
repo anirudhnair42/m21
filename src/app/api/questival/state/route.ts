@@ -14,7 +14,7 @@ import type { StateResponse } from "@/lib/questival-api";
 
 /**
  * Everything about me in one call: my proofs (uploaded or tagged), plans I
- * own, invitations, catch-ups either way, activity intents, final state.
+ * own, invitations, catch-ups either way, and activity intents.
  * A caller without an RSVP row gets `me: null` and empty lists.
  */
 export const GET = handler(async (request) => {
@@ -28,12 +28,11 @@ export const GET = handler(async (request) => {
     invites: [],
     catchups: [],
     intents: {},
-    final: null,
     settings,
   };
   if (!me) return json(empty);
 
-  const [subs, plans, invites, catchups, intents, final] = await Promise.all([
+  const [subs, plans, invites, catchups, intents] = await Promise.all([
     supabase
       .from("q_submissions")
       .select(SUBMISSION_COLUMNS)
@@ -47,7 +46,6 @@ export const GET = handler(async (request) => {
       .or(`from_rsvp.eq.${me.id},to_rsvp.eq.${me.id}`)
       .order("created_at", { ascending: false }),
     supabase.from("plans").select("activity_id, intent").eq("rsvp_id", me.id),
-    supabase.from("q_finals").select("submitted_at, extension_used").eq("rsvp_id", me.id).maybeSingle(),
   ]);
 
   const qmap = questMap(quests);
@@ -59,7 +57,6 @@ export const GET = handler(async (request) => {
   ]);
   const intentsOut: StateResponse["intents"] = {};
   for (const r of (must(intents) ?? []) as { activity_id: string; intent: "going" | "interested" }[]) intentsOut[r.activity_id] = r.intent;
-  const f = must(final) as { submitted_at: string; extension_used: boolean } | null;
 
   const body: StateResponse = {
     ...empty,
@@ -69,7 +66,6 @@ export const GET = handler(async (request) => {
     invites: invitesOut,
     catchups: catchupsOut,
     intents: intentsOut,
-    final: f ? { submitted_at: new Date(f.submitted_at).toISOString(), extension_used: f.extension_used } : null,
   };
   return json(body);
 });

@@ -14,6 +14,7 @@ import type {
   PlanDTO,
   QuestDTO,
   SettingsDTO,
+  Shift3Response,
   StateResponse,
   SubmissionDTO,
   UploadUrlResponse,
@@ -27,7 +28,6 @@ import {
   shrinkImage,
   uid,
   usePersisted,
-  type Final,
   type PlanIntent,
 } from "@/components/forum/store";
 
@@ -75,8 +75,8 @@ export type ForumStore = {
   submissions: SubmissionDTO[];
   saveProof: (input: SaveProofInput) => Promise<SubmissionDTO>;
   removeProof: (id: string) => void;
-  final: Final;
-  submitFinal: () => void;
+  /** Give (or take back) a Shift 3. Resolves to the proof's fresh count. */
+  shift3: (id: string, give: boolean) => Promise<Shift3Response | null>;
   catchups: CatchupDTO[];
   requestCatchup: (toId: string, slot: string, note: string) => void;
   replyCatchup: (id: string, status: "accepted" | "declined") => void;
@@ -309,7 +309,7 @@ export function ForumStoreProvider({
   const [lIntents, setLIntents] = usePersisted<Record<string, PlanIntent | undefined>>("intents", {});
   const [lPlans, setLPlans] = usePersisted<PlanDTO[]>("plans", []);
   const [lSubs, setLSubs] = usePersisted<SubmissionDTO[]>("subs", []);
-  const [lFinal, setLFinal] = usePersisted<Final>("final", null);
+  const [lShift3, setLShift3] = usePersisted<Record<string, number>>("shift3", {});
   const [lCatchups, setLCatchups] = usePersisted<CatchupDTO[]>("catchups", []);
   const [lCatchupReplies, setLCatchupReplies] = usePersisted<Record<string, "accepted" | "declined">>("cureplies", {});
 
@@ -343,7 +343,6 @@ export function ForumStoreProvider({
   const intents: Record<string, PlanIntent | undefined> = mode === "api" ? state!.intents : lIntents;
   const plans = mode === "api" ? state!.plans : lPlans;
   const submissions = mode === "api" ? state!.submissions : lSubs;
-  const final = mode === "api" ? state!.final : lFinal;
   // Invitations only come from real people; nothing to show until the API answers.
   const invites = useMemo<PlanDTO[]>(() => (mode === "api" ? state!.invites : []), [mode, state]);
   const catchups = useMemo<CatchupDTO[]>(() => (mode === "api" ? state!.catchups : lCatchups.map((c) => ({ ...c, status: lCatchupReplies[c.id] ?? c.status }))), [mode, state, lCatchups, lCatchupReplies]);
@@ -480,7 +479,8 @@ export function ForumStoreProvider({
         note: input.note ?? null,
         status: "approved",
         points: quest?.points ?? 0,
-        review_note: null,
+        shift3: 0,
+        shift3_by_me: false,
         created_at: new Date(now).toISOString(),
       };
       setLSubs((ss) => [sub, ...ss]);
@@ -496,13 +496,28 @@ export function ForumStoreProvider({
     },
     [mode, loadState, failed, setLSubs],
   );
-  const submitFinal = useCallback(() => {
-    if (mode === "api") {
-      api("/api/questival/final", { method: "POST" }).then(() => (setToast("Submitted"), loadState())).catch(failed);
-    } else {
-      setLFinal((f) => f ?? { submitted_at: new Date(now).toISOString(), extension_used: phase === "extension" });
-    }
-  }, [mode, now, phase, loadState, failed, setLFinal]);
+  /**
+   * A heart, and its point for everyone on the proof. The caller updates its
+   * own count optimistically; this resolves with the server's number so a
+   * double tap or a lost race settles on the truth.
+   */
+  const shift3 = useCallback(
+    async (id: string, give: boolean): Promise<Shift3Response | null> => {
+      if (mode === "api") {
+        try {
+          return await api<Shift3Response>(`/api/questival/shift3?id=${encodeURIComponent(id)}`, { method: give ? "POST" : "DELETE" });
+        } catch (e) {
+          failed(e);
+          return null;
+        }
+      }
+      // local preview: remember the tap on the device, no server to ask
+      const next = Math.max(0, (lShift3[id] ?? 0) + (give ? 1 : -1));
+      setLShift3((m) => ({ ...m, [id]: next }));
+      return { submission_id: id, shift3: next, shift3_by_me: give };
+    },
+    [mode, failed, lShift3, setLShift3],
+  );
 
   const requestCatchup = useCallback(
     (toId: string, slot: string, note: string) => {
@@ -557,8 +572,7 @@ export function ForumStoreProvider({
     intents, setIntent,
     plans, addPlan, removePlan,
     invites, replyPlan,
-    submissions, saveProof, removeProof,
-    final, submitFinal,
+    submissions, saveProof, removeProof, shift3,
     catchups, requestCatchup, replyCatchup,
     unanswered, toast, setToast,
     refresh,

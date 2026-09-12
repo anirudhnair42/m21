@@ -214,7 +214,7 @@ function ReviewAdmin({ onError }: { onError: (e: string | null) => void }) {
   }, [onError]);
   useEffect(load, [load]);
 
-  const patch = async (s: SubmissionDTO, body: { status?: "approved" | "rejected"; points_override?: number | null; review_note?: string | null }) => {
+  const patch = async (s: SubmissionDTO, body: { status: "approved" | "rejected" }) => {
     try {
       await call(`/api/questival/submissions/${s.id}`, { method: "PATCH", json: body });
       load();
@@ -230,7 +230,9 @@ function ReviewAdmin({ onError }: { onError: (e: string | null) => void }) {
       <section className="alf-card">
         <div className="fm-assign-head">
           <h3 className="alf-card-h" style={{ margin: 0 }}>Proofs</h3>
-          <span className="fm-muted">{data?.submissions.length ?? 0} total · {data?.finals.length ?? 0} final lists submitted</span>
+          <span className="fm-muted">
+            {data?.submissions.length ?? 0} total · {(data?.submissions ?? []).reduce((n, s) => n + s.shift3, 0)} Shift 3 given
+          </span>
         </div>
         <div className="fm-filters" style={{ marginTop: 10, marginBottom: 0 }}>
           <button className={`fm-filter${filter === "all" ? " fm-filter-on" : ""}`} onClick={() => setFilter("all")}>All</button>
@@ -246,14 +248,22 @@ function ReviewAdmin({ onError }: { onError: (e: string | null) => void }) {
             <li key={s.id} className="fm-card-proof">
               <Feed items={[s]} />
               <div className="fm-card-proof-foot" style={{ borderTop: "1px solid #efeadf", flexWrap: "wrap", gap: 8 }}>
-                <span className="fm-muted">{s.status === "rejected" ? "Rejected" : "Counts"}{s.review_note ? ` · ${s.review_note}` : ""}</span>
+                <span className="fm-muted">
+                  {s.status === "rejected" ? "Rejected" : "Counts"}
+                  {s.shift3 > 0 ? ` · ${s.shift3} Shift 3` : ""}
+                </span>
                 <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                   {s.status === "approved" ? (
-                    <button className="fm-link-btn" style={{ color: "#c0392b" }} onClick={() => { const note = prompt("Why? (shown to them)") ?? ""; patch(s, { status: "rejected", review_note: note || null }); }}>Reject</button>
+                    <button
+                      className="fm-link-btn"
+                      style={{ color: "#c0392b" }}
+                      onClick={() => confirm("Take this proof down? It stops scoring for everyone tagged.") && patch(s, { status: "rejected" })}
+                    >
+                      Reject
+                    </button>
                   ) : (
-                    <button className="fm-link-btn" onClick={() => patch(s, { status: "approved", review_note: null })}>Approve</button>
+                    <button className="fm-link-btn" onClick={() => patch(s, { status: "approved" })}>Restore</button>
                   )}
-                  <button className="fm-link-btn" onClick={() => { const v = prompt("Points for this proof (blank = quest default)"); if (v === null) return; patch(s, { points_override: v.trim() === "" ? null : Number(v) }); }}>Points</button>
                 </span>
               </div>
             </li>

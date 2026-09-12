@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { CATCHUP_SLOTS, DAYS, dayOf, directionsUrl, getActivity, getSession, nowNext, sessionOf, sessionsFor, type Activity, type Day } from "@/lib/weekend";
-import { QUESTIVAL, getQuest } from "@/lib/questival";
-import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker } from "@/components/forum/Questival";
+import { QUESTIVAL, getQuest, timeLeft } from "@/lib/questival";
+import { QuestivalHub, QuestView, MyQuestival, LiveView, TagPicker, Feed, StatusChip, useLive, myPoints } from "@/components/forum/Questival";
 import { AdminView } from "@/components/forum/AdminView";
 import { SessionList, SessionCard } from "@/components/forum/SessionCards";
 import { GuideView } from "@/components/forum/Guide";
@@ -343,10 +343,12 @@ export function HomeView({
   onOpenInbox: () => void; onOpenClass: () => void; onOpenLive: () => void; onOpenAdmin: () => void; onOpenDay: (d: Day) => void; onOpenGuide: () => void;
   onOpenSession: (id: string) => void;
 }) {
-  const { now, phase, submissions, final, unanswered, settings, catchups, me, organizer } = useForumStore();
+  const { now, phase, submissions, quests, questivalOpen, unanswered, settings, catchups, me, organizer } = useForumStore();
   void onOpenAdmin;
   void onOpenWeekend;
-  // (No useLive() here: Home doesn't show the feed, and the hook polls every 20s.)
+  // Home shows the feed, so it does take useLive(). The hook only polls once
+  // the Questival is running — see the phase guard in useLive().
+  const { items: liveItems } = useLive();
   const { now: cur, next } = nowNext(new Date(now));
   const today = dayOf(new Date(now));
   // Settings-aware: organizers can move the switches from the admin panel.
@@ -354,14 +356,12 @@ export function HomeView({
   const daysOut = Math.max(0, Math.ceil((Date.parse("2026-09-11T18:00:00-07:00") - now) / 86_400_000));
   const accepted = catchups.filter((c) => c.status === "accepted");
 
-  const a3 = final
-    ? { result: final.extension_used ? "Submitted · Extension used" : "Submitted", done: true }
-    : submissions.length
-      ? { result: `In progress · ${submissions.length} saved`, done: false }
-      : w === "before" ? { result: "Opens Sat 10:00", done: false } : w === "closed" ? { result: "Closed", done: false } : { result: "Open", done: false };
+  // No submit act any more: uploaded proofs *are* the status. StatusChip owns
+  // the wording so Home and the Questival tab can't drift.
+  const doneIds = new Set(submissions.map((s) => s.quest_id));
 
   const focus = cur ?? next;
-  void daysOut; void a3; void onOpenActivity; void onOpenQuestival; void onOpenMe; void onOpenWeekend; void onOpenDay; void onOpenLive; void onOpenClass; void onOpenAdmin;
+  void daysOut; void onOpenWeekend; void onOpenDay; void onOpenClass; void onOpenAdmin;
 
   return (
     <>
@@ -379,6 +379,37 @@ export function HomeView({
       )}
 
       {settings.announcement && <div className="fm-announce"><b>From the cohosts:</b> {settings.announcement}</div>}
+
+      {questivalOpen && (
+        <section className="alf-card">
+          <div className="fm-assign-head">
+            <h2 className="alf-card-h" style={{ margin: 0 }}>Assignment 3: Questival</h2>
+            <StatusChip phase={w} count={submissions.length} />
+          </div>
+          <div className="fm-assign-due">
+            Due {QUESTIVAL.dueLabel} · Weight 2x{w === "open" || w === "extension" ? ` · ${timeLeft(now, settings.due_at)}` : ""}
+          </div>
+          <div className="fm-progress"><span style={{ width: `${Math.min(100, (doneIds.size / Math.max(1, quests.length)) * 100)}%` }} /></div>
+          <div className="fm-stats">
+            <span><b>{doneIds.size}</b> of {quests.length} done</span>
+            <span><b>{myPoints(submissions)}</b> pts</span>
+          </div>
+          <div className="fm-btn-row">
+            <button className="fm-btn fm-btn-primary" onClick={onOpenQuestival}>Browse challenges</button>
+            <button className="fm-btn" onClick={onOpenMe}>My list</button>
+          </div>
+        </section>
+      )}
+
+      {questivalOpen && w !== "before" && (
+        <section className="fm-live-strip">
+          <div className="fm-live-strip-head">
+            <span className="fm-eyebrow">Live · as it lands</span>
+            <button className="fm-link-btn" onClick={onOpenLive}>See all →</button>
+          </div>
+          <Feed items={liveItems} limit={3} />
+        </section>
+      )}
 
       {unanswered > 0 && (
         <div className="alf-next-card" style={{ marginTop: 0, marginBottom: 14 }}>
@@ -748,7 +779,7 @@ function QuestivalLocked() {
   return (
     <section className="alf-card">
       <div className="fm-gate">
-        <p className="fm-eyebrow">Sat, Sep 12 · 10:00 → 17:00</p>
+        <p className="fm-eyebrow">Sat, Sep 12 · 10:00 → 19:00</p>
         <h2 className="fm-gate-title">This is not really a real ALF LOL</h2>
         <p className="fm-gate-sub">Assignment 3 is a pick-your-own-adventure through the city with the people you came for. The brief, the map pins, and the scoring drop here this week. Bring shoes you can walk in.</p>
       </div>

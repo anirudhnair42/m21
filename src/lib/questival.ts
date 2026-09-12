@@ -82,11 +82,12 @@ export const EVIDENCE_LABEL: Record<Evidence, string> = {
 /** Saturday Sept 12, San Francisco time. */
 export const QUESTIVAL = {
   opensAt: Date.parse("2026-09-12T10:00:00-07:00"),
-  dueAt: Date.parse("2026-09-12T17:00:00-07:00"),
+  /** 7:00 PM: quests run into the first hour of dinner (doors 6, served 7). */
+  dueAt: Date.parse("2026-09-12T19:00:00-07:00"),
   /** The 7th minute: after this it counts as an extension. */
-  extensionUntil: Date.parse("2026-09-12T17:07:00-07:00"),
+  extensionUntil: Date.parse("2026-09-12T19:07:00-07:00"),
   resultsAt: Date.parse("2026-09-12T20:30:00-07:00"),
-  dueLabel: "Sat, Sep 12 · 5:00 PM PT",
+  dueLabel: "Sat, Sep 12 · 7:00 PM PT",
 } as const;
 
 export type Window = "before" | "open" | "extension" | "closed";
@@ -138,13 +139,15 @@ export type Proof = {
   /** Distinct instance for repeatable quests; 1 otherwise. */
   instance: number;
   status: "draft" | "approved" | "rejected";
-  pointsOverride?: number | null;
 };
 
-/** What one approved proof is worth. Everyone tagged gets this. */
+/**
+ * What one approved proof is worth: its catalog value, always. Everyone tagged
+ * gets this. Organizers can reject a proof but no longer re-price one, so a
+ * stale q_submissions.points_override is deliberately not read here.
+ */
 export function proofPoints(p: Proof): number {
   if (p.status !== "approved") return 0;
-  if (typeof p.pointsOverride === "number") return p.pointsOverride;
   return getQuest(p.questId)?.points ?? 0;
 }
 
@@ -164,6 +167,31 @@ export function totalPoints(proofs: Proof[]): number {
   }
   let sum = 0;
   for (const v of best.values()) sum += v;
+  return sum;
+}
+
+/** A proof as the Shift 3 tally sees it: who is on it, and how many hearts it drew. */
+export type Shift3Proof = {
+  status: Proof["status"];
+  /** The uploader plus everyone tagged. */
+  members: string[];
+  /** Shift 3s received, one per classmate who hearted it. */
+  shift3: number;
+};
+
+/**
+ * Shift 3 points for one person: +1 for every Shift 3 on every proof they are
+ * on, uncapped. Deliberately outside totalPoints' best-per-(quest, instance)
+ * rule — a second proof of the same quest earns no quest points but still
+ * keeps the hearts it drew.
+ */
+export function shift3Points(proofs: Shift3Proof[], personId: string): number {
+  let sum = 0;
+  for (const p of proofs) {
+    if (p.status !== "approved") continue;
+    if (!p.members.includes(personId)) continue;
+    sum += p.shift3;
+  }
   return sum;
 }
 

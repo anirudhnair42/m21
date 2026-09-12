@@ -286,7 +286,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               joined={my.joined}
               pendingPayment={my.status === "pending"}
               a11Submitted={a11.submitted}
-              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, submitted: forum.final !== null } : null}
+              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length } : null}
               onOpenCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenSession={openSession}
               onOpenQuestival={openQuestival}
@@ -302,7 +302,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMa
               course={REUNION_COURSE}
               my={my}
               a11Submitted={a11.submitted}
-              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, submitted: forum.final !== null, onOpen: openQuestival } : null}
+              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, onOpen: openQuestival } : null}
               onOpenSession={openSession}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
@@ -655,7 +655,7 @@ function ForumHome({
   pendingPayment: boolean;
   a11Submitted: boolean;
   /** Assignment 3 state when it's open to this person; null while locked. */
-  questival: { proofs: number; submitted: boolean } | null;
+  questival: { proofs: number } | null;
   onOpenCourse: () => void;
   onOpenSession: (id: string) => void;
   onOpenQuestival: () => void;
@@ -723,14 +723,14 @@ function ForumHome({
                     </td>
                   </tr>
                   {questival ? (
-                    <tr className={`alf-graded-row${questival.submitted ? " alf-graded-row-done" : ""}`} onClick={onOpenQuestival}>
-                      <td className={`alf-graded-iconcell${questival.submitted ? " alf-done-check" : ""}`}>{questival.submitted ? "✓" : <PaperclipIcon />}</td>
+                    <tr className={`alf-graded-row${questival.proofs ? " alf-graded-row-done" : ""}`} onClick={onOpenQuestival}>
+                      <td className={`alf-graded-iconcell${questival.proofs ? " alf-done-check" : ""}`}>{questival.proofs ? "✓" : <PaperclipIcon />}</td>
                       <td className="alf-graded-title">
                         <a className="alf-link">{course.code} — Assignment 3: Questival</a>
                         <span className="guide-chip">Sat, Sep 12</span>
                       </td>
-                      <td className={`alf-graded-result${questival.submitted ? " alf-graded-result-done" : ""}`}>
-                        {questival.submitted ? "Submitted" : questival.proofs ? `In progress · ${questival.proofs} saved` : "Open"}
+                      <td className={`alf-graded-result${questival.proofs ? " alf-graded-result-done" : ""}`}>
+                        {questival.proofs ? `${questival.proofs} counted` : "Open"}
                       </td>
                     </tr>
                   ) : (
@@ -861,7 +861,7 @@ function CourseDetail({
   my: MyRsvp;
   a11Submitted: boolean;
   /** Assignment 3 (Questival), only when the weekend flag is on for this person. */
-  questival: { proofs: number; submitted: boolean; onOpen: () => void } | null;
+  questival: { proofs: number; onOpen: () => void } | null;
   onOpenSession: (id: string) => void;
   onOpenSyllabus: () => void;
   onOpenRSVP: () => void;
@@ -925,17 +925,15 @@ function CourseDetail({
                   const sealed = a.id === "a13";
                   if (a.id === "a2q" && questival && joined) {
                     return (
-                      <tr key={a.id} className={`alf-graded-row${questival.submitted ? " alf-graded-row-done" : ""}`} onClick={questival.onOpen}>
+                      <tr key={a.id} className={`alf-graded-row${questival.proofs ? " alf-graded-row-done" : ""}`} onClick={questival.onOpen}>
                         <td className="alf-graded-title">
                           <a className="alf-link">{a.title}</a>
                           <span className="guide-chip">Sat, Sep 12</span>
                         </td>
                         <td>{a.weight}</td>
                         <td>
-                          {questival.submitted ? (
-                            <span className="alf-graded-result-done">Submitted</span>
-                          ) : questival.proofs ? (
-                            <a className="alf-link">In progress · {questival.proofs} saved</a>
+                          {questival.proofs ? (
+                            <span className="alf-graded-result-done">{questival.proofs} counted</span>
                           ) : (
                             <a className="alf-link">Open</a>
                           )}

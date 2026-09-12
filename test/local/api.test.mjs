@@ -31,8 +31,8 @@ function sqlJson(q) {
   return JSON.parse(out || "[]");
 }
 const RESET_SQL =
-  "truncate q_submissions, q_finals, q_plans, q_plan_replies, plans, catchups, q_quests restart identity cascade; " +
-  "update q_settings set announcement=null, results_released_at=null, frozen_at=null, opens_at='2026-09-12T10:00-07:00', due_at='2026-09-12T17:00-07:00', extension_until='2026-09-12T17:07-07:00';";
+  "truncate q_submissions, q_shift3, q_plans, q_plan_replies, plans, catchups, q_quests restart identity cascade; " +
+  "update q_settings set announcement=null, results_released_at=null, frozen_at=null, opens_at='2026-09-12T10:00-07:00', due_at='2026-09-12T19:00-07:00', extension_until='2026-09-12T19:07-07:00';";
 function resetDb() {
   sql(RESET_SQL);
 }
@@ -506,71 +506,112 @@ describe("submissions: upload-url, POST/DELETE/PATCH", () => {
     assert.equal((await del(`/api/questival/submissions?id=${subId}`, { as: A })).status, 404);
   });
 
-  test("PATCH review: organizer only; reject, override, note", async () => {
+  test("PATCH review: organizer only; reject and restore, no re-pricing", async () => {
     const r = await proof(A, idOf(A), "851");
     const id = r.body.id;
     assert.equal((await patch(`/api/questival/submissions/${id}`, { status: "rejected" }, { as: A })).status, 403);
     assert.equal((await patch(`/api/questival/submissions/${id}`, { status: "rejected" })).status, 401);
     assert.equal((await patch(`/api/questival/submissions/${id}`, { status: "meh" }, { as: ORG })).status, 400);
-    assert.equal((await patch(`/api/questival/submissions/${id}`, { points_override: 501 }, { as: ORG })).status, 400);
-    assert.equal((await patch(`/api/questival/submissions/${id}`, { points_override: -1 }, { as: ORG })).status, 400);
-    assert.equal((await patch(`/api/questival/submissions/${id}`, { points_override: "9" }, { as: ORG })).status, 400);
-    assert.equal((await patch(`/api/questival/submissions/${id}`, { review_note: 9 }, { as: ORG })).status, 400);
+    assert.equal((await patch(`/api/questival/submissions/${id}`, {}, { as: ORG })).status, 400, "status is required now");
     assert.equal((await patch(`/api/questival/submissions/nope`, { status: "rejected" }, { as: ORG })).status, 400);
     assert.equal((await patch(`/api/questival/submissions/${randomUUID()}`, { status: "rejected" }, { as: ORG })).status, 404);
 
-    const over = await patch(`/api/questival/submissions/${id}`, { points_override: 42, review_note: " nice " }, { as: ORG });
-    assert.equal(over.status, 200, JSON.stringify(over.body));
-    assert.equal(over.body.points, 42);
-    assert.equal(over.body.review_note, "nice");
     const rej = await patch(`/api/questival/submissions/${id}`, { status: "rejected" }, { as: ORG });
+    assert.equal(rej.status, 200, JSON.stringify(rej.body));
     assert.equal(rej.body.status, "rejected");
-    assert.equal(rej.body.points, 0, "rejected is worth 0 even with an override");
-    const back = await patch(`/api/questival/submissions/${id}`, { status: "approved", points_override: null, review_note: null }, { as: ORG });
-    assert.equal(back.body.points, 15);
-    assert.equal(back.body.review_note, null);
+    assert.equal(rej.body.points, 0, "a rejected proof is worth nothing");
+    const back = await patch(`/api/questival/submissions/${id}`, { status: "approved" }, { as: ORG });
+    assert.equal(back.body.points, 15, "restored at the quest's catalog value");
     assert.equal(sql(`select reviewed_by from q_submissions where id='${id}'`), ORG);
+
+    // points_override is retired but the column survives: a value left behind
+    // there (or written by an older build) must not re-price the proof.
+    sql(`update q_submissions set points_override=99, review_note='stale' where id='${id}'`);
     const st = await get("/api/questival/state", { as: A });
-    assert.ok(st.body.submissions.some((s) => s.id === id));
+    const mine = st.body.submissions.find((x) => x.id === id);
+    assert.equal(mine.points, 15, "a leftover points_override is ignored");
+    assert.equal(mine.review_note, undefined, "review_note is no longer part of the DTO");
     assertNoEmails(st.body, "state-after-review");
   });
 });
 
-// ============================================================ 5. final
+// ============================================================ 5. Shift 3
 
-describe("final: POST /api/questival/final", () => {
-  const A = paid(10), B = paid(11);
+describe("shift3: POST/DELETE /api/questival/shift3", () => {
+  const A = paid(30), B = paid(31), C = paid(32);
 
-  test("before due: extension_used false, idempotent", async () => {
-    setWindow({ opens: "-2 hours", due: "+1 hours", ext: "+2 hours" });
-    const r = await post("/api/questival/final", undefined, { as: A });
+  before(() => {
+    sql("truncate q_submissions restart identity cascade");
+    setWindow({});
+  });
+
+  test("a heart is +1 for everyone on the proof, and giving twice is one point", async () => {
+    const r = await proof(A, idOf(A), "851", { member_ids: [idOf(B)] });
     assert.equal(r.status, 201, JSON.stringify(r.body));
-    assert.equal(r.body.extension_used, false);
-    const again = await post("/api/questival/final", undefined, { as: A });
-    assert.equal(again.status, 200);
-    assert.equal(again.body.submitted_at, r.body.submitted_at);
-    const st = await get("/api/questival/state", { as: A });
-    assert.deepEqual(st.body.final, r.body);
-    assert.equal((await post("/api/questival/final", undefined, { as: PENDING })).status, 403);
-    assert.equal((await post("/api/questival/final")).status, 401);
+    const id = r.body.id;
+
+    const given = await post(`/api/questival/shift3?id=${id}`, undefined, { as: C });
+    assert.equal(given.status, 200, JSON.stringify(given.body));
+    assert.deepEqual([given.body.shift3, given.body.shift3_by_me], [1, true]);
+    const again = await post(`/api/questival/shift3?id=${id}`, undefined, { as: C });
+    assert.deepEqual([again.body.shift3, again.body.shift3_by_me], [1, true], "idempotent, not a second point");
+    assert.equal(sql(`select count(*) from q_shift3 where submission_id='${id}'`), "1");
+
+    const board = await get("/api/questival/board", { as: A });
+    const row = (e) => board.body.rows.find((x) => x.person.id === idOf(e));
+    assert.deepEqual([row(A).points, row(A).shift3], [16, 1], "15 for the quest, 1 for the heart");
+    assert.deepEqual([row(B).points, row(B).shift3], [16, 1], "everyone tagged gets the heart too");
+
+    const back = await del(`/api/questival/shift3?id=${id}`, { as: C });
+    assert.equal(back.status, 200);
+    assert.deepEqual([back.body.shift3, back.body.shift3_by_me], [0, false]);
+    assert.equal(sql(`select count(*) from q_shift3 where submission_id='${id}'`), "0");
+    await del(`/api/questival/submissions?id=${id}`, { as: A });
   });
 
-  test("between due and extension: extension_used true; parallel taps share one row", async () => {
-    setWindow({ opens: "-2 hours", due: "-1 minutes", ext: "+10 minutes" });
-    const rs = await Promise.all(Array.from({ length: 5 }, () => post("/api/questival/final", undefined, { as: B })));
-    for (const r of rs) assert.ok(r.status === 200 || r.status === 201);
-    assert.equal(new Set(rs.map((r) => r.body.submitted_at)).size, 1);
-    assert.equal(rs[0].body.extension_used, true);
-    assert.equal(sql(`select count(*) from q_finals where rsvp_id='${idOf(B)}'`), "1");
+  test("you can't heart a proof you're credited on, and it needs a confirmed RSVP", async () => {
+    const r = await proof(A, idOf(A), "grace", { member_ids: [idOf(B)] });
+    const id = r.body.id;
+    assert.equal((await post(`/api/questival/shift3?id=${id}`, undefined, { as: A })).status, 403, "the uploader");
+    assert.equal((await post(`/api/questival/shift3?id=${id}`, undefined, { as: B })).status, 403, "a tagged member");
+    assert.equal((await post(`/api/questival/shift3?id=${id}`, undefined, { as: PENDING })).status, 403);
+    assert.equal((await post(`/api/questival/shift3?id=${id}`)).status, 401);
+    assert.equal((await post("/api/questival/shift3?id=nope", undefined, { as: C })).status, 400);
+    assert.equal((await post(`/api/questival/shift3?id=${randomUUID()}`, undefined, { as: C })).status, 404);
+    await del(`/api/questival/submissions?id=${id}`, { as: A });
   });
 
-  test("after extension: closed", async () => {
+  test("hearts on a second proof of the same quest still count", async () => {
+    sql("truncate q_submissions restart identity cascade");
+    const one = await proof(A, idOf(A), "851");
+    const two = await proof(A, idOf(A), "851");
+    assert.equal((await post(`/api/questival/shift3?id=${one.body.id}`, undefined, { as: B })).status, 200);
+    assert.equal((await post(`/api/questival/shift3?id=${two.body.id}`, undefined, { as: C })).status, 200);
+    const board = await get("/api/questival/board", { as: A });
+    const a = board.body.rows.find((x) => x.person.id === idOf(A));
+    // The quest scores once (best per instance), but both hearts land: the
+    // Shift 3 tally sits outside the best-per-quest rule.
+    assert.deepEqual([a.points, a.shift3, a.completed], [17, 2, 1]);
+  });
+
+  test("parallel hearts from different people all land exactly once", async () => {
+    sql("truncate q_submissions restart identity cascade");
+    const r = await proof(A, idOf(A), "coolbrith");
+    const givers = Array.from({ length: 8 }, (_, i) => paid(40 + i));
+    const rs = await Promise.all(givers.map((g) => post(`/api/questival/shift3?id=${r.body.id}`, undefined, { as: g })));
+    for (const x of rs) assert.equal(x.status, 200, JSON.stringify(x.body));
+    assert.equal(sql(`select count(*) from q_shift3 where submission_id='${r.body.id}'`), "8");
+    const board = await get("/api/questival/board", { as: A });
+    const a = board.body.rows.find((x) => x.person.id === idOf(A));
+    assert.deepEqual([a.points, a.shift3], [18, 8], "10 for the quest plus 8 hearts");
+  });
+
+  test("once the window closes, no more hearts", async () => {
+    const r = await proof(A, idOf(A), "saigon");
     setWindow({ opens: "-3 hours", due: "-2 hours", ext: "-1 hours" });
-    const r = await post("/api/questival/final", undefined, { as: paid(12) });
-    assert.equal(r.status, 403);
-    assert.equal(r.body.code, "closed");
-    const again = await post("/api/questival/final", undefined, { as: A });
-    assert.equal(again.status, 403, "even someone who already submitted gets closed, not their row");
+    const late = await post(`/api/questival/shift3?id=${r.body.id}`, undefined, { as: C });
+    assert.equal(late.status, 403);
+    assert.equal(late.body.code, "closed");
     setWindow({});
   });
 });
@@ -612,19 +653,16 @@ describe("feed and board", () => {
     let c = b2.body.rows.find((r) => r.person.id === idOf(C));
     assert.deepEqual([c.points, c.completed], [25, 5]);
 
-    // rejected = 0, override wins, everyone in members credited
+    // rejected = 0, and everyone in members is credited
     assert.equal((await patch(`/api/questival/submissions/${a3.body.id}`, { status: "rejected" }, { as: ORG })).status, 200);
-    assert.equal((await patch(`/api/questival/submissions/${a2.body.id}`, { points_override: 100 }, { as: ORG })).status, 200);
     b2 = await get("/api/questival/board", { as: A });
     const a = b2.body.rows.find((r) => r.person.id === idOf(A));
     const bb = b2.body.rows.find((r) => r.person.id === idOf(B));
-    assert.deepEqual([a.points, a.completed, a.rank], [100, 1, 1]);
-    assert.deepEqual([bb.points, bb.completed, bb.rank], [100, 1, 1]);
+    assert.deepEqual([a.points, a.completed, a.rank], [15, 1, 2], "grace is gone; the duplicate 851 still counts once");
+    assert.deepEqual([bb.points, bb.completed, bb.rank], [15, 1, 2], "a tagged member tracks the uploader");
     c = b2.body.rows.find((r) => r.person.id === idOf(C));
-    assert.equal(c.rank, 3);
-    assert.equal((await patch(`/api/questival/submissions/${a2.body.id}`, { points_override: 0 }, { as: ORG })).status, 200);
-    b2 = await get("/api/questival/board", { as: A });
-    assert.equal(b2.body.rows.find((r) => r.person.id === idOf(A)).points, 15, "override 0 on one copy; the other copy still counts");
+    assert.deepEqual([c.points, c.completed, c.rank], [25, 5, 1], "C leads on parks");
+    assert.equal(a.shift3, 0, "no hearts given in this block");
 
     const feed = await get("/api/questival/feed", { as: B });
     assert.ok(!feed.body.items.some((s) => s.id === a3.body.id), "rejected proofs are not in the feed");
@@ -662,20 +700,24 @@ describe("feed and board", () => {
     assert.equal((await get("/api/questival/feed?cursor=eyJ0IjoieCIsImlkIjoieSJ9", { as: A })).status, 400);
   });
 
-  test("review_note is only returned to organizers and the people on the proof", async () => {
+  test("shift3_by_me is per-caller; reviewer columns never reach the client", async () => {
     const r = await proof(A, idOf(A), "landmark", { member_ids: [idOf(B)] });
     assert.equal(r.status, 201);
-    const noted = await patch(`/api/questival/submissions/${r.body.id}`, { review_note: "private note" }, { as: ORG });
-    assert.equal(noted.body.review_note, "private note", "organizer sees it on PATCH");
+    assert.equal((await post(`/api/questival/shift3?id=${r.body.id}`, undefined, { as: C })).status, 200);
     const find = (res) => (res.body.items ?? res.body.submissions).find((s) => s.id === r.body.id);
-    assert.equal(find(await get("/api/questival/feed", { as: C })).review_note, null, "a stranger on the feed does not");
-    assert.equal(find(await get("/api/questival/feed", { as: A })).review_note, "private note", "the uploader does");
-    assert.equal(find(await get("/api/questival/state", { as: B })).review_note, "private note", "a tagged member does");
-    assert.equal(find(await get("/api/questival/feed", { as: ORG })).review_note, "private note");
-    assert.equal(find(await get("/api/questival/admin/review", { as: ORG })).review_note, "private note");
+
+    const giver = find(await get("/api/questival/feed", { as: C }));
+    assert.deepEqual([giver.shift3, giver.shift3_by_me], [1, true], "the giver sees their own heart");
+    const stranger = find(await get("/api/questival/feed", { as: paid(23) }));
+    assert.deepEqual([stranger.shift3, stranger.shift3_by_me], [1, false], "someone else sees the count, not the flag");
+    assert.equal(find(await get("/api/questival/state", { as: B })).shift3, 1, "a tagged member sees it on their list");
+    assert.equal(find(await get("/api/questival/admin/review", { as: ORG })).shift3, 1);
+
+    sql(`update q_submissions set review_note='stale', points_override=77 where id='${r.body.id}'`);
     for (const res of [await get("/api/questival/feed", { as: C }), await get("/api/questival/board", { as: C })]) {
-      assert.ok(!JSON.stringify(res.body).includes("private note"));
+      assert.ok(!JSON.stringify(res.body).includes("stale"));
       assert.ok(!JSON.stringify(res.body).includes("reviewed_by"));
+      assert.ok(!JSON.stringify(res.body).includes("points_override"));
     }
     await del(`/api/questival/submissions?id=${r.body.id}`, { as: A });
   });
@@ -1082,7 +1124,7 @@ describe("robustness", () => {
   });
 
   test("wrong methods are 405", async () => {
-    assert.equal((await call("DELETE", "/api/questival/final", { as: A })).status, 405);
+    assert.equal((await call("PUT", "/api/questival/shift3", { as: A })).status, 405);
     assert.equal((await call("GET", "/api/questival/submissions", { as: A })).status, 405);
     assert.equal((await call("POST", "/api/map", { as: A })).status, 405);
     assert.equal((await call("PUT", "/api/questival/admin/settings", { as: ORG })).status, 405);
@@ -1106,8 +1148,6 @@ describe("robustness", () => {
     const nulQuest = await post("/api/questival/admin/quests", { title: "Nul\u0000 quest", points: 5 }, { as: ORG });
     assert.equal(nulQuest.status, 201);
     assert.equal(nulQuest.body.title, "Nul quest");
-    const nulNote = await patch(`/api/questival/submissions/${r.body.id}`, { review_note: "ok\u0000" }, { as: ORG });
-    assert.equal(nulNote.body.review_note, "ok");
     assert.equal(sql("select count(*) from q_submissions") !== "0", true);
     const ann = await post("/api/questival/admin/settings", { announcement: caption }, { as: ORG });
     assert.equal(ann.body.announcement, caption);
