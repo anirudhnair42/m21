@@ -8,6 +8,7 @@
  */
 
 import type { ReactNode } from "react";
+import { SESSIONS, getActivity } from "@/lib/weekend";
 
 export type Resource = {
   label: string;
@@ -37,6 +38,9 @@ export type AgendaItem = {
   body?: ReactNode;
   /** Optional flag for soft/optional anchors (rendered with a muted style). */
   optional?: boolean;
+  /** The weekend activity behind this row, for who's-going faces. */
+  activityId?: string;
+  required?: boolean;
 };
 
 export type SessionStatus = "upcoming" | "past";
@@ -99,178 +103,86 @@ export type Course = {
 };
 
 // ---------------------------------------------------------------------------
-// RU26 — the Reunion as a class.
-// Replace the stub `sections` content per day with real material.
+// RU26 — the Reunion as a class. Sessions come from the shared weekend data
+// so the desktop ALF, Calendar and the phone never disagree.
 // ---------------------------------------------------------------------------
 
-const FRI: Session = {
-  id: "ru26-1-1",
-  courseId: "RU26",
-  number: "1.1",
-  title: "Welcome night & opening dinner",
-  date: "Fri, Sep 11, 2026",
-  status: "upcoming",
-  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: "San Francisco · arrivals & evening",
-  agenda: [
-    {
-      time: "12:00",
-      title: "Spark Social Lunch",
-      location: "Presidio Parade Ground",
-      body:
-        "We'll be grabbing lunch from the food trucks and hanging out near the Presidio Parade Ground. If you're in the city early, come by.",
-    },
-    {
-      time: "14:00",
-      title: "Neighborhood exploration / museum visit",
-      body:
-        "Come join for some neighborhood exploration (which one is TBD) if you're here early.",
-    },
-    {
-      time: "18:00",
-      title: "Dinner & drinks",
-      location: "Venue TBD",
-      body:
-        "We'll book a place for dinner and drinks for people to stream in. Patio space for mingling and catching up. Come reconnect.",
-    },
-    {
-      time: "21:00",
-      title: "Barhopping",
-      optional: true,
-      body: "For those still going — we'll make our way around the neighborhood.",
-    },
-  ],
-  sections: [
-    {
-      heading: "Before Class",
-      body:
-        "Land in San Francisco. Drop bags wherever you're staying. The only thing on the books is dinner at 6 — informal, no name tags. Come think about your opening line: one sentence on where the last five years took you.",
-    },
-    {
-      heading: "Assessment",
-      body:
-        "No formal HC scoring tonight — but bring that opening line. We'll go around the room once.",
-    },
-    {
-      heading: "Resources for Class",
-      resources: [
-        { label: "Venue address & directions", note: "TBD" },
-        { label: "Friday photo album (shared)", note: "Link goes here" },
-        { label: "Playlist · Class of 2021 throwbacks", note: "Link goes here" },
-      ],
-    },
-  ],
+const DAY_DATE = { fri: "Fri, Sep 11, 2026", sat: "Sat, Sep 12, 2026", sun: "Sun, Sep 13, 2026" } as const;
+
+const SESSION_NOTES: Record<string, { before: string; assessment: string; resources: Resource[] }> = {
+  s11: {
+    before: "Land in San Francisco. Drop bags wherever you're staying. The only thing on the books is dinner at 6 — informal, no name tags. Come think about your opening line: one sentence on where the last five years took you.",
+    assessment: "No formal HC scoring tonight — but bring that opening line. We'll go around the room once.",
+    resources: [
+      { label: "Southern Pacific Brewing", url: "https://maps.apple.com/?q=620%20Treat%20Ave%2C%20San%20Francisco" },
+    ],
+  },
+  s21: {
+    before: "Breakfast at Dahlia Dell opens the day. From there the city is the classroom: quests, points, whoever you want. Final lists are due at 5:00 PM.",
+    assessment: "Assignment 3. Capture as you go, tag who did it with you, submit before dinner.",
+    resources: [{ label: "Dahlia Dell, Golden Gate Park", url: "https://maps.apple.com/?q=Dahlia%20Dell%2C%20Golden%20Gate%20Park" }],
+  },
+  s22: {
+    before: "Finish your last quest with your crew, then head straight to the Marina. Doors at six, dinner at seven, Chug Pub from ten.",
+    assessment: "Grades released at dinner, around 8:30. Trivia, a few performances, prizes.",
+    resources: [
+      { label: "The Loft, 3108B Fillmore St", url: "https://maps.apple.com/?q=3108B%20Fillmore%20St%2C%20San%20Francisco" },
+      { label: "Chug Pub, 1849 Lincoln Way", url: "https://maps.apple.com/?q=1849%20Lincoln%20Way%2C%20San%20Francisco" },
+    ],
+  },
+  s31: {
+    before: "Late brunch, slow exit. Flights start in the afternoon — coordinate rides on the group chat.",
+    assessment: "Assignment 4, the closing line, unlocks at the closing moment.",
+    resources: [{ label: "Hellman Hollow, Golden Gate Park", url: "https://maps.apple.com/?q=Hellman%20Hollow%2C%20Golden%20Gate%20Park" }],
+  },
 };
 
-const SAT: Session = {
-  id: "ru26-1-2",
-  courseId: "RU26",
-  number: "1.2",
-  title: "An unscheduled day, with a few anchors",
-  date: "Sat, Sep 12, 2026",
-  status: "upcoming",
-  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: "San Francisco · all day",
-  agenda: [
-    {
-      time: "10:00",
-      title: "Breakfast at Fort Mason",
-      location: "Fort Mason",
-      body:
-        "Start your day at Fort Mason with some iconic SF eats. We'll have breakfast bites and coffee from Saint Frank, Bob's Donuts, and more. Come hang out for a slow morning before the Questival begins.",
-    },
-    {
-      time: "12:00",
-      title: "Questival begins",
-      location: "All around the city",
-      body:
-        "A pick-your-own-adventure scavenger hunt with nostalgic M21 stops. Pair up with friends and tackle the challenges like a team assignment — or just wander the city. Everything is optional; you earn points per challenge completed (plus video evidence). Prizes at night!",
-    },
-    {
-      time: "18:00",
-      title: "Dinner & beach bonfire",
-      location: "Ocean Beach",
-      body:
-        "We'll end the scavenger hunt around sunset at Ocean Beach. Come take in the view — and don't forget some sand for the road. Bring snacks and drinks; we'll have a bonfire going. Then we'll head to a bar nearby at 8 for some M21 trivia and small gifts.",
-    },
-    {
-      time: "22:00",
-      title: "Optional afterparty",
-      optional: true,
-      body:
-        "Afterparty in Corona Heights, stargazing back at Ocean Beach, or a good night's sleep — dealer's choice.",
-    },
-  ],
-  sections: [
-    {
-      heading: "Before Class",
-      body:
-        "Saturday is mostly open — splinter into the groups that make sense. Everything is optional; the two anchors are breakfast at Fort Mason and the bonfire at Ocean Beach.",
-    },
-    {
-      heading: "Assignment · Photo wall",
-      body:
-        "Recreate a favorite photo from your Minerva days somewhere in the city, and submit it to the photo wall. Best recreations get shown off at dinner.",
-    },
-    {
-      heading: "Resources for Class",
-      resources: [
-        { label: "Questival challenge list", note: "Link goes here" },
-        { label: "Nostalgic stops map (851, 1412, Corona Heights…)", note: "TBD" },
-        { label: "Photo wall — submit your recreation" },
-      ],
-    },
-  ],
-};
-
-const SUN: Session = {
-  id: "ru26-1-3",
-  courseId: "RU26",
-  number: "1.3",
-  title: "Slow Sunday & goodbyes",
-  date: "Sun, Sep 13, 2026",
-  status: "upcoming",
-  presenters: "Nair / Urdaneta / Mangos / Torento / Graves",
-  location: "Golden Gate Park · brunch",
-  agenda: [
-    {
-      time: "11:00",
-      title: "Faculty brunch in Golden Gate Park",
-      location: "Hellman Hollow, GG Park",
-      body:
-        "We capped off our Minerva experience with a feast in Hellman Hollow — so to end this five-year reunion, we invite you back to the same place. A loosely organized picnic feast: frisbees, spikeball, card games, drinks, snacks, and maybe a few faculty and staff dropping by to say hi. Come in when you can, leave when you need to.",
-    },
-  ],
-  sections: [
-    {
-      heading: "Before Class",
-      body:
-        "Late brunch, slow exit. Flights start in the afternoon — coordinate rides on the group chat.",
-    },
-    {
-      heading: "Assignment · Closing line",
-      body:
-        "Self-report only: write one line about what you're taking home from the weekend. That's the final exercise.",
-    },
-    {
-      heading: "Resources for Class",
-      resources: [
-        { label: "Shared rides spreadsheet" },
-        { label: "Post-reunion feedback form" },
-      ],
-    },
-  ],
-};
+const COURSE_SESSIONS: Session[] = SESSIONS.map((s) => {
+  const notes = SESSION_NOTES[s.id];
+  const rows = s.activities.map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
+  const side = s.side.map(getActivity).filter((a): a is NonNullable<typeof a> => !!a);
+  return {
+    id: `ru26-${s.id}`,
+    courseId: "RU26",
+    number: s.number,
+    title: s.title,
+    date: DAY_DATE[s.day],
+    status: "upcoming",
+    presenters: "Nair / Urdaneta / Muthukumaran / Rivera / Torento / Graves",
+    location: `${s.time} · ${s.location}`,
+    agenda: rows.map((a) => ({
+      time: a.time,
+      title: a.title,
+      location: a.venue,
+      body: a.body,
+      optional: a.kind !== "anchor",
+      activityId: a.id,
+      required: a.required,
+    })),
+    sections: [
+      { heading: "Before Class", body: notes?.before ?? s.sub },
+      { heading: "Assessment", body: notes?.assessment ?? "Show up; participate." },
+      ...(side.length
+        ? [{
+            heading: "Side quests (optional, peer-led)",
+            body: side.map((a) => `${a.time} — ${a.title}${a.host ? `, with ${a.host}` : ""}${a.venue ? ` · ${a.venue}` : ""}. ${a.body}`).join(" "),
+            resources: side.filter((a) => a.link).map((a) => ({ label: a.link!.label, url: a.link!.url })),
+          }]
+        : []),
+      ...(notes?.resources.length ? [{ heading: "Resources for Class", resources: notes.resources }] : []),
+    ],
+  };
+});
 
 export const REUNION_COURSE: Course = {
   id: "RU26",
   code: "RU26",
   title: "Alumni Reunifications",
   sectionTitle:
-    "Nair / Urdaneta / Mangos / Torento / Graves · Fri/Sat/Sun",
+    "Nair / Urdaneta / Muthukumaran / Rivera / Torento / Graves · Fri/Sat/Sun",
   term: "Fall 2026",
   greeting:
-    "You have one upcoming class: RU26 Session 1.1 on Fri, Sep 11 in San Francisco.",
+    "Welcome to the weekend. Three sessions, Fri–Sun, in San Francisco.",
   syllabus: {
     eyebrow: "REUNION COURSE",
     courseHeader: "RU26: Alumni Reunifications",
@@ -279,7 +191,7 @@ export const REUNION_COURSE: Course = {
       {
         heading: "Course Description",
         body:
-          "Alumni Reunifications is a three-session intensive convening the Minerva University Class of 2021 five years after graduation. The course pairs structured anchors — a welcome dinner, a group photo, a closing brunch — with deliberately unscheduled time, on the theory that the interval IS the argument.",
+          "Alumni Reunifications is a three-session intensive convening the Minerva University Class of 2021 five years after graduation. The course pairs structured anchors — a welcome dinner, a group photo, a closing brunch — with a full day of Questival — pick-your-own-adventure quests across the city — on the theory that the interval IS the argument.",
       },
       {
         heading: "Prerequisites & Working Knowledge",
@@ -293,10 +205,11 @@ export const REUNION_COURSE: Course = {
       },
     ],
   },
-  sessions: [FRI, SAT, SUN],
+  sessions: COURSE_SESSIONS,
   assignments: [
     { id: "a11", title: "Assignment 1: opening-line reflection", weight: "1x", status: "Not started" },
     { id: "a12", title: "Assignment 2: the class, live", weight: "1x", status: "Not started" },
+    { id: "a2q", title: "Assignment 3: Questival", weight: "2x", status: "Not started" },
     { id: "a13", title: "Assignment 3: closing line", weight: "1x", status: "Not started" },
   ],
   participants: [

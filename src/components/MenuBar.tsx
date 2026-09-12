@@ -3,11 +3,13 @@ type Props = {
   /** Live count from the DB; null (loading / unconfigured) hides the pill. */
   rsvpCount: number | null;
   currentTime: Date;
+  /** The  menu: the easter egg that replays the 2017 rewind. */
+  onApple?: () => void;
 };
 
 const MENU_ITEMS = ["File", "Edit", "View", "Go", "Window", "Help"] as const;
 
-export function MenuBar({ appName = "Finder", rsvpCount, currentTime }: Props) {
+export function MenuBar({ appName = "Finder", rsvpCount, currentTime, onApple }: Props) {
   const day = currentTime.toLocaleDateString("en-US", { weekday: "short" });
   const date = currentTime.toLocaleDateString("en-US", {
     month: "short",
@@ -21,7 +23,7 @@ export function MenuBar({ appName = "Finder", rsvpCount, currentTime }: Props) {
   return (
     <div className="menubar">
       <div className="menubar-left">
-        <span className="menubar-apple" />
+        <span className="menubar-apple" onClick={onApple} style={onApple ? { cursor: "pointer" } : undefined} title="" />
         <span className="menubar-app menubar-item">{appName}</span>
         {MENU_ITEMS.map((it) => (
           <span key={it} className="menubar-item">

@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { MinervaLogo, MinervaWordmark } from "@/components/MinervaLogo";
 import { useIsNarrow } from "@/lib/useIsNarrow";
+import { useForumStore } from "@/components/forum/ForumStore";
+import { getQuest } from "@/lib/questival";
+import { CATCHUP_SLOTS, DAYS, getActivity, sessionOf } from "@/lib/weekend";
+import { firstName, timeShort } from "@/components/forum/store";
+import type { CatchupDTO, PlanDTO } from "@/lib/questival-api";
+
+const DAY_LONG = { fri: "Friday", sat: "Saturday", sun: "Sunday" } as const;
 
 type EmailRow = {
   from: string;
@@ -76,32 +83,32 @@ const OTHER_EMAILS: EmailRow[] = [
   },
 ];
 
-function MailSidebar() {
+function MailSidebar({ unread }: { unread: number }) {
   return (
     <div className="mail-sidebar">
       <div className="mail-sidebar-section">Mailboxes</div>
       <div className="mail-sidebar-item active">
         <span className="mail-sidebar-item-icon">📥</span>
         <span>Inbox</span>
-        <span className="mail-sidebar-count">1</span>
+        <span className="mail-sidebar-count">{unread}</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">✦</span>
         <span>VIPs</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">🚩</span>
         <span>Flagged</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📝</span>
         <span>Drafts</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📤</span>
         <span>Sent</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">🗑</span>
         <span>Trash</span>
       </div>
@@ -109,11 +116,11 @@ function MailSidebar() {
       <div className="mail-sidebar-section" style={{ marginTop: 14 }}>
         On My Mac
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📁</span>
         <span>Archive</span>
       </div>
-      <div className="mail-sidebar-item locked locked-below" data-locked="Will be unlocked later">
+      <div className="mail-sidebar-item locked locked-below" data-locked="This is not really a real ALF LOL">
         <span className="mail-sidebar-item-icon">📁</span>
         <span>College Apps</span>
       </div>
@@ -229,6 +236,96 @@ function MailPaneAcceptance({ onOpenDecision }: { onOpenDecision: () => void }) 
   );
 }
 
+function MailPaneInvite({ invite, reply, meId, onReply }: { invite: PlanDTO; reply?: "in" | "maybe"; meId: string; onReply: (r: "in" | "maybe") => void }) {
+  const q = invite.kind === "quest" ? getQuest(invite.target_id) : undefined;
+  const a = invite.kind === "activity" ? getActivity(invite.target_id) : undefined;
+  const title = q?.title ?? a?.title ?? invite.target_id;
+  const others = invite.with.filter((p) => p.id !== meId && p.id !== "me").map((p) => firstName(p.name));
+  return (
+    <>
+      <div className="mail-pane-header">
+        <div className="mail-pane-subject">{firstName(invite.owner.name)} wants to do {title} with you</div>
+        <div className="mail-pane-meta">
+          <div className="mail-pane-avatar" style={{ overflow: "hidden" }}>
+            {invite.owner.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={invite.owner.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span>{invite.owner.name.charAt(0)}</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="mail-pane-from">{invite.owner.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
+            <div className="mail-pane-to">to me{others.length ? `, ${others.join(", ")}` : ""}</div>
+          </div>
+          <div className="mail-pane-date">{timeShort(invite.created_at)}</div>
+        </div>
+      </div>
+      <div className="mail-pane-body">
+        <div className="mail-invite">
+          <p>Hey,</p>
+          <p>
+            I&apos;m planning <b>{title}</b> on {q ? "Saturday" : DAY_LONG[a?.day ?? "sat"]}{q?.venue ? ` at ${q.venue}` : a?.venue ? ` at ${a.venue}` : ""}{q ? ` (${q.points} pts)` : ""}. Want in?
+            {others.length ? ` ${others.join(" and ")} ${others.length > 1 ? "are" : "is"} invited too.` : ""}
+          </p>
+          <p>{q ? q.prompt : a?.body}</p>
+          {reply ? (
+            <p className="fm-inv-done">{reply === "in" ? "✓ You're in — it's on your list, and on the map." : "Maybe — we'll nudge you when they're nearby."}</p>
+          ) : (
+            <div className="fm-btn-row">
+              <button className="fm-btn fm-btn-going" onClick={() => onReply("in")}>I&apos;m in</button>
+              <button className="fm-btn" onClick={() => onReply("maybe")}>Maybe</button>
+            </div>
+          )}
+          <p className="mail-invite-sig" style={{ marginTop: 18 }}>— {firstName(invite.owner.name)}, via RU26</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MailPaneCatchup({ c, onReply }: { c: CatchupDTO; onReply: (s: "accepted" | "declined") => void }) {
+  const slot = CATCHUP_SLOTS.find((x) => x.id === c.slot);
+  return (
+    <>
+      <div className="mail-pane-header">
+        <div className="mail-pane-subject">{firstName(c.from.name)} wants to catch up</div>
+        <div className="mail-pane-meta">
+          <div className="mail-pane-avatar" style={{ overflow: "hidden" }}>
+            {c.from.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={c.from.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span>{c.from.name.charAt(0)}</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="mail-pane-from">{c.from.name} <span className="mail-pane-from-email">&lt;via the Forum&gt;</span></div>
+            <div className="mail-pane-to">to me</div>
+          </div>
+          <div className="mail-pane-date">{timeShort(c.created_at)}</div>
+        </div>
+      </div>
+      <div className="mail-pane-body">
+        <div className="mail-invite">
+          <p>Hey,</p>
+          <p>Five years is too long. One on one, <b>{slot?.label ?? c.slot}</b>?</p>
+          {c.note && <p>“{c.note}”</p>}
+          {c.status === "pending" ? (
+            <div className="fm-btn-row">
+              <button className="fm-btn fm-btn-going" onClick={() => onReply("accepted")}>Let&apos;s do it</button>
+              <button className="fm-btn" onClick={() => onReply("declined")}>Can&apos;t</button>
+            </div>
+          ) : (
+            <p className="fm-inv-done">{c.status === "accepted" ? "✓ On both your calendars." : "Declined."}</p>
+          )}
+          <p className="mail-invite-sig" style={{ marginTop: 18 }}>— {firstName(c.from.name)}, via RU26</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
 type InboxProps = {
   onOpenDecision: () => void;
   defaultSelected?: boolean;
@@ -236,9 +333,15 @@ type InboxProps = {
 
 export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
   const isNarrow = useIsNarrow();
-  const [selected, setSelected] = useState<"acceptance" | null>(
+  const [selected, setSelected] = useState<string | null>(
     defaultSelected ? "acceptance" : null,
   );
+  // Reunion invitations ("Anna wants to do X with you") land in the same
+  // inbox, above the 2017 mail. They come from the shared Forum store.
+  const { invites, replyPlan, catchups, replyCatchup, me } = useForumStore();
+  const myReply = (p: PlanDTO) => p.replies[me.id] ?? p.replies["me"];
+  const incoming = catchups.filter((c) => c.to.id === me.id);
+  const unansweredCount = invites.filter((i) => !myReply(i)).length + incoming.filter((c) => c.status === "pending").length;
   const [unread, setUnread] = useState(!defaultSelected);
   // On phones Mail is a navigation stack: list first, then the message detail.
   const [mobileDetail, setMobileDetail] = useState(false);
@@ -255,29 +358,29 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
   return (
     <div className="mail-app">
       <div className="mail-toolbar">
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">📨</span>
           <span>Get Mail</span>
         </div>
         <div className="mail-tool-sep" />
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">✉️</span>
           <span>New</span>
         </div>
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">📎</span>
           <span>Archive</span>
         </div>
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">🗑</span>
           <span>Trash</span>
         </div>
         <div className="mail-tool-sep" />
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">↩</span>
           <span>Reply</span>
         </div>
-        <div className="mail-tool-btn locked locked-below" data-locked="Will be unlocked later">
+        <div className="mail-tool-btn locked locked-below" data-locked="This is not really a real ALF LOL">
           <span className="mail-tool-btn-icon">↪</span>
           <span>Forward</span>
         </div>
@@ -300,13 +403,53 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
       </div>
 
       <div className={`mail-body ${isNarrow ? "mail-body-mobile" : ""}`}>
-        {!isNarrow && <MailSidebar />}
+        {!isNarrow && <MailSidebar unread={unansweredCount + (unread ? 1 : 0)} />}
         {showList && (
           <div className="mail-list">
             <div className="mail-list-header">
               <span>Sort by Date ▾</span>
-              <span>7 messages</span>
+              <span>{1 + OTHER_EMAILS.length + invites.length + incoming.length} messages</span>
             </div>
+            {incoming.map((c) => (
+              <MailRow
+                key={c.id}
+                email={{
+                  from: c.from.name,
+                  subject: `${firstName(c.from.name)} wants to catch up · ${CATCHUP_SLOTS.find((x) => x.id === c.slot)?.label ?? c.slot}`,
+                  preview: c.note ?? "One on one, in one of the weekend's open windows.",
+                  time: timeShort(c.created_at),
+                }}
+                isUnread={c.status === "pending"}
+                isSelected={selected === c.id}
+                onClick={() => {
+                  setSelected(c.id);
+                  setMobileDetail(true);
+                }}
+              />
+            ))}
+            {invites.map((inv) => {
+              const title = (inv.kind === "quest" ? getQuest(inv.target_id)?.title : getActivity(inv.target_id)?.title) ?? inv.target_id;
+              const a = inv.kind === "activity" ? getActivity(inv.target_id) : undefined;
+              const when = a ? DAYS.find((d) => d.id === a.day)?.date.replace(", 2026", "") ?? "This weekend" : "Sat, Sep 12";
+              const what = inv.kind === "quest" ? `${getQuest(inv.target_id)?.points ?? ""} pts · Assignment 3: Questival` : `Session ${sessionOf(inv.target_id)?.number ?? ""}`.trim();
+              return (
+                <MailRow
+                  key={inv.id}
+                  email={{
+                    from: inv.owner.name,
+                    subject: `${firstName(inv.owner.name)} wants to do ${title} with you`,
+                    preview: `${when} · ${what} — reply I'm in or Maybe.`,
+                    time: timeShort(inv.created_at),
+                  }}
+                  isUnread={!myReply(inv)}
+                  isSelected={selected === inv.id}
+                  onClick={() => {
+                    setSelected(inv.id);
+                    setMobileDetail(true);
+                  }}
+                />
+              );
+            })}
             <MailRow
               email={ACCEPTANCE_EMAIL}
               isUnread={unread}
@@ -337,6 +480,10 @@ export function Inbox({ onOpenDecision, defaultSelected = true }: InboxProps) {
             )}
             {selected === "acceptance" ? (
               <MailPaneAcceptance onOpenDecision={onOpenDecision} />
+            ) : selected && incoming.some((c) => c.id === selected) ? (
+              <MailPaneCatchup c={incoming.find((c) => c.id === selected)!} onReply={(st) => replyCatchup(selected, st)} />
+            ) : selected && invites.some((i) => i.id === selected) ? (
+              <MailPaneInvite invite={invites.find((i) => i.id === selected)!} reply={myReply(invites.find((i) => i.id === selected)!)} meId={me.id} onReply={(r) => replyPlan(selected, r)} />
             ) : (
               <MailPaneEmpty />
             )}

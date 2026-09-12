@@ -10,12 +10,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:api": "node --test test/local/api.test.mjs",
+    "test:unit": "tsx --test test/unit/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
     "@vercel/analytics": "^2.0.1",
     "cobe": "^2.0.1",
+    "leaflet": "^1.9.4",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -24,12 +27,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

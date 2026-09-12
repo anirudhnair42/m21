@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { ForumMobile } from "@/components/forum/ForumMobile";
 import { MinervaWordmark } from "@/components/MinervaLogo";
 import { MobileHotel } from "@/components/mobile/MobileHotel";
 import { AidApp } from "@/components/apps/AidApp";
@@ -21,6 +22,8 @@ export function MobileShell() {
   });
 
   if (openParam === "stay") return <MobileHotel />;
+  // The weekend is live: the root is the Forum (its gate handles sign-in).
+  if (!openParam || openParam === "alf") return <ForumMobile initialTab="home" />;
   if (openParam === "aid") {
     return (
       <div style={{ minHeight: "100dvh", background: "var(--minerva-paper)" }}>

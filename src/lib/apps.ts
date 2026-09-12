@@ -3,6 +3,7 @@ export type AppId =
   | "rsvp"
   | "aid"
   | "itinerary"
+  | "map"
   | "travel"
   | "stay"
   | "checklist"
@@ -68,13 +69,31 @@ export const APPS: Record<AppId, AppDef> = {
   },
   itinerary: {
     id: "itinerary",
-    name: "Itinerary",
-    title: "Reunion · Itinerary",
-    icon: "📅",
-    color: "#5a98d3",
+    name: "Calendar",
+    title: "Calendar — September 2026",
+    icon: "calendar-sep",
+    color: "#ffffff",
     description:
-      "Day-by-day for the weekend. Course-doc styling, a nod to the ALF reading lists.",
-    defaultRect: () => ({ x: 260, y: 160, width: 720, height: 560 }),
+      "The weekend, day by day: Sessions 1.1–1.3, venues, who's going, what you've planned.",
+    defaultRect: () => {
+      const W = Math.min(1080, window.innerWidth - 60);
+      const H = Math.min(700, window.innerHeight - 120);
+      return center(W, H, -10);
+    },
+  },
+  map: {
+    id: "map",
+    name: "Maps",
+    title: "Maps — San Francisco",
+    icon: "maps",
+    color: "#ffffff",
+    description:
+      "Where we meet, where the points are, and who's planning to be there.",
+    defaultRect: () => {
+      const W = Math.min(1100, window.innerWidth - 60);
+      const H = Math.min(720, window.innerHeight - 120);
+      return center(W, H, -8);
+    },
   },
   travel: {
     id: "travel",
@@ -112,13 +131,17 @@ export const APPS: Record<AppId, AppDef> = {
   },
   photos: {
     id: "photos",
-    name: "Photo Wall",
-    title: "Photo Wall",
-    icon: "📷",
-    color: "#8b4789",
+    name: "Photos",
+    title: "Photos — The Class of 2021, Live",
+    icon: "photos",
+    color: "#ffffff",
     description:
-      "Pre-reunion: RSVP photos + classmate posts. Post-reunion: memory archive. Same surface, two modes.",
-    defaultRect: () => ({ x: 240, y: 110, width: 820, height: 580 }),
+      "Every Questival proof as it lands, the leaderboard, and after the weekend the memory archive.",
+    defaultRect: () => {
+      const W = Math.min(1040, window.innerWidth - 60);
+      const H = Math.min(680, window.innerHeight - 120);
+      return center(W, H, -6);
+    },
   },
   calendar: {
     id: "calendar",
@@ -172,7 +195,10 @@ export const APPS: Record<AppId, AppDef> = {
  * and can be launched programmatically — they just don't get a dock icon. */
 export const DOCK_ORDER: AppId[] = [
   "alf",
-  "stay",
+  "itinerary",
+  "map",
+  "photos",
   "mail",
+  "stay",
   "browser",
 ];

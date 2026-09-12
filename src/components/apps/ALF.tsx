@@ -16,6 +16,14 @@ import {
   RSVP_DEADLINE_LABEL,
   RSVP_DEADLINE_SHORT,
 } from "@/lib/letter";
+import { QuestivalHub, QuestView, MyQuestival, LiveView } from "@/components/forum/Questival";
+import { AdminView } from "@/components/forum/AdminView";
+import { SessionList, featuredSession } from "@/components/forum/SessionCards";
+import { Faces } from "@/components/forum/ForumMobile";
+import { GuideView } from "@/components/forum/Guide";
+import { useForumStore } from "@/components/forum/ForumStore";
+import { QUESTIVAL } from "@/lib/questival";
+import { getActivity, sessionsFor } from "@/lib/weekend";
 
 // ----- view / routing -----------------------------------------------------
 
@@ -23,7 +31,8 @@ export type AlfView =
   | "home"
   | "course"
   | "session"
-  | "syllabus";
+  | "syllabus"
+  | "questival";
 
 type ViewState =
   | { kind: "home" }
@@ -31,19 +40,32 @@ type ViewState =
   | { kind: "session"; sessionId: string }
   | { kind: "syllabus"; courseId: string }
   | { kind: "assignment"; assignmentId: string }
-  | { kind: "classroom" };
+  | { kind: "classroom" }
+  | { kind: "questival" }
+  | { kind: "quest"; questId: string }
+  | { kind: "questival-me" }
+  | { kind: "questival-live" }
+  | { kind: "organizers" }
+  | { kind: "guide" };
 
-type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events";
+type Nav = "home" | "assignments" | "assessments" | "outcome" | "courses" | "events" | "organizers";
 
 type Props = {
   onOpenRSVP: () => void;
   rsvpCount: number | null;
   /** Deep-link target. Pass "syllabus" to open straight onto the grader. */
   initialView?: AlfView;
+  /** With initialView "questival": open this quest. */
+  initialQuest?: string | null;
+  onOpenMap?: () => void;
+  onOpenCalendar?: (activityId?: string) => void;
+  onOpenPhotos?: () => void;
 };
 
-function initialViewState(initial: AlfView | undefined): ViewState {
+function initialViewState(initial: AlfView | undefined, quest?: string | null): ViewState {
   switch (initial) {
+    case "questival":
+      return quest ? { kind: "quest", questId: quest } : { kind: "questival" };
     case "syllabus":
       return { kind: "syllabus", courseId: REUNION_COURSE.id };
     case "course":
@@ -55,7 +77,7 @@ function initialViewState(initial: AlfView | undefined): ViewState {
 }
 
 function navForInitial(initial: AlfView | undefined): Nav {
-  if (initial === "syllabus" || initial === "course") return "courses";
+  if (initial === "syllabus" || initial === "course" || initial === "questival") return "courses";
   return "home";
 }
 
@@ -125,8 +147,10 @@ function useA11Submission(rsvpId: string | null) {
   return { submission, submitted: submission !== null, loaded, saving, error, save };
 }
 
-export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
-  const [view, setView] = useState<ViewState>(() => initialViewState(initialView));
+export function ALF({ onOpenRSVP, rsvpCount, initialView, initialQuest, onOpenMap, onOpenCalendar, onOpenPhotos }: Props) {
+  const [view, setView] = useState<ViewState>(() => initialViewState(initialView, initialQuest));
+  // Assignment 3 (Questival) shares its state with Calendar / Maps / Photos / Mail.
+  const forum = useForumStore();
   const [nav, setNav] = useState<Nav>(() => navForInitial(initialView));
   const [coursesOpen, setCoursesOpen] = useState(true);
   // Identity: Google session (Minerva Workspace) + this device/account's RSVP.
@@ -199,6 +223,10 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
     setNav("courses");
     setView({ kind: "classroom" });
   };
+  const openQuestival = () => {
+    setNav("courses");
+    setView({ kind: "questival" });
+  };
 
   // ----- the original letter+grades+comments view --------------------------
   if (view.kind === "syllabus") {
@@ -241,9 +269,11 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
         <ForumSidebar
           nav={nav}
           coursesOpen={coursesOpen}
+          organizer={forum.organizer}
           onNav={(n) => {
             setNav(n);
             if (n === "home") setView({ kind: "home" });
+            if (n === "organizers") setView({ kind: "organizers" });
             // Assignments live on the course page — same destination, honest tab.
             if (n === "assignments" || n === "courses")
               setView({ kind: "course", courseId: REUNION_COURSE.id });
@@ -256,9 +286,15 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               joined={my.joined}
               pendingPayment={my.status === "pending"}
               a11Submitted={a11.submitted}
+              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, submitted: forum.final !== null } : null}
               onOpenCourse={() => openCourse(REUNION_COURSE.id)}
+              onOpenSession={openSession}
+              onOpenQuestival={openQuestival}
               onOpenRSVP={onOpenRSVP}
               onOpenAssignment={openAssignment}
+              onOpenClass={() => onOpenPhotos?.()}
+              onOpenActivity={(id) => onOpenCalendar?.(id)}
+              onOpenGuide={() => setView({ kind: "guide" })}
             />
           )}
           {view.kind === "course" && (
@@ -266,6 +302,7 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               course={REUNION_COURSE}
               my={my}
               a11Submitted={a11.submitted}
+              questival={forum.enabled && forum.questivalOpen ? { proofs: forum.submissions.length, submitted: forum.final !== null, onOpen: openQuestival } : null}
               onOpenSession={openSession}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
               onOpenRSVP={onOpenRSVP}
@@ -274,13 +311,51 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
               rsvpCount={rsvpCount}
             />
           )}
-          {view.kind === "session" && (
+          {view.kind === "session" && getSession(view.sessionId) && (
             <SessionPage
               session={getSession(view.sessionId)!}
               course={REUNION_COURSE}
               onBackToCourse={() => openCourse(REUNION_COURSE.id)}
               onOpenSyllabus={() => openSyllabus(REUNION_COURSE.id)}
             />
+          )}
+          {view.kind === "guide" && (
+            <div className="alf-fm-questival">
+              <div className="alf-fm-crumbs"><a className="alf-link" onClick={goHome}>Home</a> &gt; How it all works</div>
+              <GuideView
+                onOpenDay={(d) => openSession(`ru26-${sessionsFor(d)[0].id}`)}
+                onOpenClass={() => onOpenPhotos?.()}
+                onOpenMap={onOpenMap}
+              />
+            </div>
+          )}
+          {(view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live" || view.kind === "organizers") && (
+            <div className="alf-fm-assignment alf-fm-questival">
+              <div className="alf-fm-crumbs">
+                <a className="alf-link" onClick={() => openCourse(REUNION_COURSE.id)}>{REUNION_COURSE.code}</a>{" "}
+                &gt; Assignments &gt; <a className="alf-link" onClick={openQuestival}>Assignment 3</a>
+                {view.kind === "quest" && <> &gt; Quest</>}
+                {view.kind === "questival-me" && <> &gt; My Questival</>}
+                {view.kind === "questival-live" && <> &gt; The class, live</>}
+                {view.kind === "organizers" && <> &gt; Organizers</>}
+                {onOpenMap && (
+                  <button className="fm-link-btn" style={{ float: "right" }} onClick={onOpenMap}>Open in Maps →</button>
+                )}
+              </div>
+              {view.kind === "questival" && (
+                <QuestivalHub
+                  onOpenQuest={(id) => setView({ kind: "quest", questId: id })}
+                  onOpenMe={() => setView({ kind: "questival-me" })}
+                  onOpenLive={() => setView({ kind: "questival-live" })}
+                />
+              )}
+              {view.kind === "quest" && <QuestView questId={view.questId} onOpenMe={() => setView({ kind: "questival-me" })} />}
+              {view.kind === "questival-me" && (
+                <MyQuestival onOpenQuest={(id) => setView({ kind: "quest", questId: id })} onOpenActivity={() => openSession("ru26-s22")} />
+              )}
+              {view.kind === "questival-live" && <LiveView />}
+              {view.kind === "organizers" && <AdminView />}
+            </div>
           )}
           {view.kind === "assignment" && (
             <AssignmentPage
@@ -305,11 +380,13 @@ export function ALF({ onOpenRSVP, rsvpCount, initialView }: Props) {
 function ForumSidebar({
   nav,
   coursesOpen,
+  organizer,
   onNav,
   onToggleCourses,
 }: {
   nav: Nav;
   coursesOpen: boolean;
+  organizer: boolean;
   onNav: (n: Nav) => void;
   onToggleCourses: () => void;
 }) {
@@ -338,19 +415,22 @@ function ForumSidebar({
           <div className="alf-fs-sub">
             <button
               className="alf-fs-sub-item locked locked-below"
-              data-locked="Will be unlocked later"
+              data-locked="This is not really a real ALF LOL"
             >
               Past Courses
             </button>
             <button
               className="alf-fs-sub-item locked locked-below"
-              data-locked="Will be unlocked later"
+              data-locked="This is not really a real ALF LOL"
             >
               Visiting Courses
             </button>
           </div>
         )}
         <SidebarItem icon={DiamondIcon} label="All Events" locked />
+        {organizer && (
+          <SidebarItem icon={TargetIcon} label="Organizers" active={nav === "organizers"} onClick={() => onNav("organizers")} />
+        )}
       </nav>
     </aside>
   );
@@ -375,7 +455,7 @@ function SidebarItem({
       className={`alf-fs-item ${active ? "alf-fs-item-on" : ""} ${
         locked ? "locked locked-below" : ""
       }`}
-      data-locked={locked ? "Will be unlocked later" : undefined}
+      data-locked={locked ? "This is not really a real ALF LOL" : undefined}
       onClick={locked ? undefined : onClick}
     >
       <span className="alf-fs-icon" aria-hidden>
@@ -478,7 +558,7 @@ function ForumBanner({
   const firstName = identity.name?.split(" ")[0];
   let title = firstName ? `Welcome, ${firstName}` : "Welcome back";
   let sub = joined
-    ? "You're in — one reflection due before September 11."
+    ? "Welcome to the weekend. The run of show is below and in Calendar; your assignments are due here."
     : RSVP_CLOSED
       ? `The RSVP deadline ended on ${RSVP_DEADLINE_LABEL}.`
       : "One course this fall, one thing due — your RSVP.";
@@ -495,6 +575,15 @@ function ForumBanner({
   } else if (view.kind === "assignment") {
     title = `${course.code} – Assignment 1: opening-line reflection`;
     sub = "";
+  } else if (view.kind === "questival" || view.kind === "quest" || view.kind === "questival-me" || view.kind === "questival-live") {
+    title = `${course.code} – Assignment 3: Questival`;
+    sub = `Due ${QUESTIVAL.dueLabel} · Weight 2x`;
+  } else if (view.kind === "organizers") {
+    title = `${course.code} – Organizers`;
+    sub = "Quests, proofs, the clock, the class";
+  } else if (view.kind === "guide") {
+    title = `${course.code} – How it all works`;
+    sub = "The weekend, in six steps";
   }
 
   return (
@@ -551,21 +640,43 @@ function ForumHome({
   joined,
   pendingPayment,
   a11Submitted,
+  questival,
   onOpenCourse,
+  onOpenSession,
+  onOpenQuestival,
   onOpenRSVP,
   onOpenAssignment,
+  onOpenClass,
+  onOpenActivity,
+  onOpenGuide,
+  onOpenCalendar,
 }: {
   joined: boolean;
   pendingPayment: boolean;
   a11Submitted: boolean;
+  /** Assignment 3 state when it's open to this person; null while locked. */
+  questival: { proofs: number; submitted: boolean } | null;
   onOpenCourse: () => void;
+  onOpenSession: (id: string) => void;
+  onOpenQuestival: () => void;
   onOpenRSVP: () => void;
   onOpenAssignment: (id: string) => void;
+  onOpenClass: () => void;
+  onOpenActivity: (id: string) => void;
+  onOpenGuide: () => void;
+  onOpenCalendar?: () => void;
 }) {
   const course = REUNION_COURSE;
+  void onOpenClass;
   return (
     <div className="alf-fm-home">
       <div className="alf-fm-home-main">
+        {joined && (
+          <div className="alf-fm-questival" style={{ maxWidth: "none" }}>
+            <SessionList onOpenSession={(id) => onOpenSession(`ru26-${id}`)} />
+            <button className="fm-shiny" style={{ maxWidth: 360, marginTop: 0, marginBottom: 16 }} onClick={onOpenGuide}>✦ How it all works</button>
+          </div>
+        )}
         <section className="alf-card">
           <h2 className="alf-card-h">
             {joined ? "Assignments Due" : "Assignments Due in the Next 7 Days"}
@@ -610,6 +721,29 @@ function ForumHome({
                     >
                       {a11Submitted ? "Submitted · Editable" : "Open"}
                     </td>
+                  </tr>
+                  {questival ? (
+                    <tr className={`alf-graded-row${questival.submitted ? " alf-graded-row-done" : ""}`} onClick={onOpenQuestival}>
+                      <td className={`alf-graded-iconcell${questival.submitted ? " alf-done-check" : ""}`}>{questival.submitted ? "✓" : <PaperclipIcon />}</td>
+                      <td className="alf-graded-title">
+                        <a className="alf-link">{course.code} — Assignment 3: Questival</a>
+                        <span className="guide-chip">Sat, Sep 12</span>
+                      </td>
+                      <td className={`alf-graded-result${questival.submitted ? " alf-graded-result-done" : ""}`}>
+                        {questival.submitted ? "Submitted" : questival.proofs ? `In progress · ${questival.proofs} saved` : "Open"}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr className="alf-graded-row alf-row-disabled locked locked-below" data-locked="The brief drops here this week">
+                      <td className="alf-graded-iconcell">🔒</td>
+                      <td className="alf-graded-title"><span className="alf-link alf-link-disabled">{course.code} — Assignment 3: Questival</span></td>
+                      <td className="alf-graded-result"><span className="alf-status-muted">Locked · Sat, Sep 12</span></td>
+                    </tr>
+                  )}
+                  <tr className="alf-graded-row alf-row-disabled locked locked-below" data-locked="Unlocks Sunday at the closing moment">
+                    <td className="alf-graded-iconcell">🔒</td>
+                    <td className="alf-graded-title"><span className="alf-link alf-link-disabled">{course.code} — Assignment 4: closing line</span></td>
+                    <td className="alf-graded-result"><span className="alf-status-muted">Locked · Sun, Sep 13</span></td>
                   </tr>
                 </>
               ) : (
@@ -665,35 +799,47 @@ function ForumHome({
           <p className="alf-card-empty">There are no recent announcements.</p>
           <a
             className="alf-link locked locked-below"
-            data-locked="Will be unlocked later"
+            data-locked="This is not really a real ALF LOL"
           >
             See all announcements
           </a>
         </section>
-        <section className="alf-card alf-card-side">
-          <h2 className="alf-card-h">Office Hours</h2>
-          <ul className="alf-office-list">
-            <li className="alf-office-item">
-              <a
-                className="alf-link"
-                href="https://cal.com/ani"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                Office Hours with Anirudh Nair
-              </a>
-              <div className="alf-office-meta">cal.com/ani</div>
-            </li>
-          </ul>
-          <a
-            className="alf-link locked locked-below"
-            data-locked="Will be unlocked later"
-          >
-            See all office hours
-          </a>
-        </section>
+        {joined && <WhosGoingRail onOpenCalendar={onOpenCalendar} />}
       </aside>
     </div>
+  );
+}
+
+/** The rail card that replaced Office Hours: who's coming to the next class. */
+function WhosGoingRail({ onOpenCalendar }: { onOpenCalendar?: () => void }) {
+  const { who, now } = useForumStore();
+  const { session: next } = featuredSession(now);
+  const anchor = next.activities.map(getActivity).find((a) => a?.kind === "anchor") ?? getActivity(next.activities[0]);
+  const going = anchor ? who[anchor.id]?.going ?? [] : [];
+  return (
+    <section className="alf-card alf-card-side">
+      <h2 className="alf-card-h">Who&apos;s going</h2>
+      <div className="alf-office-meta" style={{ marginBottom: 8 }}>Session {next.number} · {next.title}</div>
+      {going.length === 0 ? (
+        <p className="alf-card-empty">{anchor?.required ? "Everyone — attendance required." : "No one has said so yet. Open Calendar and be the first."}</p>
+      ) : (
+        <ul className="alf-office-list">
+          {going.slice(0, 12).map((p) => (
+            <li key={p.id} className="alf-office-item" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {p.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.photo_url} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                <span className="alf-fb-avatar" style={{ width: 22, height: 22 }}>{p.name.charAt(0)}</span>
+              )}
+              <span>{p.name}</span>
+            </li>
+          ))}
+          {going.length > 12 && <li className="alf-office-meta">and {going.length - 12} more</li>}
+        </ul>
+      )}
+      <a className="alf-link" onClick={onOpenCalendar}>Everyone, per activity, in Calendar →</a>
+    </section>
   );
 }
 
@@ -703,6 +849,7 @@ function CourseDetail({
   course,
   my,
   a11Submitted,
+  questival,
   onOpenSession,
   onOpenSyllabus,
   onOpenRSVP,
@@ -713,6 +860,8 @@ function CourseDetail({
   course: Course;
   my: MyRsvp;
   a11Submitted: boolean;
+  /** Assignment 3 (Questival), only when the weekend flag is on for this person. */
+  questival: { proofs: number; submitted: boolean; onOpen: () => void } | null;
   onOpenSession: (id: string) => void;
   onOpenSyllabus: () => void;
   onOpenRSVP: () => void;
@@ -720,6 +869,9 @@ function CourseDetail({
   onOpenClassroom: () => void;
   rsvpCount: number | null;
 }) {
+  const assignmentRows = (course.assignments ?? [])
+    .filter((a) => questival || a.id !== "a2q")
+    .map((a) => (a.id === "a13" && questival ? { ...a, title: "Assignment 4: closing line" } : a));
   const upcoming = course.sessions.filter((s) => s.status === "upcoming");
   const past = course.sessions.filter((s) => s.status === "past");
   const joined = my.joined;
@@ -768,9 +920,29 @@ function CourseDetail({
                     )}
                   </td>
                 </tr>
-                {course.assignments.map((a) => {
+                {assignmentRows.map((a) => {
                   // Post-reunion assignment stays sealed even for members.
                   const sealed = a.id === "a13";
+                  if (a.id === "a2q" && questival && joined) {
+                    return (
+                      <tr key={a.id} className={`alf-graded-row${questival.submitted ? " alf-graded-row-done" : ""}`} onClick={questival.onOpen}>
+                        <td className="alf-graded-title">
+                          <a className="alf-link">{a.title}</a>
+                          <span className="guide-chip">Sat, Sep 12</span>
+                        </td>
+                        <td>{a.weight}</td>
+                        <td>
+                          {questival.submitted ? (
+                            <span className="alf-graded-result-done">Submitted</span>
+                          ) : questival.proofs ? (
+                            <a className="alf-link">In progress · {questival.proofs} saved</a>
+                          ) : (
+                            <a className="alf-link">Open</a>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }
                   if (!joined || sealed) {
                     return (
                       <tr
@@ -1260,7 +1432,7 @@ const A11_PROMPT = {
   due: "Due before the reunion · Weight 1x",
   prompt:
     "Who are you most excited to see? Name the classmates you can't wait to catch up with — old housemates, project partners, the people you lost track of somewhere between graduation and now. A few honest sentences is plenty.",
-  note: "Your answer goes to the organizers only. We'll use it to put you in Questival teams with — and near — your people.",
+  note: "Your answer goes to the organizers only. We'll use it to seat you with — and near — your people.",
 };
 
 function AssignmentPage({
@@ -1505,6 +1677,7 @@ function SessionPage({
   onBackToCourse: () => void;
   onOpenSyllabus: () => void;
 }) {
+  const { who, intents, setIntent, enabled } = useForumStore();
   const dateParts = session.date.split(", ")[1] ?? "";
   const [mon, day] = dateParts.split(" ");
 
@@ -1530,7 +1703,7 @@ function SessionPage({
             </div>
             <button
           className="alf-fm-enter locked locked-below"
-          data-locked="Will be unlocked later"
+          data-locked="This is not really a real ALF LOL"
         >
           Enter Class
         </button>
@@ -1563,6 +1736,22 @@ function SessionPage({
                         {typeof a.body === "string" ? <p>{a.body}</p> : a.body}
                       </div>
                     )}
+                    {enabled && a.activityId && (
+                      <div className="fm-row-foot">
+                        {a.required ? (
+                          <span className="fm-mini fm-mini-req">Main event · everyone</span>
+                        ) : (
+                          <button className={`fm-mini${intents[a.activityId] === "going" ? " fm-mini-on" : ""}`} onClick={() => setIntent(a.activityId!, "going")}>
+                            {intents[a.activityId] === "going" ? "Going ✓" : "I'm going"}
+                          </button>
+                        )}
+                        <Faces people={who[a.activityId]?.going ?? []} max={6} />
+                        <span className="fm-muted">
+                          {a.required ? `all ${who[a.activityId]?.going.length ?? 0} of us` : `${who[a.activityId]?.going_count ?? 0} going`}
+                          {!a.required && (who[a.activityId]?.going ?? []).length ? `: ${(who[a.activityId]?.going ?? []).slice(0, 6).map((p) => p.name.split(" ")[0]).join(", ")}` : ""}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
@@ -1588,13 +1777,13 @@ function SessionPage({
       <aside className="alf-fm-session-side">
         <button
           className="alf-fm-side-btn alf-fm-side-btn-primary locked locked-below"
-          data-locked="Will be unlocked later"
+          data-locked="This is not really a real ALF LOL"
         >
           ◉ View Recording
         </button>
         <button
           className="alf-fm-side-btn locked locked-below"
-          data-locked="Will be unlocked later"
+          data-locked="This is not really a real ALF LOL"
         >
           ▸ Enter Class
         </button>
@@ -1623,7 +1812,7 @@ function ResourceList({ items }: { items: Resource[] }) {
           ) : (
             <span
               className="alf-link locked locked-below"
-              data-locked="Will be unlocked later"
+              data-locked="This is not really a real ALF LOL"
             >
               {r.label}
             </span>
@@ -1863,22 +2052,22 @@ function SyllabusGraderView({
             <div className="alf-sidebar-heading">Resources</div>
             <div className="alf-resource-group">
               <div className="alf-resource-label">Primary resource:</div>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Itinerary.pdf
               </a>
             </div>
             <div className="alf-resource-group">
               <div className="alf-resource-label">Secondary resource:</div>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Travel-and-Visas.pdf
               </a>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Stay.pdf
               </a>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Pre-Trip-Checklist.md
               </a>
-              <a className="alf-resource-link locked locked-below" data-locked="Will be unlocked later" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="alf-resource-link locked locked-below" data-locked="This is not really a real ALF LOL" href="#" onClick={(e) => e.preventDefault()}>
                 Photo-Wall.app
               </a>
             </div>

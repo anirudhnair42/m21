@@ -1,0 +1,54 @@
+/* ============================================================
+   The run of show, on paper. Letter size, ALF paper and ink.
+   ============================================================ */
+.pr {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  background: #fbfaf7;
+  color: #1a2530;
+  font-family: "acumin-pro", -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding: 36px 44px 48px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.pr-head { display: grid; grid-template-columns: 44px 1fr auto; gap: 0 14px; align-items: center; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #1a2530; }
+.pr-mark { width: 44px; height: auto; display: block; margin: 0 auto; }
+.pr-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6b6660; }
+.pr-title { font-family: "Chronicle Display", serif; font-weight: 400; font-size: 30px; line-height: 1.05; margin: 2px 0 4px; }
+.pr-sub { font-size: 11px; color: #4a4a4a; }
+.pr-sub-2 { font-size: 10px; color: #6b6660; margin-top: 1px; }
+.pr-qr { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #6b6660; }
+.pr-lede { margin: 14px 0 18px; font-size: 12px; color: #2a2a2a; max-width: 720px; }
+.pr-session { margin: 0 0 18px; }
+.pr-table tr { break-inside: avoid; }
+.pr-session-head { break-after: avoid; }
+.pr-session-head { display: flex; gap: 14px; align-items: center; margin-bottom: 6px; }
+.pr-chip { width: 44px; border: 1px solid #d8d4c8; border-radius: 4px; background: #fff; text-align: center; padding: 4px 0 3px; }
+.pr-chip b { display: block; font-family: "Chronicle Display", serif; font-weight: 400; font-size: 20px; line-height: 1; }
+.pr-chip span { display: block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #8a8680; margin-top: 2px; }
+.pr-session-title { font-family: "Chronicle Display", serif; font-weight: 400; font-size: 20px; line-height: 1.15; margin: 1px 0 2px; }
+.pr-session-sub { font-size: 11px; color: #6b6660; }
+.pr-table { width: 100%; border-collapse: collapse; }
+.pr-table td { padding: 7px 0; border-top: 1px solid #e6e1d5; vertical-align: top; }
+.pr-time { width: 58px; padding-right: 0 !important; font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; color: #8a8680; padding-top: 9px !important; }
+.pr-name { font-size: 12.5px; font-weight: 600; color: #1a1a1a; }
+.pr-opt .pr-name { font-weight: 500; color: #4a4a4a; }
+.pr-where { font-size: 10.5px; color: #6b6660; margin-top: 1px; }
+.pr-body { font-size: 10.5px; color: #3a3a3a; margin-top: 2px; }
+.pr-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; vertical-align: middle; color: #1463b0; background: rgba(20,99,176,0.08); border: 1px solid rgba(20,99,176,0.3); }
+.pr-tag-opt { color: #8a8680; background: #f3f0e8; border-color: #e6e1d5; }
+.pr-tag-side { color: #8b4789; background: rgba(139,71,137,0.07); border-color: rgba(139,71,137,0.25); }
+.pr-side .pr-name { font-weight: 500; }
+.pr-assign { border-top: 2px solid #1a2530; padding-top: 10px; }
+.pr-foot { display: flex; justify-content: space-between; gap: 16px; margin-top: 18px; padding-top: 10px; border-top: 1px solid #d8d4c8; font-size: 10px; color: #6b6660; }
+
+@page { size: letter; margin: 0.55in 0.6in; }
+@media print {
+  html, body { overflow: visible !important; height: auto !important; background: #fff !important; }
+  .pr { position: static; overflow: visible; padding: 0; background: #fff; }
+  .pr-table tr, .pr-session-head { page-break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+}

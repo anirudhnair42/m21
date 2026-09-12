@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { track } from "@vercel/analytics";
+
+const noopSubscribe = () => () => {};
 import { APPS, DOCK_ORDER, type AppId } from "@/lib/apps";
 import { Window } from "@/components/Window";
 import { MenuBar } from "@/components/MenuBar";
@@ -20,6 +22,13 @@ import { RSVPApp } from "@/components/apps/RSVPApp";
 import { AidApp } from "@/components/apps/AidApp";
 import { HotelApp } from "@/components/apps/HotelApp";
 import { AppStub } from "@/components/apps/AppStub";
+import { WeekendApp } from "@/components/apps/WeekendApp";
+import { MapApp } from "@/components/apps/MapApp";
+import { PhotosApp } from "@/components/apps/PhotosApp";
+import { ForumToast, useForumStore } from "@/components/forum/ForumStore";
+
+/** Weekend apps: in the dock only for the cohost preview list until launch. */
+const GATED_APPS = new Set<AppId>(["itinerary", "map", "photos"]);
 import { IntroDialog } from "@/components/IntroDialog";
 import { useReunionFlow, REUNION_TIMINGS } from "@/lib/useReunionFlow";
 import {
@@ -48,8 +57,7 @@ function emptyWindows(): WindowsMap {
 
 export function Desktop() {
   // Defer mount until window exists — APPS.defaultRect() reads window.innerWidth.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   // Back from Stripe (or Google sign-in)? Mount with the intro skipped and
   // the right window already open.
@@ -88,6 +96,11 @@ export function Desktop() {
     }
   }, [paymentReturn, hotelReturn, authReturn, deepLink]);
 
+  // The 2017 rewind is an easter egg now: the  menu, or ?relive. The
+  // desktop opens straight onto the Forum with the weekend.
+  const [relive] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("relive"));
+  const [introOpen, setIntroOpen] = useState(relive);
+
   const [windows, setWindows] = useState<WindowsMap>(() => {
     const map = emptyWindows();
     const initial: AppId | null = paymentReturn
@@ -98,28 +111,27 @@ export function Desktop() {
         ? deepLink
         : authReturn
           ? authReturn
-          : null;
+          : relive
+            ? null
+            : "alf";
     if (initial) {
       map[initial] = { open: true, minimized: false, zIndex: 2, openTick: Date.now() };
     }
     return map;
   });
-  const [topZ, setTopZ] = useState(
-    paymentReturn || hotelReturn || authReturn || deepLink ? 2 : 1,
-  );
+  const [topZ, setTopZ] = useState(2);
   const [activeId, setActiveId] = useState<AppId | null>(
-    paymentReturn ? "rsvp" : hotelReturn ? "stay" : deepLink ? deepLink : authReturn,
+    paymentReturn ? "rsvp" : hotelReturn ? "stay" : deepLink ? deepLink : authReturn ? authReturn : relive ? null : "alf",
   );
+
+  // Reunion invitations + plans, shared with Calendar/Maps/Photos/ALF.
+  const forum = useForumStore();
+  const [alfQuest, setAlfQuest] = useState<string | null>(null);
+  const [calActivity, setCalActivity] = useState<string | null>(null);
 
   // Shared scripted-intro state machine (clock, rsvp, notification, deep-link,
   // and the "Turn back time" gate).
-  const flow = useReunionFlow({
-    skipIntro:
-      paymentReturn !== null ||
-      hotelReturn !== null ||
-      authReturn !== null ||
-      deepLink !== null,
-  });
+  const flow = useReunionFlow({ skipIntro: !relive });
   const {
     now,
     rsvpCount,
@@ -230,6 +242,7 @@ export function Desktop() {
   }
 
   const activeApp = activeId ? APPS[activeId] : null;
+  const inviteUnread = forum.unanswered;
   const menuAppName = activeApp ? activeApp.name : "Finder";
 
   return (
@@ -240,6 +253,7 @@ export function Desktop() {
         appName={menuAppName}
         rsvpCount={rsvpCount}
         currentTime={now}
+        onApple={() => setIntroOpen(true)}
       />
 
       <div className="desktop-icons">
@@ -271,6 +285,13 @@ export function Desktop() {
                 onOpenRSVP={() => openApp("rsvp")}
                 rsvpCount={rsvpCount}
                 initialView={alfInitialView}
+                initialQuest={alfQuest}
+                onOpenMap={() => openApp("map")}
+                onOpenCalendar={(id) => {
+                  setCalActivity(id ?? null);
+                  openApp("itinerary", { freshMount: !!id });
+                }}
+                onOpenPhotos={() => openApp("photos")}
               />
             ) : id === "mail" ? (
               <Inbox onOpenDecision={() => openApp("browser")} />
@@ -293,6 +314,24 @@ export function Desktop() {
               />
             ) : id === "stay" ? (
               <HotelApp initialReturn={hotelReturn} />
+            ) : (GATED_APPS.has(id) && !forum.enabled) || (id === "photos" && !forum.questivalOpen) ? (
+              <AppStub app={app} />
+            ) : id === "itinerary" ? (
+              <WeekendApp initialActivity={calActivity ?? undefined} />
+            ) : id === "map" ? (
+              <MapApp
+                onOpenActivity={(aid) => {
+                  // Same path ALF uses: open Calendar on that activity, not just the window.
+                  setCalActivity(aid);
+                  openApp("itinerary", { freshMount: true });
+                }}
+                onOpenQuest={(qid) => {
+                  setAlfQuest(qid);
+                  openAlfAt("questival");
+                }}
+              />
+            ) : id === "photos" ? (
+              <PhotosApp />
             ) : id === "aid" ? (
               <AidApp />
             ) : (
@@ -305,7 +344,7 @@ export function Desktop() {
       <div className="dock-wrap">
         <div className="dock">
           <DockIcon icon={<FinderIconGlyph />} label="Finder" />
-          {DOCK_ORDER.map((id) => {
+          {DOCK_ORDER.filter((id) => (forum.enabled || !GATED_APPS.has(id)) && (id !== "photos" || forum.questivalOpen)).map((id) => {
             const app = APPS[id];
             const w = windows[id];
             return (
@@ -319,7 +358,7 @@ export function Desktop() {
                   else openApp(id);
                 }}
                 hasWindow={w?.open && !w?.minimized}
-                badge={id === "mail" ? mailUnread : 0}
+                badge={id === "mail" ? mailUnread + inviteUnread : 0}
               />
             );
           })}
@@ -327,6 +366,8 @@ export function Desktop() {
           <DockIcon icon={<TrashIconGlyph />} label="Trash" />
         </div>
       </div>
+
+      <ForumToast />
 
       {showNotification && (
         <div
@@ -360,13 +401,20 @@ export function Desktop() {
         </div>
       )}
 
-      {!started && (
+      {introOpen && (
         <IntroDialog
           variant="macos"
-          onStart={flow.start}
+          onStart={() => {
+            setIntroOpen(false);
+            closeApp("alf");
+            flow.relive();
+          }}
           onSkip={() => {
-            flow.skipIntro();
-            openAlfAt("home");
+            setIntroOpen(false);
+            if (!started) {
+              flow.skipIntro();
+              openAlfAt("home");
+            }
           }}
         />
       )}
